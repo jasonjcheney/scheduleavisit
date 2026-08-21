@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% set compact_nav = true %}
+{% block title %}Log in — ScheduleAVisit{% endblock %}
+{% block content %}
+<main class="auth-wrap">
+  <p class="eyebrow">Provider</p>
+  <h1 class="page-title">Welcome back.</h1>
+  <p class="sub">Log in to your hour cap, your booking link, and the colleagues you trust.</p>
+  <div class="card">
+    <p class="demo-hint">You can try the seed account: <strong>Elena</strong> / <strong>demo1234</strong> — or <span style="word-break:break-all">elena@sageandstone.example</span>.</p>
+    <form id="login-form" class="fields" data-next="{{ next }}">
+      <p class="err hidden" id="login-err"></p>
+      <label class="field">Email
+        <input type="text" name="email" required autocomplete="username" placeholder="you@clinic.com">
+      </label>
+      <label class="field">Password
+        <input type="password" name="password" required autocomplete="current-password">
+      </label>
+      <button type="submit" class="btn btn-sage btn-block">Log in</button>
+    </form>
+    <p class="tiny" style="margin-top:16px">New here? <a href="/signup">Create a provider account</a>. No seed data required.</p>
+  </div>
+</main>
+{% endblock %}

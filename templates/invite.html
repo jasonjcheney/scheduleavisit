@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% set compact_nav = true %}
+{% block title %}Network invite — ScheduleAVisit{% endblock %}
+{% block content %}
+<main class="invite-box">
+  {% if state == "missing" %}
+    <h1 class="page-title">This invite is not valid.</h1>
+    <p>Ask your colleague to send a new one from their dashboard.</p>
+  {% elif state == "already" %}
+    <h1 class="page-title">You are already connected.</h1>
+    <p><a class="btn btn-sage" href="/dashboard">Open dashboard</a></p>
+  {% elif state == "wrong_email" %}
+    <h1 class="page-title">This invite is for a different email.</h1>
+    <p>It was sent to <strong>{{ expected }}</strong>. Log out and sign in — or sign up — with that address.</p>
+    <p><a class="btn btn-ghost" href="/login">Log in</a></p>
+  {% elif state == "accepted" %}
+    <section class="card confirm">
+      <div class="confirm-icon" aria-hidden="true">✓</div>
+      <h1>You’re in {{ from_name.split(',')[0].split()[0] }}’s network.</h1>
+      <p>When they are at cap, a client on their booking page can be offered a time with you. When you are full, the same is true in reverse.</p>
+      <a class="btn btn-sage" href="/dashboard">Open dashboard</a>
+    </section>
+  {% endif %}
+</main>
+{% endblock %}

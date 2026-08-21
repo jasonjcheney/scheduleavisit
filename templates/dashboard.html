@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% set compact_nav = true %}
+{% block title %}Dashboard — ScheduleAVisit{% endblock %}
+{% block content %}
+<main class="app-wrap" id="dashboard-page">
+  <div class="row" style="margin-bottom:8px">
+    <div>
+      <p class="eyebrow">Provider dashboard</p>
+      <h1 class="page-title">Hello, {{ first }}.</h1>
+      <p class="sub">Signed in as {{ me.name }}{% if me.clinic %} · {{ me.clinic }}{% endif %}</p>
+    </div>
+    <form action="/api/auth/logout" method="post" onsubmit="event.preventDefault(); fetch('/api/auth/logout',{method:'POST',credentials:'same-origin'}).then(()=>location.href='/');">
+      <button type="submit" class="btn btn-ghost btn-sm">Log out</button>
+    </form>
+  </div>
+
+  <div class="dash-grid">
+    <section class="card cap-hero">
+      <div class="row">
+        <h2>This week’s hours</h2>
+        <span class="badge {{ cap.status }}">{{ cap.status_label }}</span>
+      </div>
+      <div class="cap-number">{{ cap.projected }} <em>/ {{ cap.target }} hr target</em></div>
+      <div class="bar {{ cap.status }}"><span style="width:{{ cap.pct }}%"></span></div>
+      <p class="tiny" style="margin-top:10px">
+        {{ cap.scheduled_label }} already on the calendar this week
+        + {{ cap.buffer_label }} buffer for notes and emergencies
+        = {{ cap.projected_label }} projected. A new {{ session_minutes }}-minute visit
+        {% if cap.fits %}would still fit.{% else %}would put you over.{% endif %}
+      </p>
+      <form id="cap-form" class="fields two" style="margin-top:16px">
+        <label class="field">Weekly hour target
+          <input type="number" name="weekly_target_hours" min="4" max="60" step="1" value="{{ me.weekly_target_hours }}">
+        </label>
+        <label class="field">Buffer (paperwork / emergencies)
+          <input type="number" name="buffer_hours" min="0" max="20" step="0.5" value="{{ me.buffer_hours }}">
+        </label>
+        <div><button type="submit" class="btn btn-sage btn-sm">Save hours</button></div>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Your booking link</h2>
+      <p class="muted">Clients use this. They never see your hour cap — they just get a time, or a person you recommend.</p>
+      <div class="link-box">
+        <code id="booking-link">{{ booking_display }}</code>
+        <button type="button" class="btn btn-sage btn-sm" id="copy-link" data-copy="{{ booking_url }}">Copy</button>
+      </div>
+      <p style="margin-top:12px"><a class="btn btn-ghost btn-sm" href="/p/{{ me.slug }}">Open as a client</a></p>
+    </section>
+  </div>
+
+  <section class="card">
+    <h2>New weekly client — next 8 weeks</h2>
+    <p class="muted">If you take one more person at {{ session_minutes }} minutes every week, here is what happens to the cap. The app infers who is weekly from visit history; you do not tag them.</p>
+    {% if overflow %}
+      <p class="notice"><strong>Taking a new weekly client would push {{ overflow }} of the next 8 weeks over your cap.</strong> Better to refer the next request than to borrow from later months.</p>
+    {% else %}
+      <p>You could take a new weekly client without crossing {{ me.weekly_target_hours }} hours in the next 8 weeks.</p>
+    {% endif %}
+    <div class="week-grid" style="margin-top:14px">
+      {% for w in weeks %}
+      <div class="week-col {% if w.over %}over{% elif w.tight %}tight{% endif %}">
+        <div class="wk">{{ w.label }}</div>
+        <div class="hrs">{{ w.base }}</div>
+        {% if w.over %}
+          <div class="ghost">+{{ session_minutes }}m over</div>
+        {% else %}
+          <div class="tiny">ok +{{ session_minutes }}m</div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <div class="dash-grid">
+    <section class="card">
+      <h2>Upcoming visits</h2>
+      <p class="tiny">Cancel frees the calendar slot. Capacity is recalculated on the server.</p>
+      <div class="list">
+        {% for a in upcoming %}
+        <div class="list-item">
+          <div>
+            <strong>{{ a.client_name }}</strong>
+            <div class="meta tiny">{{ a.when }} · {{ a.minutes }} min{% if a.referred %} · referral{% endif %}</div>
+          </div>
+          <div class="appt-actions">
+            <button type="button" class="btn btn-ghost btn-sm" data-cancel="{{ a.id }}">Cancel</button>
+          </div>
+        </div>
+        {% else %}
+        <p class="muted">No upcoming visits on the book.</p>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Notifications</h2>
+      <p class="tiny">We do not send email. New bookings and invites land here, and a line is printed in the server log.</p>
+      <div class="note-list">
+        {% for n in notes %}
+        <article class="note {% if n.unread %}unread{% endif %}">
+          <h4>{{ n.title }}</h4>
+          <p class="tiny" style="margin:0">{{ n.body }}</p>
+        </article>
+        {% else %}
+        <p class="muted">Nothing yet.</p>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+
+  <div class="dash-grid">
+    <section class="card">
+      <h2>Clients</h2>
+      <p class="tiny">Labels are inferred from how often they have actually come in. Weekly, biweekly, or occasional — not a chore you manage.</p>
+      {% if dismissed %}
+        {% for d in dismissed %}
+        <p class="freed"><strong>{{ d.name }}</strong> is no longer on your caseload. Their weekly hour came back off the projection — that is the freed-slot story, without you tagging anyone.</p>
+        {% endfor %}
+      {% endif %}
+      <div class="list">
+        {% for c in clients %}
+        <div class="list-item">
+          <div>
+            <strong>{{ c.name }}</strong>
+            <div class="meta tiny">{{ c.minutes }} min{% if c.last %} · last {{ c.last }}{% endif %}{% if c.next %} · next {{ c.next }}{% endif %}</div>
+          </div>
+          <div class="appt-actions">
+            <span class="badge {{ c.pattern }}">{{ c.label }}</span>
+            <button type="button" class="btn btn-text btn-sm" data-dismiss="{{ c.id }}" data-name="{{ c.name }}">Dismiss</button>
+          </div>
+        </div>
+        {% else %}
+        <p class="muted">No clients yet. They appear when someone books your public link.</p>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Referral network</h2>
+      <p class="muted">When you are full, the booking page offers the best match first. Invite a colleague by email — they accept, and their calendar feeds your overflow.</p>
+      {% for p in peers %}
+      <div class="peer">
+        <div class="row">
+          <div class="person">
+            <div class="avatar sm {{ p.avatar }}" aria-hidden="true">{{ p.initials }}</div>
+            <div>
+              <strong>{{ p.name }}</strong>
+              <div class="tiny">{{ p.specialty.split('—')[0].strip() }}{% if p.miles %} · {{ p.miles }} mi{% endif %}</div>
+            </div>
+          </div>
+          <span class="badge {{ p.status }}">{{ p.remaining_label }}</span>
+        </div>
+        <div class="bar {{ p.status }}"><span style="width:{{ p.fill }}%"></span></div>
+      </div>
+      {% else %}
+      <p class="muted">No peers yet. Invite someone you would send your own family to.</p>
+      {% endfor %}
+      <form id="invite-form" class="fields" style="margin-top:16px">
+        <label class="field">Invite a colleague
+          <input type="email" name="email" required placeholder="colleague@clinic.com">
+        </label>
+        <button type="submit" class="btn btn-sage btn-sm">Send invite link</button>
+        <p class="tiny" id="invite-result"></p>
+      </form>
+    </section>
+  </div>
+
+  <section class="card">
+    <h2>Profile &amp; clinic hours</h2>
+    <form id="profile-form" class="fields two">
+      <label class="field">Display name<input type="text" name="name" value="{{ me.name }}"></label>
+      <label class="field">Credentials<input type="text" name="credentials" value="{{ me.credentials }}"></label>
+      <label class="field">Title<input type="text" name="title" value="{{ me.title }}"></label>
+      <label class="field">Specialty<input type="text" name="specialty" value="{{ me.specialty }}"></label>
+      <label class="field">Clinic<input type="text" name="clinic" value="{{ me.clinic }}"></label>
+      <label class="field">Address<input type="text" name="address" value="{{ me.address }}"></label>
+      <label class="field">Day starts (hour)<input type="number" name="slot_start" min="6" max="16" value="{{ me.slot_start }}"></label>
+      <label class="field">Day ends (hour)<input type="number" name="slot_end" min="12" max="21" value="{{ me.slot_end }}"></label>
+      <label class="field">Lunch hour<input type="number" name="lunch" min="10" max="15" value="{{ me.lunch }}"></label>
+      <label class="field">Session minutes<input type="number" name="session_minutes" min="20" max="120" step="5" value="{{ me.session_minutes }}"></label>
+      <label class="field" style="grid-column:1/-1">About
+        <textarea name="about">{{ me.about }}</textarea>
+      </label>
+      <div><button type="submit" class="btn btn-ghost btn-sm">Save profile</button></div>
+    </form>
+  </section>
+</main>
+<footer class="site-footer">
+  <span>ScheduleAVisit.com</span>
+  <span>Not HIPAA-compliant. No payments. Time zone: {{ me.timezone }}.</span>
+</footer>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% set compact_nav = true %}
+{% block title %}Choose a professional — ScheduleAVisit{% endblock %}
+{% block content %}
+<main class="app-wrap">
+  <p class="eyebrow">Choose a professional</p>
+  <h1 class="page-title">Book a visit</h1>
+  <p class="sub">Elena is nearly at her weekly cap this week, so the referral path is easy to see. James and Maya have room.</p>
+  <div class="directory">
+    {% for c in cards %}
+    <a class="card who-card dir-link" href="/p/{{ c.slug }}">
+      <div class="avatar {{ c.avatar }}" aria-hidden="true">{{ c.initials }}</div>
+      <div>
+        <strong>{{ c.name }}</strong>
+        <div class="tiny">{{ c.specialty }}</div>
+        <div style="margin-top:8px"><span class="badge {{ c.status }}">{{ c.status_label }}</span></div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+</main>
+{% endblock %}

@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block content %}
+<main>
+  <section class="hero">
+    <div class="hero-copy">
+      <p class="eyebrow">For counselors, therapists, and independent clinicians</p>
+      <h1>Book a visit in seconds — even when your doctor is full.</h1>
+      <p class="lede">One link for your clients. A weekly hour cap that protects your time. When you are full, they still leave with an appointment — and a professional you actually trust.</p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="/p/elena-vasquez-lpc">Book a visit</a>
+        {% if user %}
+          <a class="btn btn-ghost" href="/dashboard">Open dashboard</a>
+        {% else %}
+          <a class="btn btn-ghost" href="/login">I'm a provider</a>
+        {% endif %}
+      </div>
+    </div>
+    <aside class="hero-card" aria-label="Example of a full week that still finds a time">
+      <p class="eyebrow">Inside the booking link</p>
+      <h3>Elena is at her weekly cap.</h3>
+      <p class="muted">Tuesday still has a hole at 4 pm — but taking it would push her over 25 clinical hours. The client is not sent away.</p>
+      <div class="mini-cal">
+        <div class="slot-chip taken">Tue 2 pm<small>Elena · booked</small></div>
+        <div class="slot-chip taken">Tue 3 pm<small>Elena · booked</small></div>
+        <div class="slot-chip rec">Tue 4 pm<small>James · 4 mi</small></div>
+      </div>
+    </aside>
+  </section>
+  <section class="steps" id="how">
+    <div class="steps-head">
+      <p class="eyebrow">How it works</p>
+      <h2>Three steps. No extra apps.</h2>
+    </div>
+    <div class="step-grid">
+      <article class="step"><div class="step-num">1</div><h3>Share one link</h3><p>Your clients get a simple page — scheduleavisit.com/p/your-name — not a portal login and not a phone tree.</p></article>
+      <article class="step"><div class="step-num">2</div><h3>They book themselves</h3><p>They pick a day and a time. The calendar does the hour math, including paperwork and the clients who come back every week.</p></article>
+      <article class="step"><div class="step-num">3</div><h3>If you are full, they still get a time</h3><p>They stay on your page and see one recommended professional — someone you chose — plus a ride if they need it.</p></article>
+    </div>
+  </section>
+  <section class="band">
+    <div class="band-inner">
+      <h2>Built for people who cannot keep adding one more client.</h2>
+      <p>Most calendars show empty squares. They do not know you are already at 25 clinical hours, or that eight weekly clients will still be there in October. ScheduleAVisit watches the real load — then keeps the next person from falling through the cracks.</p>
+      <div class="stat-row">
+        <div class="stat"><strong>25 hrs</strong><span>Your weekly clinical target, not a guess</span></div>
+        <div class="stat"><strong>8 weeks</strong><span>Look-ahead before you take a new weekly client</span></div>
+        <div class="stat"><strong>1 referral</strong><span>A trusted peer, offered in the same flow</span></div>
+      </div>
+    </div>
+  </section>
+  <section class="who">
+    <p class="eyebrow">Who it is for</p>
+    <h2>Independent first. Clinics later.</h2>
+    <div class="who-grid">
+      <div class="who-card">
+        <div class="avatar av-elena" aria-hidden="true">EV</div>
+        <div><strong>Counselors &amp; therapists</strong><p class="muted" style="margin:4px 0 0">See when a new weekly client would tip the next two months — without tagging every person by hand.</p></div>
+      </div>
+      <div class="who-card">
+        <div class="avatar av-priya" aria-hidden="true">MD</div>
+        <div><strong>Doctors who still run their own book</strong><p class="muted" style="margin:4px 0 0">Protect procedure days and admin time. Send overflow to a peer you already know.</p></div>
+      </div>
+      <div class="who-card">
+        <div class="avatar av-james" aria-hidden="true">JO</div>
+        <div><strong>Small peer networks</strong><p class="muted" style="margin:4px 0 0">Three calendars, one referral lane. When you are full, they get the hours. When they are full, you do.</p></div>
+      </div>
+      <div class="who-card">
+        <div class="avatar av-maya" aria-hidden="true">MC</div>
+        <div><strong>The person booking the visit</strong><p class="muted" style="margin:4px 0 0">No “we are not taking new patients” dead end. A time, a name, and a way to get there.</p></div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer class="site-footer">
+  <span>ScheduleAVisit.com</span>
+  <span>Not a HIPAA product yet · No payments · No insurance billing</span>
+</footer>
+{% endblock %}

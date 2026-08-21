@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% set compact_nav = true %}
+{% block title %}Book with {{ provider.name }} — ScheduleAVisit{% endblock %}
+{% block content %}
+<main class="app-wrap" id="booking-page" data-slug="{{ provider.slug }}" data-minutes="{{ provider.session_minutes }}" data-first="{{ provider.first }}">
+  <section class="card">
+    <div class="provider-hero">
+      <div class="avatar lg {{ provider.avatar }}" aria-hidden="true">{{ provider.initials }}</div>
+      <div>
+        <p class="eyebrow">{{ provider.clinic }}</p>
+        <h1 class="page-title">{{ provider.name }}</h1>
+        <p class="muted" style="margin:0">{{ provider.specialty }}</p>
+      </div>
+    </div>
+    <p>{{ provider.about }}</p>
+    <p class="tiny">{{ provider.address }}</p>
+  </section>
+  <section class="card">
+    <h2>Pick a day</h2>
+    <div class="date-strip" id="date-strip" role="listbox" aria-label="Available days"></div>
+    <h2 style="margin-top:8px">Pick a time</h2>
+    <div class="slot-grid" id="slot-grid" style="margin-top:8px"></div>
+  </section>
+  <div id="book-result"></div>
+</main>
+{% endblock %}

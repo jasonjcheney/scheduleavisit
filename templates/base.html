@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}ScheduleAVisit — Book a visit in seconds{% endblock %}</title>
+  <meta name="description" content="Book a visit in seconds — even when your doctor is full. One link for clients. A weekly hour cap that protects your time. Trusted peer referrals when you are at capacity.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232D5A4A'/%3E%3Cpath d='M8 12h16v12H8z' fill='none' stroke='%23F7F3EC' stroke-width='1.8'/%3E%3Cpath d='M8 15h16M12 9v4M20 9v4' stroke='%23F7F3EC' stroke-width='1.8' stroke-linecap='round'/%3E%3Ccircle cx='20' cy='20' r='2.2' fill='%23C45C3E'/%3E%3C/svg%3E">
+</head>
+<body>
+  <a class="skip" href="#app">Skip to content</a>
+  <header class="site-header">
+    <a class="wordmark" href="/">
+      <span class="wordmark-mark" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 32 32" fill="none"><path d="M8 12h16v12H8z" stroke="currentColor" stroke-width="2"/><path d="M8 15h16M12 9v4M20 9v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="20" cy="20" r="2.2" fill="#C45C3E"/></svg>
+      </span>
+      <span class="wordmark-name">Schedule<span>A</span>Visit</span>
+    </a>
+    <nav class="nav-links">
+      {% if compact_nav %}
+        <a class="btn btn-ghost btn-sm" href="/">Home</a>
+        {% if user %}<a class="btn btn-sage btn-sm" href="/dashboard">Dashboard</a>{% endif %}
+      {% else %}
+        <a class="btn btn-ghost btn-sm" href="/book">Book a visit</a>
+        {% if user %}
+          <a class="btn btn-sage btn-sm" href="/dashboard">Dashboard</a>
+          <button type="button" class="btn btn-ghost btn-sm" data-logout>Log out</button>
+        {% else %}
+          <a class="btn btn-sage btn-sm" href="/login">I'm a provider</a>
+        {% endif %}
+      {% endif %}
+    </nav>
+  </header>
+  <div id="app">
+    {% block content %}{% endblock %}
+  </div>
+  <div id="toast-root" aria-live="polite"></div>
+  <script src="/static/app.js"></script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

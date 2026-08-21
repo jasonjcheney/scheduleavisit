@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% set compact_nav = true %}
+{% block title %}Get a ride — ScheduleAVisit{% endblock %}
+{% block content %}
+<main class="ride-page">
+  <p class="eyebrow">Getting there</p>
+  <h1 class="page-title">Get a ride</h1>
+  <p class="sub">{{ address }}</p>
+  <section class="card">
+    <div class="ride-opt">
+      <div><strong>Directions</strong><div class="tiny">Open turn-by-turn in Google Maps</div></div>
+      <a class="btn btn-sage btn-sm" href="{{ maps }}" target="_blank" rel="noopener">Open maps</a>
+    </div>
+    <div class="ride-opt">
+      <div><strong>Uber</strong><div class="tiny">Opens the Uber app or website with this address as the drop-off. No paid API key — just the public deep link.</div></div>
+      <a class="btn btn-ghost btn-sm" href="{{ uber }}" target="_blank" rel="noopener">Open Uber</a>
+    </div>
+    <div class="ride-opt">
+      <div><strong>Lyft</strong><div class="tiny">Same idea — a public deep link, not a booked ride.</div></div>
+      <a class="btn btn-ghost btn-sm" href="{{ lyft }}" target="_blank" rel="noopener">Open Lyft</a>
+    </div>
+    <p class="tiny" style="margin-top:12px">Ask the office about parking or the bus if you would rather not ride-hail.</p>
+  </section>
+</main>
+{% endblock %}

@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% set compact_nav = true %}
+{% block title %}Not found — ScheduleAVisit{% endblock %}
+{% block content %}
+<main class="app-wrap">
+  <h1 class="page-title">{{ message or "We could not find that page." }}</h1>
+  <p><a href="/book">See providers</a> · <a href="/">Home</a></p>
+</main>
+{% endblock %}

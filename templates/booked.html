@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% set compact_nav = true %}
+{% block title %}You’re on the calendar — ScheduleAVisit{% endblock %}
+{% block content %}
+<main class="app-wrap">
+  <section class="card confirm">
+    <div class="confirm-icon" aria-hidden="true">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.2 4.2L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <h1>You’re on the calendar.</h1>
+    <p class="lede" style="margin:0 auto">This visit is booked. Write the time down — we do not send email yet. The office will see it on their dashboard.</p>
+    <dl>
+      <dt>When</dt><dd>{{ when_long }} · {{ when_time }}</dd>
+      <dt>With</dt><dd>{{ provider.name }}<div class="tiny">{{ provider.clinic }} · {{ provider.address }}</div></dd>
+      <dt>For</dt><dd>{{ client_name }} · {{ appointment.duration_minutes }}-minute visit</dd>
+      {% if referred %}
+        <dt>Referred by</dt><dd>{{ referred.name }} recommended this time so you were not turned away.</dd>
+      {% endif %}
+    </dl>
+    <div class="hero-actions" style="justify-content:center">
+      <a class="btn btn-ghost" href="/ride?address={{ provider.address | urlencode }}">Get a ride</a>
+      <a class="btn btn-sage" href="/p/{{ provider.slug }}">Book another visit</a>
+    </div>
+  </section>
+</main>
+{% endblock %}
