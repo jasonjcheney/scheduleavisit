@@ -37,6 +37,9 @@ def initials(name: str) -> str:
 
 
 def avatar_class(slug: str) -> str:
+    slug = (slug or "").lower()
+    if "jason" in slug:
+        return "av-jason"
     if "elena" in slug:
         return "av-elena"
     if "james" in slug:
@@ -46,6 +49,14 @@ def avatar_class(slug: str) -> str:
     if "priya" in slug:
         return "av-priya"
     return "av-elena"
+
+
+def uget(user, key, default=None):
+    try:
+        val = user[key]
+    except (KeyError, IndexError, TypeError):
+        return default
+    return default if val is None else val
 
 
 def miles_between(a_slug: str, b_slug: str) -> int:
@@ -73,7 +84,11 @@ def public_provider(user, from_slug: str | None = None) -> dict[str, Any]:
         "clinic": user["clinic"],
         "address": user["address"],
         "slug": slug,
-        "session_minutes": user["session_minutes"],
+        "session_minutes": int(uget(user, "session_minutes", 50) or 50),
+        "consult_minutes": int(uget(user, "consult_minutes", 15) or 15),
+        "consult_enabled": int(uget(user, "consult_enabled", 1) or 0),
+        "portal_url": uget(user, "portal_url", "") or "",
+        "portal_kind": uget(user, "portal_kind", "none") or "none",
         "initials": initials(user["name"]),
         "avatar": avatar_class(slug),
         "miles": miles_between(from_slug, slug) if from_slug else 0,
@@ -265,8 +280,8 @@ def is_taken(conn, provider_id: int, start: datetime, minutes: int, ignore_id: i
     return False
 
 
-def availability_for(conn, user, day: date) -> dict[str, Any]:
-    minutes = int(user["session_minutes"] or 50)
+def availability_for(conn, user, day: date, minutes: int | None = None) -> dict[str, Any]:
+    minutes = int(minutes or user["session_minutes"] or 50)
     workdays = user_workdays(user)
     week_info = projected_hours(conn, user, start_of_week(day), 0)
     week_has_room = week_info["projected"] + minutes / 60.0 <= week_info["target"] + 0.001
@@ -286,6 +301,7 @@ def availability_for(conn, user, day: date) -> dict[str, Any]:
     return {
         "date": day.isoformat(),
         "sessionMinutes": minutes,
+        "minutes": minutes,
         "weekHasRoom": week_has_room,
         "weekProjected": round(week_info["projected"] * 10) / 10,
         "weekTarget": week_info["target"],

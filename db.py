@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import hashlib
 import secrets
 import sqlite3
@@ -10,7 +11,16 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parent
-DB_PATH = ROOT / "data" / "app.db"
+
+
+def db_path() -> Path:
+    env = os.environ.get("SAV_DB")
+    if env:
+        return Path(env)
+    return ROOT / "data" / "app.db"
+
+
+DB_PATH = db_path()
 TZ = ZoneInfo("America/Denver")
 
 SCHEMA = """
@@ -34,6 +44,14 @@ CREATE TABLE IF NOT EXISTS users (
   lunch INTEGER NOT NULL DEFAULT 12,
   session_minutes INTEGER NOT NULL DEFAULT 50,
   timezone TEXT NOT NULL DEFAULT 'America/Denver',
+  username TEXT,
+  portal_kind TEXT DEFAULT 'none',
+  portal_url TEXT DEFAULT '',
+  consult_minutes INTEGER DEFAULT 15,
+  consult_enabled INTEGER DEFAULT 1,
+  setup_complete INTEGER DEFAULT 0,
+  ical_url TEXT DEFAULT '',
+  ical_synced_at TEXT,
   created_at TEXT NOT NULL
 );
 
@@ -63,7 +81,9 @@ CREATE TABLE IF NOT EXISTS appointments (
   booked_via TEXT NOT NULL DEFAULT 'direct',
   referred_from_provider_id INTEGER REFERENCES users(id),
   created_at TEXT NOT NULL,
-  cancelled_at TEXT
+  cancelled_at TEXT,
+  visit_kind TEXT DEFAULT 'session',
+  note TEXT DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS network_invites (
@@ -152,19 +172,140 @@ def verify_password(password: str, stored: str) -> bool:
 
 
 def connect() -> sqlite3.Connection:
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(DB_PATH), check_same_thread=False)
+    path = db_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(path), check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
 
+def _has_column(conn: sqlite3.Connection, table: str, col: str) -> bool:
+    rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
+    return any(r["name"] == col for r in rows)
+
+
+def migrate(conn: sqlite3.Connection) -> None:
+    """ALTER / CREATE IF NOT EXISTS so an existing Render SQLite DB picks this up."""
+    user_cols = [
+        ("username", "TEXT"),
+        ("portal_kind", "TEXT DEFAULT 'none'"),
+        ("portal_url", "TEXT DEFAULT ''"),
+        ("consult_minutes", "INTEGER DEFAULT 15"),
+        ("consult_enabled", "INTEGER DEFAULT 1"),
+        ("setup_complete", "INTEGER DEFAULT 0"),
+        ("ical_url", "TEXT DEFAULT ''"),
+        ("ical_synced_at", "TEXT"),
+    ]
+    for name, decl in user_cols:
+        if not _has_column(conn, "users", name):
+            conn.execute(f"ALTER TABLE users ADD COLUMN {name} {decl}")
+    appt_cols = [
+        ("visit_kind", "TEXT DEFAULT 'session'"),
+        ("note", "TEXT DEFAULT ''"),
+    ]
+    for name, decl in appt_cols:
+        if not _has_column(conn, "appointments", name):
+            conn.execute(f"ALTER TABLE appointments ADD COLUMN {name} {decl}")
+    conn.execute(
+        """CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username
+           ON users(username) WHERE username IS NOT NULL AND username != ''"""
+    )
+    ensure_demo_usernames(conn)
+    ensure_jason(conn)
+    conn.commit()
+
+
+def ensure_demo_usernames(conn: sqlite3.Connection) -> None:
+    for slug, uname in (
+        ("elena-vasquez-lpc", "elena"),
+        ("james-okonkwo-lcsw", "james"),
+        ("maya-chen-lmft", "maya"),
+    ):
+        conn.execute(
+            """UPDATE users SET
+                 username = CASE WHEN username IS NULL OR username = '' THEN ? ELSE username END,
+                 setup_complete = 1
+               WHERE slug=?""",
+            (uname, slug),
+        )
+
+
+def ensure_jason(conn: sqlite3.Connection) -> None:
+    """Insert Jason Cheney once. If he exists, leave password and calendar alone."""
+    existing = conn.execute(
+        """SELECT * FROM users
+           WHERE lower(COALESCE(username,'')) = 'jasoncheney'
+              OR lower(email) = 'jasoncheney@scheduleavisit.example'
+              OR slug = 'jason-cheney'"""
+    ).fetchone()
+    if existing:
+        jason_id = existing["id"]
+        if not (existing["username"] if "username" in existing.keys() else None):
+            try:
+                conn.execute("UPDATE users SET username='jasoncheney' WHERE id=?", (jason_id,))
+            except sqlite3.IntegrityError:
+                pass
+    else:
+        slug = "jason-cheney"
+        n = 2
+        while conn.execute("SELECT 1 FROM users WHERE slug=?", (slug,)).fetchone():
+            slug = f"jason-cheney-{n}"
+            n += 1
+        cur = conn.execute(
+            """INSERT INTO users (
+                 email, password_hash, name, credentials, title, specialty, about, clinic, address,
+                 slug, weekly_target_hours, buffer_hours, workdays, slot_start, slot_end, lunch,
+                 session_minutes, timezone, created_at, username, setup_complete, consult_minutes,
+                 consult_enabled, portal_kind, portal_url
+               ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                "jasoncheney@scheduleavisit.example",
+                hash_password("123456"),
+                "Jason Cheney",
+                "Therapist",
+                "Counselor",
+                "Counseling — edit this in setup",
+                "A short about you can rewrite in setup.",
+                "My practice",
+                "Boulder, CO",
+                slug,
+                25,
+                3,
+                json.dumps([1, 2, 3, 4, 5]),
+                9,
+                17,
+                12,
+                50,
+                "America/Denver",
+                now_iso(),
+                "jasoncheney",
+                0,
+                15,
+                1,
+                "none",
+                "",
+            ),
+        )
+        jason_id = int(cur.lastrowid)
+        print("[seed] Jason Cheney ready. Username: jasoncheney  Password: 123456", flush=True)
+
+    for slug in ("elena-vasquez-lpc", "james-okonkwo-lcsw", "maya-chen-lmft"):
+        peer = conn.execute("SELECT id FROM users WHERE slug=?", (slug,)).fetchone()
+        if peer:
+            add_link(conn, jason_id, peer["id"])
+
+
 def init_db(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA)
     conn.commit()
-    if conn.execute("SELECT COUNT(*) AS c FROM users").fetchone()["c"] == 0:
+    migrate(conn)
+    elena = conn.execute("SELECT 1 FROM users WHERE slug='elena-vasquez-lpc'").fetchone()
+    if elena is None:
         seed(conn)
         conn.commit()
+    ensure_jason(conn)
+    conn.commit()
 
 
 def notify(conn: sqlite3.Connection, user_id: int, kind: str, title: str, body: str) -> None:
@@ -268,17 +409,20 @@ def seed(conn: sqlite3.Connection) -> None:
 
     ids = {}
     for p in providers:
+        uname = {"elena-vasquez-lpc": "elena", "james-okonkwo-lcsw": "james", "maya-chen-lmft": "maya"}.get(p["slug"], "")
         cur = conn.execute(
             """INSERT INTO users (
                  email, password_hash, name, credentials, title, specialty, about, clinic, address,
                  slug, weekly_target_hours, buffer_hours, workdays, slot_start, slot_end, lunch,
-                 session_minutes, timezone, created_at
-               ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                 session_minutes, timezone, created_at, username, setup_complete, consult_minutes,
+                 consult_enabled, portal_kind, portal_url
+               ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 p["email"], pw, p["name"], p["credentials"], p["title"], p["specialty"], p["about"],
                 p["clinic"], p["address"], p["slug"], p["weekly_target_hours"], p["buffer_hours"],
                 json.dumps(p["workdays"]), p["slot_start"], p["slot_end"], p["lunch"],
                 p["session_minutes"], "America/Denver", created,
+                uname, 1, 15, 1, "none", "",
             ),
         )
         ids[p["slug"]] = int(cur.lastrowid)
@@ -427,3 +571,4 @@ def seed(conn: sqlite3.Connection) -> None:
         "Projected hours this week sit just under your 25-hour cap. A new 50-minute visit will overflow — the booking page will offer James or Maya.",
     )
     print("[seed] Demo providers ready: Elena, James, Maya. Password: demo1234", flush=True)
+    ensure_jason(conn)

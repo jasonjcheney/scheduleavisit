@@ -27,21 +27,36 @@ On this box a user pip config already allows the command without that flag.
 
 Then open `http://127.0.0.1:8080` (or the machine’s address on port 8080).
 
-The SQLite file is created on first boot at `data/app.db`. Delete that file and restart if you want a clean seed.
+The SQLite file is created on first boot at `data/app.db` (or `$SAV_DB`). Existing databases pick up new columns via `migrate()` — you do not need to delete the file. Delete it and restart only if you want a clean seed.
 
 ## Demo logins
 
-All three seeded providers use the password `demo1234`.
+Elena, James, and Maya use the password `demo1234`. Jason uses `123456`.
 
-| Name | Email | Slug | Notes |
+| Name | Login | Slug | Notes |
 |---|---|---|---|
-| Elena Vasquez, LPC | elena@sageandstone.example | `/p/elena-vasquez-lpc` | Target 25 hrs, buffer 3. Nearly full this week. |
-| James Okonkwo, LCSW | james@northcreek.example | `/p/james-okonkwo-lcsw` | Has room. Superior, CO (~4 miles). |
-| Maya Chen, LMFT | maya@riverview.example | `/p/maya-chen-lmft` | Has room. Boulder (~2 miles). |
+| Jason Cheney | `jasoncheney` / `123456` | `/p/jason-cheney` | Real therapist account. First login opens `/setup`. Empty calendar. |
+| Elena Vasquez, LPC | Elena / `demo1234` | `/p/elena-vasquez-lpc` | Target 25 hrs, buffer 3. Nearly full this week. |
+| James Okonkwo, LCSW | James / `demo1234` | `/p/james-okonkwo-lcsw` | Has room. Superior, CO (~4 miles). |
+| Maya Chen, LMFT | Maya / `demo1234` | `/p/maya-chen-lmft` | Has room. Boulder (~2 miles). |
 
-On the login page you can type **Elena** / **demo1234** (first name works for the three demo accounts).
+Login accepts **username**, **email**, or **first name**. `jason` and `jasoncheney` both reach Jason.
 
-Brand-new signup does not depend on the seed. Create an account, set a 10-hour cap on the dashboard, share `/p/{your-slug}`.
+First login as Jason (or any new signup) opens the setup page at `/setup` — name, hours, client portal link, optional iCal URL. Dashboard has **Edit my page** to reopen it.
+
+Brand-new signup collects name, username, email, and password, then lands on setup.
+
+### Booking: consult vs session
+
+On `/p/{slug}`, a first-time client picks a free consultation or a full session. Returning clients (same email, already booked) are booked as a full session. After a first booking, if you pasted a portal URL in setup, the confirmation page shows **Get started on the online portal**.
+
+### Month calendar
+
+The dashboard month calendar lets you click a day, type a client name and time, and save. That creates a client and a manual block that counts toward weekly hours. Sage = booked on your public link, terracotta = you added, blue = imported from iCal.
+
+### iCal busy import
+
+Paste a secret ICS URL in setup. We fetch it at most every 15 minutes and treat events as busy time (they occupy slots and count toward the cap). There is no Google sign-in.
 
 ## What is real
 
@@ -52,6 +67,8 @@ Brand-new signup does not depend on the seed. Create an account, set a 10-hour c
 - Referral network: invite by email, accept at `/invite/{token}`. Both directions are stored. When the requested provider is full, the booking API returns one recommendation plus alternatives.
 - Notifications are written to the dashboard and printed to the server log. There is no SMTP.
 - Cancel on the dashboard marks the visit cancelled so the slot can be booked again.
+- Click-to-add on the month calendar stores a named client (`booked_via=manual`) and counts the minutes.
+- An iCal URL, if set, is imported as `booked_via=ical` busy blocks.
 
 ## Out of scope (not pretended)
 

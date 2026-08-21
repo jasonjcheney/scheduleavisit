@@ -2,7 +2,7 @@
 {% set compact_nav = true %}
 {% block title %}Book with {{ provider.name }} — ScheduleAVisit{% endblock %}
 {% block content %}
-<main class="app-wrap" id="booking-page" data-slug="{{ provider.slug }}" data-minutes="{{ provider.session_minutes }}" data-first="{{ provider.first }}">
+<main class="app-wrap" id="booking-page" data-slug="{{ provider.slug }}" data-minutes="{{ provider.session_minutes }}" data-consult-minutes="{{ provider.consult_minutes }}" data-consult-enabled="{{ provider.consult_enabled }}" data-first="{{ provider.first }}">
   <section class="card">
     <div class="provider-hero">
       <div class="avatar lg {{ provider.avatar }}" aria-hidden="true">{{ provider.initials }}</div>
@@ -15,6 +15,22 @@
     <p>{{ provider.about }}</p>
     <p class="tiny">{{ provider.address }}</p>
   </section>
+  {% if provider.consult_enabled %}
+  <section class="card" id="visit-kind-card">
+    <h2>What would you like?</h2>
+    <p class="muted">First visits can be a short free consult. If you already see {{ provider.first }}, pick a full session.</p>
+    <div class="choice-grid two" id="visit-kind">
+      <button type="button" class="choice-card active" data-kind="consult">
+        <strong>Free consultation</strong>
+        <span class="tiny">{{ provider.consult_minutes }} minutes</span>
+      </button>
+      <button type="button" class="choice-card" data-kind="session">
+        <strong>Full session</strong>
+        <span class="tiny">{{ provider.session_minutes }} minutes</span>
+      </button>
+    </div>
+  </section>
+  {% endif %}
   <section class="card">
     <h2>Pick a day</h2>
     <div class="date-strip" id="date-strip" role="listbox" aria-label="Available days"></div>

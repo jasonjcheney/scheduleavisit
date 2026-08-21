@@ -100,11 +100,10 @@
         method: "POST",
         body: {
           name: signupForm.name.value,
-          credentials: signupForm.credentials.value,
+          username: signupForm.username.value,
           email: signupForm.email.value,
           password: signupForm.password.value,
-          clinic: signupForm.clinic.value,
-          next: signupForm.getAttribute("data-next") || "/dashboard"
+          next: signupForm.getAttribute("data-next") || "/setup"
         }
       });
       if (!data.ok) {
@@ -120,9 +119,30 @@
   var bookPage = $("#booking-page");
   if (bookPage) {
     var slug = bookPage.getAttribute("data-slug");
-    var minutes = Number(bookPage.getAttribute("data-minutes") || 50);
+    var sessionMinutes = Number(bookPage.getAttribute("data-minutes") || 50);
+    var consultMinutes = Number(bookPage.getAttribute("data-consult-minutes") || 15);
+    var consultEnabled = bookPage.getAttribute("data-consult-enabled") === "1";
+    var minutes = consultEnabled ? consultMinutes : sessionMinutes;
+    var visitKind = consultEnabled ? "consult" : "session";
     var first = bookPage.getAttribute("data-first") || "Your clinician";
     var state = { date: null, time: null, phase: "pick", recs: null, weekHasRoom: true };
+
+    function currentMinutes() {
+      return visitKind === "consult" ? consultMinutes : sessionMinutes;
+    }
+
+    $$("#visit-kind [data-kind]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        visitKind = btn.getAttribute("data-kind") || "session";
+        minutes = currentMinutes();
+        $$("#visit-kind [data-kind]").forEach(function (b) {
+          b.classList.toggle("active", b === btn);
+        });
+        state.time = null;
+        $("#book-result").innerHTML = "";
+        if (state.date) loadSlots();
+      });
+    });
 
     function renderDates() {
       var strip = $("#date-strip");
@@ -154,7 +174,8 @@
     async function loadSlots() {
       var grid = $("#slot-grid");
       grid.innerHTML = '<p class="muted">Loading times…</p>';
-      var data = await api("/api/p/" + encodeURIComponent(slug) + "/availability?date=" + state.date);
+      var data = await api("/api/p/" + encodeURIComponent(slug) + "/availability?date=" + state.date +
+        "&minutes=" + currentMinutes() + "&visit_kind=" + encodeURIComponent(visitKind));
       if (!data.ok && !data.slots) {
         grid.innerHTML = '<p class="muted">Could not load times.</p>';
         return;
@@ -305,7 +326,8 @@
           time: state.time,
           name: form.name.value.trim(),
           email: form.email.value.trim(),
-          phone: form.phone.value.trim()
+          phone: form.phone.value.trim(),
+          visitKind: visitKind
         }
       });
       if (data.full) {
@@ -396,6 +418,196 @@
         location.reload();
       });
     }
+
     fetch("/api/me/notifications", { credentials: "same-origin" });
+
+    var calCard = $("#month-cal-card");
+    if (calCard) {
+      var calYear = Number(calCard.getAttribute("data-year"));
+      var calMonth = Number(calCard.getAttribute("data-month"));
+      var calSession = Number(calCard.getAttribute("data-session-minutes") || 50);
+      var MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+      var DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+      function openBlockModal(opts) {
+        var modal = $("#block-modal");
+        var form = $("#block-form");
+        var del = $("#block-delete");
+        $("#block-err").classList.add("hidden");
+        $("#block-modal-title").textContent = opts.id ? (opts.editable === false ? "Visit" : "Edit this block") : "Add a client";
+        form.id.value = opts.id || "";
+        form.name.value = opts.name || "";
+        form.date.value = opts.date || "";
+        form.time.value = opts.time || "09:00";
+        form.minutes.value = opts.minutes || calSession;
+        var locked = opts.editable === false;
+        ["name", "date", "time", "minutes"].forEach(function (n) { form[n].disabled = locked; });
+        form.querySelector("[type=submit]").classList.toggle("hidden", locked);
+        del.classList.toggle("hidden", !opts.id || locked);
+        modal.classList.remove("hidden");
+      }
+
+      function closeBlockModal() {
+        $("#block-modal").classList.add("hidden");
+      }
+
+      async function loadMonth() {
+        var grid = $("#month-cal");
+        $("#cal-title").textContent = MONTHS[calMonth - 1] + " " + calYear;
+        grid.innerHTML = '<p class="muted">Loading calendar…</p>';
+        var data = await api("/api/calendar?year=" + calYear + "&month=" + calMonth);
+        if (!data.ok) {
+          grid.innerHTML = '<p class="muted">Could not load the calendar.</p>';
+          return;
+        }
+        var start = parseISODate(data.gridStart);
+        var html = DOW.map(function (d) { return '<div class="cal-dow">' + d + "</div>"; }).join("");
+        for (var i = 0; i < 42; i++) {
+          var d = addDays(start, i);
+          var iso = toISODate(d);
+          var inMonth = d.getMonth() + 1 === calMonth;
+          var blocks = (data.days && data.days[iso]) || [];
+          html += '<div class="cal-day' + (inMonth ? "" : " out") + '" data-date="' + iso + '">';
+          html += '<button type="button" class="cal-day-num" data-add-date="' + iso + '">' + d.getDate() + "</button>";
+          blocks.forEach(function (b) {
+            html += '<button type="button" class="cal-block ' + escapeHtml(b.source) + '" data-block="' +
+              encodeURIComponent(JSON.stringify(b)) + '">' +
+              escapeHtml(formatTime(b.time)) + " " + escapeHtml(b.name) + "</button>";
+          });
+          html += "</div>";
+        }
+        grid.innerHTML = html;
+        $$("[data-add-date]", grid).forEach(function (btn) {
+          btn.addEventListener("click", function (e) {
+            e.stopPropagation();
+            openBlockModal({ date: btn.getAttribute("data-add-date"), time: "09:00", minutes: calSession });
+          });
+        });
+        $$(".cal-day", grid).forEach(function (dayEl) {
+          dayEl.addEventListener("click", function (e) {
+            if (e.target.closest("[data-block], [data-add-date]")) return;
+            openBlockModal({ date: dayEl.getAttribute("data-date"), time: "09:00", minutes: calSession });
+          });
+        });
+        $$("[data-block]", grid).forEach(function (btn) {
+          btn.addEventListener("click", function (e) {
+            e.stopPropagation();
+            var b;
+            try { b = JSON.parse(decodeURIComponent(btn.getAttribute("data-block"))); } catch (err) { return; }
+            openBlockModal({
+              id: b.id,
+              name: b.name,
+              date: b.date,
+              time: b.time,
+              minutes: b.minutes,
+              editable: b.editable
+            });
+          });
+        });
+      }
+
+      var prev = $("#cal-prev");
+      var next = $("#cal-next");
+      if (prev) prev.addEventListener("click", function () {
+        calMonth -= 1;
+        if (calMonth < 1) { calMonth = 12; calYear -= 1; }
+        loadMonth();
+      });
+      if (next) next.addEventListener("click", function () {
+        calMonth += 1;
+        if (calMonth > 12) { calMonth = 1; calYear += 1; }
+        loadMonth();
+      });
+      var blockForm = $("#block-form");
+      if (blockForm) {
+        blockForm.addEventListener("submit", async function (e) {
+          e.preventDefault();
+          var err = $("#block-err");
+          err.classList.add("hidden");
+          var id = blockForm.id.value;
+          var body = {
+            name: blockForm.name.value.trim(),
+            date: blockForm.date.value,
+            time: blockForm.time.value,
+            minutes: Number(blockForm.minutes.value)
+          };
+          var path = id ? "/api/calendar/block/" + id + "/update" : "/api/calendar/block";
+          var data = await api(path, { method: "POST", body: body });
+          if (!data.ok) {
+            err.textContent = data.error || "Could not save.";
+            err.classList.remove("hidden");
+            return;
+          }
+          closeBlockModal();
+          toast(id ? "Block updated" : "Client added to the calendar");
+          location.reload();
+        });
+      }
+      var delBtn = $("#block-delete");
+      if (delBtn) {
+        delBtn.addEventListener("click", async function () {
+          var id = $("#block-form").id.value;
+          if (!id) return;
+          if (!confirm("Remove this block? The person stays on your client list.")) return;
+          var data = await api("/api/calendar/block/" + id + "/delete", { method: "POST" });
+          if (!data.ok) { toast(data.error || "Could not remove"); return; }
+          closeBlockModal();
+          toast("Block removed");
+          location.reload();
+        });
+      }
+      var closeBtn = $("#block-close");
+      if (closeBtn) closeBtn.addEventListener("click", closeBlockModal);
+      var backdrop = $("#block-modal");
+      if (backdrop) {
+        backdrop.addEventListener("click", function (e) {
+          if (e.target === backdrop) closeBlockModal();
+        });
+      }
+      loadMonth();
+    }
+  }
+
+  /* ——— Setup wizard ——— */
+  var setupForm = $("#setup-form");
+  if (setupForm) {
+    setupForm.addEventListener("submit", async function (e) {
+      e.preventDefault();
+      var err = $("#setup-err");
+      err.classList.add("hidden");
+      var days = $$("input[name=workday]:checked", setupForm).map(function (el) { return Number(el.value); });
+      var kindEl = setupForm.querySelector("input[name=portal_kind]:checked");
+      var data = await api("/api/setup", {
+        method: "POST",
+        body: {
+          name: setupForm.name.value,
+          credentials: setupForm.credentials.value,
+          title: setupForm.title.value,
+          specialty: setupForm.specialty.value,
+          about: setupForm.about.value,
+          clinic: setupForm.clinic.value,
+          address: setupForm.address.value,
+          weekly_target_hours: Number(setupForm.weekly_target_hours.value),
+          buffer_hours: Number(setupForm.buffer_hours.value),
+          slot_start: Number(setupForm.slot_start.value),
+          slot_end: Number(setupForm.slot_end.value),
+          lunch: Number(setupForm.lunch.value),
+          session_minutes: Number(setupForm.session_minutes.value),
+          consult_minutes: Number(setupForm.consult_minutes.value),
+          consult_enabled: setupForm.consult_enabled.checked ? 1 : 0,
+          workdays: days,
+          portal_kind: kindEl ? kindEl.value : "none",
+          portal_url: setupForm.portal_url.value.trim(),
+          ical_url: setupForm.ical_url.value.trim()
+        }
+      });
+      if (!data.ok) {
+        err.textContent = data.error || "Could not save.";
+        err.classList.remove("hidden");
+        err.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
+      location.href = data.redirect || "/dashboard";
+    });
   }
 })();

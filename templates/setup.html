@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% set compact_nav = true %}
+{% block title %}{{ "Edit my page" if editing else "Set up your page" }} — ScheduleAVisit{% endblock %}
+{% block content %}
+<main class="setup-wrap" id="setup-page">
+  <p class="eyebrow">{% if editing %}Your page{% else %}First, a few things{% endif %}</p>
+  <h1 class="page-title">{% if editing %}Edit my page{% else %}Hello, {{ first }}. Let’s set you up.{% endif %}</h1>
+  <p class="sub">Plain language. You can change any of this later. Clients see your name, hours, and booking link — not this form.</p>
+
+  <form id="setup-form" class="fields">
+    <p class="err hidden" id="setup-err"></p>
+
+    <section class="card setup-section">
+      <p class="eyebrow">1</p>
+      <h2>Who you are</h2>
+      <p class="muted">This is what people see on your public booking page.</p>
+      <div class="fields two">
+        <label class="field">Name clients will see
+          <input type="text" name="name" required value="{{ me.name }}" autocomplete="name">
+        </label>
+        <label class="field">Credentials
+          <input type="text" name="credentials" value="{{ me.credentials }}" placeholder="LPC">
+        </label>
+        <label class="field">Title
+          <input type="text" name="title" value="{{ me.title }}" placeholder="Counselor">
+        </label>
+        <label class="field">Clinic or practice
+          <input type="text" name="clinic" value="{{ me.clinic }}" placeholder="My practice">
+        </label>
+        <label class="field" style="grid-column:1/-1">Address
+          <input type="text" name="address" value="{{ me.address }}" placeholder="Boulder, CO">
+        </label>
+        <label class="field" style="grid-column:1/-1">Specialty
+          <input type="text" name="specialty" value="{{ me.specialty }}" placeholder="Adult therapy — anxiety, life transitions">
+        </label>
+        <label class="field" style="grid-column:1/-1">About
+          <textarea name="about" placeholder="A few sentences about how you work.">{{ me.about }}</textarea>
+        </label>
+      </div>
+    </section>
+
+    <section class="card setup-section">
+      <p class="eyebrow">2</p>
+      <h2>Your hours</h2>
+      <p class="muted">The weekly cap is clinical hours, not “squares on a calendar.” The buffer is for notes and emergencies.</p>
+      <div class="fields two">
+        <label class="field">Weekly hour cap
+          <input type="number" name="weekly_target_hours" min="4" max="60" step="1" value="{{ me.weekly_target_hours }}">
+        </label>
+        <label class="field">Buffer hours
+          <input type="number" name="buffer_hours" min="0" max="20" step="0.5" value="{{ me.buffer_hours }}">
+        </label>
+        <label class="field">Day starts (hour)
+          <input type="number" name="slot_start" min="6" max="16" value="{{ me.slot_start }}">
+        </label>
+        <label class="field">Day ends (hour)
+          <input type="number" name="slot_end" min="12" max="21" value="{{ me.slot_end }}">
+        </label>
+        <label class="field">Lunch hour
+          <input type="number" name="lunch" min="10" max="16" value="{{ me.lunch }}">
+        </label>
+        <label class="field">Full session minutes
+          <input type="number" name="session_minutes" min="20" max="120" step="5" value="{{ me.session_minutes }}">
+        </label>
+      </div>
+      <p class="field" style="margin-top:12px">Workdays</p>
+      <div class="days" id="workdays">
+        {% for d, label in [(1,'Mon'),(2,'Tue'),(3,'Wed'),(4,'Thu'),(5,'Fri'),(6,'Sat'),(7,'Sun')] %}
+        <label class="day-chip"><input type="checkbox" name="workday" value="{{ d }}" {% if d in workdays %}checked{% endif %}> {{ label }}</label>
+        {% endfor %}
+      </div>
+      <div class="fields two" style="margin-top:16px">
+        <label class="field check-line">
+          <input type="checkbox" name="consult_enabled" value="1" {% if me.consult_enabled %}checked{% endif %}>
+          Offer a free first consultation
+        </label>
+        <label class="field">Consult minutes
+          <input type="number" name="consult_minutes" min="10" max="60" step="5" value="{{ me.consult_minutes or 15 }}">
+        </label>
+      </div>
+    </section>
+
+    <section class="card setup-section">
+      <p class="eyebrow">3</p>
+      <h2>Client portal</h2>
+      <p class="muted">Paste the link your clients use to start intake. After a first booking we will show a “Get started on the online portal” button.</p>
+      <div class="choice-grid" id="portal-kind">
+        <label class="choice-card"><input type="radio" name="portal_kind" value="headway" {% if me.portal_kind=='headway' %}checked{% endif %}> Headway</label>
+        <label class="choice-card"><input type="radio" name="portal_kind" value="sondermind" {% if me.portal_kind=='sondermind' %}checked{% endif %}> SonderMind</label>
+        <label class="choice-card"><input type="radio" name="portal_kind" value="custom" {% if me.portal_kind=='custom' %}checked{% endif %}> My own page</label>
+        <label class="choice-card"><input type="radio" name="portal_kind" value="none" {% if not me.portal_kind or me.portal_kind=='none' %}checked{% endif %}> Not yet</label>
+      </div>
+      <label class="field" style="margin-top:12px">Portal URL
+        <input type="url" name="portal_url" value="{{ me.portal_url }}" placeholder="https://…">
+      </label>
+    </section>
+
+    <section class="card setup-section">
+      <p class="eyebrow">4</p>
+      <h2>Calendar</h2>
+      <p class="muted">Optional. Paste a secret iCal / ICS address so existing busy time counts toward your week. We do not use Google sign-in.</p>
+      <label class="field">iCal / ICS secret URL
+        <input type="url" name="ical_url" value="{{ me.ical_url }}" placeholder="https://calendar.google.com/calendar/ical/…">
+      </label>
+      <div class="howto">
+        <p><strong>Google Calendar</strong> — Settings → click your calendar → “Secret address in iCal format.”</p>
+        <p><strong>Outlook</strong> — Share → publish an ICS link.</p>
+        <p><strong>Apple Calendar</strong> — “File → New Calendar Subscription” is for following someone else’s calendar. To publish yours: Calendar → Share calendar, or an iCloud public calendar, then paste that URL here.</p>
+      </div>
+    </section>
+
+    <div class="hero-actions">
+      <button type="submit" class="btn btn-primary">{% if editing %}Save and return{% else %}Save and go to my dashboard{% endif %}</button>
+      {% if editing %}<a class="btn btn-ghost" href="/dashboard">Cancel</a>{% endif %}
+    </div>
+  </form>
+</main>
+{% endblock %}

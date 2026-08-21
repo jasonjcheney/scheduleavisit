@@ -5,24 +5,21 @@
 <main class="auth-wrap">
   <p class="eyebrow">I'm a provider</p>
   <h1 class="page-title">Set your name. Get a link.</h1>
-  <p class="sub">Your clients will book at scheduleavisit.com/p/your-name. You can change hours after you sign in.</p>
+  <p class="sub">Pick a username. After you create the account you will set hours, your portal link, and calendar.</p>
   <div class="card">
     <form id="signup-form" class="fields" data-next="{{ next }}">
       <p class="err hidden" id="signup-err"></p>
       <label class="field">Your name
         <input type="text" name="name" required autocomplete="name" placeholder="Jordan Lee">
       </label>
-      <label class="field">Credentials <span class="tiny">(optional)</span>
-        <input type="text" name="credentials" placeholder="LPC">
+      <label class="field">Username
+        <input type="text" name="username" required autocomplete="username" placeholder="jordanlee" pattern="[a-zA-Z0-9_]{3,32}" minlength="3" maxlength="32">
       </label>
       <label class="field">Email
         <input type="email" name="email" required autocomplete="email" value="{{ prefill_email }}" placeholder="you@clinic.com">
       </label>
       <label class="field">Password
         <input type="password" name="password" required minlength="8" autocomplete="new-password" placeholder="At least 8 characters">
-      </label>
-      <label class="field">Clinic or practice name <span class="tiny">(optional)</span>
-        <input type="text" name="clinic" placeholder="North Creek Therapy">
       </label>
       <button type="submit" class="btn btn-primary btn-block">Create account</button>
     </form>

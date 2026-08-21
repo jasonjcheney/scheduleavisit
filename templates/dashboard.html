@@ -9,9 +9,12 @@
       <h1 class="page-title">Hello, {{ first }}.</h1>
       <p class="sub">Signed in as {{ me.name }}{% if me.clinic %} · {{ me.clinic }}{% endif %}</p>
     </div>
-    <form action="/api/auth/logout" method="post" onsubmit="event.preventDefault(); fetch('/api/auth/logout',{method:'POST',credentials:'same-origin'}).then(()=>location.href='/');">
-      <button type="submit" class="btn btn-ghost btn-sm">Log out</button>
-    </form>
+    <div class="hero-actions">
+      <a class="btn btn-sage btn-sm" href="/setup">Edit my page</a>
+      <form action="/api/auth/logout" method="post" onsubmit="event.preventDefault(); fetch('/api/auth/logout',{method:'POST',credentials:'same-origin'}).then(()=>location.href='/');">
+        <button type="submit" class="btn btn-ghost btn-sm">Log out</button>
+      </form>
+    </div>
   </div>
 
   <div class="dash-grid">
@@ -50,6 +53,50 @@
     </section>
   </div>
 
+  <section class="card" id="month-cal-card" data-year="{{ cal_year }}" data-month="{{ cal_month }}" data-session-minutes="{{ session_minutes }}">
+    <div class="row">
+      <div>
+        <h2>Month calendar</h2>
+        <p class="tiny" style="margin:0">Click an empty day to add a client by name. Sage = booked on your link · terracotta = you added · blue = imported busy time.</p>
+      </div>
+      <div class="cal-nav">
+        <button type="button" class="btn btn-ghost btn-sm" id="cal-prev">Previous</button>
+        <strong id="cal-title"></strong>
+        <button type="button" class="btn btn-ghost btn-sm" id="cal-next">Next</button>
+      </div>
+    </div>
+    <div class="month-cal" id="month-cal" style="margin-top:14px"></div>
+  </section>
+
+  <div id="block-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="block-modal-title">
+    <div class="modal">
+      <h2 id="block-modal-title">Add a client</h2>
+      <form id="block-form" class="fields">
+        <p class="err hidden" id="block-err"></p>
+        <input type="hidden" name="id" value="">
+        <label class="field">Client name
+          <input type="text" name="name" required placeholder="Ada Client" autocomplete="name">
+        </label>
+        <div class="fields two">
+          <label class="field">Date
+            <input type="date" name="date" required>
+          </label>
+          <label class="field">Time
+            <input type="time" name="time" required>
+          </label>
+        </div>
+        <label class="field">Minutes
+          <input type="number" name="minutes" min="10" max="180" step="5" value="{{ session_minutes }}">
+        </label>
+        <div class="hero-actions">
+          <button type="submit" class="btn btn-primary btn-sm">Save</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="block-close">Close</button>
+          <button type="button" class="btn btn-text btn-sm hidden" id="block-delete">Remove</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <section class="card">
     <h2>New weekly client — next 8 weeks</h2>
     <p class="muted">If you take one more person at {{ session_minutes }} minutes every week, here is what happens to the cap. The app infers who is weekly from visit history; you do not tag them.</p>
@@ -82,7 +129,7 @@
         <div class="list-item">
           <div>
             <strong>{{ a.client_name }}</strong>
-            <div class="meta tiny">{{ a.when }} · {{ a.minutes }} min{% if a.referred %} · referral{% endif %}</div>
+            <div class="meta tiny">{{ a.when }} · {{ a.minutes }} min{% if a.visit_kind=='consult' %} · consult{% elif a.via=='manual' %} · on calendar{% elif a.via=='ical' %} · imported{% endif %}{% if a.referred %} · referral{% endif %}</div>
           </div>
           <div class="appt-actions">
             <button type="button" class="btn btn-ghost btn-sm" data-cancel="{{ a.id }}">Cancel</button>
@@ -132,7 +179,7 @@
           </div>
         </div>
         {% else %}
-        <p class="muted">No clients yet. They appear when someone books your public link.</p>
+        <p class="muted">No clients yet. They appear when someone books your public link, or when you add a name on the calendar.</p>
         {% endfor %}
       </div>
     </section>

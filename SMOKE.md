@@ -1,7 +1,7 @@
 # Smoke path (verified 20 Aug 2026, America/Denver)
 
 Server: `python3 -m uvicorn app:app --host 127.0.0.1 --port 8080` from `/workspace/scheduleavisit`.
-Today was Thursday 20 Aug 2026. Elena’s week is Mon 17 – Sun 23 Aug. Friday 21 Aug still has calendar holes at 3 pm and 4 pm; the hour cap does not.
+Updated 21 Aug 2026. Today is Friday 21 Aug 2026. Elena’s week is Mon 17 – Sun 23 Aug. Friday 21 Aug still has calendar holes at 3 pm and 4 pm; the hour cap does not.
 
 ## 1. Fresh provider can take a booking
 
@@ -115,3 +115,39 @@ GET /ride?address=500+Eldorado+Blvd,+Superior,+CO
 - Later weeks on Elena can have room — that is the engine, not a bug.
 - Recurring labels (Weekly / Biweekly / Occasional) are inferred from visit history.
 - Delete `data/app.db` and restart to re-seed the three demo providers.
+
+
+## 7. Jason Cheney — setup, consult, calendar
+
+```
+POST /api/auth/login {email:"jasoncheney", password:"123456"}
+  → cookie + redirect "/setup"
+
+GET  /setup
+  → who you are, hours, portal radios, iCal how-tos
+
+POST /api/setup {name, hours, portal_kind:"headway", portal_url:"https://headway.co/…", …}
+  → {ok:true, redirect:"/dashboard"}
+  setup_complete becomes 1
+
+GET  /p/jason-cheney
+  → Free consultation (15 min) and Full session (50 min)
+
+POST /api/p/jason-cheney/book
+  {date, time:"10:00", name:"Pat First", email:"pat.first@example.com", visitKind:"consult"}
+  → {ok:true, visitKind:"consult", minutes:15, firstVisit:true, portalUrl:"https://…"}
+
+GET  /booked/{id}
+  → “Get started on the online portal” (new tab) when portal_url is set
+
+POST /api/p/jason-cheney/book  (same email, later time, visitKind consult)
+  → visitKind "session", 50 min, no portalUrl
+
+POST /api/calendar/block {date, time:"16:00", name:"Casey Manual", minutes:50}
+  → client Casey Manual + appointment booked_via=manual
+  → GET /api/me capacity.scheduled includes those 50 minutes
+```
+
+Dashboard: month calendar, prev/next month, click a day to add a client. Edit my page reopens `/setup`.
+
+Existing Elena / James / Maya first-name login (`demo1234`) is unchanged and skips setup.
