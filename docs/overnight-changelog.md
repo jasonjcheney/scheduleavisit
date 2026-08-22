@@ -17,7 +17,8 @@ Overnight QA pass (WebFetch + TestClient; no browser MCP). Jason asleep — no c
 - `python3 tests/test_multihop_referral.py` — green
 
 ### Deploy
-- Commit + push to `main` + Render deploy `srv-da463sou01pc73erg9l0`
+- Commit `c0db2e4` + push to `main`
+- Render deploy `dep-da4k4ibl550s7385psk0` on `srv-da463sou01pc73erg9l0` (build started)
 
 ## 2026-08-22 (America/Denver) — design + completeness + reliability polish
 
