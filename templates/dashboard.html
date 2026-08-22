@@ -235,7 +235,7 @@
   </section>
 
   <div class="dash-grid">
-    <section class="card">
+    <section class="card" id="clients-card">
       <h2>Clients</h2>
       <p class="tiny">Labels are inferred from how often they have actually come in. Weekly, biweekly, or occasional — not a chore you manage.</p>
       {% if dismissed %}
@@ -243,9 +243,14 @@
         <p class="freed"><strong>{{ d.name }}</strong> is no longer on your caseload. Their weekly hour came back off the projection — that is the freed-slot story, without you tagging anyone.</p>
         {% endfor %}
       {% endif %}
-      <div class="list">
+      <div class="client-filter"{% if not clients %} hidden{% endif %}>
+        <label class="field" for="client-filter">Filter by name
+          <input type="search" id="client-filter" name="client_filter" placeholder="Start typing a name…" autocomplete="off" aria-controls="clients-list">
+        </label>
+      </div>
+      <div class="list" id="clients-list">
         {% for c in clients %}
-        <div class="list-item">
+        <div class="list-item" data-client-name="{{ c.name }}">
           <div>
             <strong>{{ c.name }}</strong>
             <div class="meta tiny">{{ c.minutes }} min{% if c.last %} · last {{ c.last }}{% endif %}{% if c.next %} · next {{ c.next }}{% endif %}</div>
@@ -256,11 +261,14 @@
           </div>
         </div>
         {% else %}
-        <div class="empty-state compact">
+        <div class="empty-state compact" id="clients-empty">
           <p class="muted" style="margin:0">No clients yet.</p>
           <p class="help-tip" style="margin:8px 0 0">They appear when someone books your public link, or when you add a name on the month calendar above.</p>
         </div>
         {% endfor %}
+      </div>
+      <div class="empty-state compact" id="clients-filter-empty" hidden>
+        <p class="muted" style="margin:0">No clients match that name.</p>
       </div>
     </section>
 

@@ -110,6 +110,13 @@ def main() -> None:
     expect(dash.status_code == 200, f"/dashboard got {dash.status_code}")
     for n in ("Hello", "Month calendar", "Your booking link", "Clients never see"):
         expect(n in dash.text, f"/dashboard missing {n!r}")
+    # Client search/filter markup (server-rendered ids; filter input when clients exist)
+    expect('id="clients-card"' in dash.text, "/dashboard missing clients-card")
+    expect('id="clients-list"' in dash.text, "/dashboard missing clients-list")
+    expect('id="clients-filter-empty"' in dash.text, "/dashboard missing clients-filter-empty")
+    dash_tpl = (ROOT / "templates" / "dashboard.html").read_text()
+    expect('id="client-filter"' in dash_tpl, "dashboard template missing client-filter")
+    expect("data-client-name" in dash_tpl, "dashboard template missing data-client-name")
     print("OK /dashboard 200")
 
     # —— Elena booking page still has capacity copy hooks ——

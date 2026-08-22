@@ -707,6 +707,27 @@
         location.reload();
       });
     });
+
+    (function () {
+      var input = $("#client-filter");
+      var list = $("#clients-list");
+      var empty = $("#clients-filter-empty");
+      if (!input || !list) return;
+      function applyFilter() {
+        var q = (input.value || "").trim().toLowerCase();
+        var items = $$(".list-item[data-client-name]", list);
+        var shown = 0;
+        items.forEach(function (row) {
+          var name = (row.getAttribute("data-client-name") || "").toLowerCase();
+          var match = !q || name.indexOf(q) !== -1;
+          row.hidden = !match;
+          if (match) shown += 1;
+        });
+        if (empty) empty.hidden = !(q && shown === 0);
+      }
+      input.addEventListener("input", applyFilter);
+      input.addEventListener("search", applyFilter);
+    })();
     $$("[data-waitlist-dismiss]").forEach(function (btn) {
       btn.addEventListener("click", async function () {
         if (!confirm("Dismiss waitlist request from " + btn.getAttribute("data-name") + "?")) return;

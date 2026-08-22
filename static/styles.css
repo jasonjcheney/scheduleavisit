@@ -2020,3 +2020,33 @@ a:focus-visible,
     min-height: 50px;
   }
 }
+
+
+/* Dashboard client name filter */
+.client-filter {
+  margin: 4px 0 10px;
+}
+.client-filter label.field {
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+.client-filter input[type="search"] {
+  min-height: 42px;
+  border-radius: 12px;
+  border: 1.5px solid var(--line-strong);
+  background: #fff;
+  padding: 0 12px;
+  color: var(--ink);
+  width: 100%;
+}
+.client-filter input[type="search"]:focus {
+  outline: 3px solid rgba(45,90,74,0.25);
+  border-color: var(--sage);
+}
+.client-filter input[type="search"]::-webkit-search-cancel-button {
+  cursor: pointer;
+}
+#clients-filter-empty {
+  margin-top: 4px;
+}
