@@ -123,3 +123,4 @@ Third overnight wave. Closed remaining items **6–12** from `docs/competitive-r
 ### Deploy
 - Commit + push + Render `srv-da463sou01pc73erg9l0`
 
+Live note: Render deploy `dep-da4k1mmk1f9s73ejbsi0` → **live** (finished ~12:26 AM MT / 06:26 UTC) for commit `161ee6b`. Curl smoke `/`, `/p/elena-vasquez-lpc`, `/login` HTTP 200 with footer-inner / visit-chips / slot-loading present.
