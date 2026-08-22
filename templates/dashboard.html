@@ -168,26 +168,7 @@
       </div>
     </section>
 
-      <section class="card">
-    <h2>Waitlist</h2>
-    <p class="tiny">People who asked to hear from you when you or your trusted network have room. No email is sent yet — reach out yourself for now.</p>
-    {% if waitlist_rows %}
-    <div class="list">
-      {% for w in waitlist_rows %}
-      <div class="list-row">
-        <div>
-          <strong>{{ w.name }}</strong>
-          <div class="tiny">{{ w.email }} · {{ w.requested_minutes }} min</div>
-        </div>
-      </div>
-      {% endfor %}
-    </div>
-    {% else %}
-    <p class="muted empty-inline">No waitlist requests yet.</p>
-    {% endif %}
-  </section>
-
-<section class="card">
+    <section class="card">
       <h2>Notifications</h2>
       <p class="tiny">We do not send email. New bookings, waitlist requests, and invites land here, and a line is printed in the server log.</p>
       <div class="note-list">
@@ -205,6 +186,28 @@
       </div>
     </section>
   </div>
+
+  <section class="card" id="waitlist-card">
+    <h2>Waitlist</h2>
+    <p class="tiny">People who asked to hear from you when you or your trusted network have room. No email is sent yet — reach out yourself for now.</p>
+    {% if waitlist_rows %}
+    <div class="list">
+      {% for w in waitlist_rows %}
+      <div class="list-item">
+        <div>
+          <strong>{{ w.name }}</strong>
+          <div class="meta tiny">{{ w.email }} · {{ w.requested_minutes }} min</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state compact">
+      <p class="muted" style="margin:0">No waitlist requests yet.</p>
+      <p class="help-tip" style="margin:8px 0 0">When your whole referral network is full, clients can leave a name and email here.</p>
+    </div>
+    {% endif %}
+  </section>
 
   <div class="dash-grid">
     <section class="card">
