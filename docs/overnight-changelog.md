@@ -633,3 +633,25 @@ Jason asleep. **Local only — not pushed; pending morning deploy.** No GitHub /
 
 ### Deploy
 - Commit locally only (no push, no Render)
+
+## 2026-08-22 ~1:54 AM MT — Booking confirmation polish (wave 24, local-only)
+
+Jason asleep. **Local only — not pushed; pending morning deploy.** No GitHub / Render API calls. No secrets printed.
+
+### Booked page (`booked.html`)
+- Clearer **What to do next** steps for first-timers and returners
+- Calm first-visit lede (no email yet; office sees it on the dashboard)
+- Step 1 always: **Add to calendar** (`.ics`) + short helper
+- When `portal_url` / `portal_kind` set on a first visit: unmistakable terracotta portal panel (button + “Opens in a new tab” helper)
+- Optional ride + book-another as secondary actions
+- Mobile spacing tightened for ≤480px / ≤390px
+
+### Palette
+- Still cream / forest / terracotta (`--paper`, `--sage*`, `--clay*`)
+
+### Tests
+- `tests/test_live_paths.py`: next-steps copy + Headway portal CTA panel when portal set
+- Full suite under `tests/`
+
+### Deploy
+- Commit locally only (no push, no Render)

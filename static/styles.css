@@ -346,20 +346,132 @@ input:focus { outline: 3px solid rgba(45,90,74,0.25); border-color: var(--sage);
 
 /* Confirmation */
 .confirm {
-  text-align: center; padding: 24px 8px 8px;
+  text-align: center; padding: 28px 16px 20px;
+  max-width: 560px;
+  margin-left: auto;
+  margin-right: auto;
 }
 .confirm-icon {
   width: 72px; height: 72px; border-radius: 50%; background: var(--sage-soft);
   color: var(--sage); display: grid; place-items: center; margin: 0 auto 16px;
   font-size: 2rem;
 }
+.confirm-lede {
+  margin: 0 auto;
+  max-width: 36em;
+  color: var(--ink-soft);
+  font-size: 1.02rem;
+}
 .confirm dl {
   text-align: left; background: var(--sage-wash); border-radius: 16px;
-  padding: 16px 18px; margin: 20px 0;
+  padding: 16px 18px; margin: 22px 0 8px;
 }
 .confirm dt { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 700; }
 .confirm dd { margin: 0 0 12px; font-weight: 600; font-size: 1.05rem; }
 .confirm dd:last-child { margin-bottom: 0; }
+
+/* Booked confirmation — next steps */
+.booked-page .card.confirm { padding-bottom: 28px; }
+.confirm-next {
+  text-align: left;
+  margin-top: 8px;
+  display: grid;
+  gap: 14px;
+}
+.confirm-next-title {
+  font-family: var(--serif);
+  font-size: 1.25rem;
+  margin: 12px 0 0;
+  color: var(--ink);
+  text-align: center;
+}
+.confirm-next-intro {
+  margin: 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+.confirm-step {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 16px 16px 18px;
+}
+.confirm-step-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--sage);
+  margin-bottom: 6px;
+}
+.confirm-step-help,
+.confirm-portal-lead,
+.confirm-portal-help {
+  margin: 0 0 12px;
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+.confirm-portal-help {
+  margin: 10px 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.confirm-step .btn,
+.confirm-portal .btn {
+  width: 100%;
+  max-width: 100%;
+}
+.confirm-secondary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.confirm-secondary-actions .btn {
+  flex: 1 1 auto;
+  min-width: min(100%, 140px);
+}
+.confirm-portal {
+  background: var(--clay-soft);
+  border: 1.5px solid #e8c4b6;
+  border-radius: var(--radius);
+  padding: 18px 16px 16px;
+  box-shadow: 0 1px 0 rgba(196, 92, 62, 0.08);
+}
+.confirm-portal-label { color: var(--clay-deep); }
+.confirm-portal-btn {
+  min-height: 52px;
+  font-size: 1.02rem;
+  box-shadow: 0 4px 16px rgba(196, 92, 62, 0.22);
+}
+.confirm-portal-btn:hover {
+  box-shadow: 0 6px 20px rgba(196, 92, 62, 0.3);
+}
+.confirm-step-optional { background: var(--sage-wash); border-color: transparent; }
+
+@media (max-width: 480px) {
+  .booked-page { padding-left: 12px; padding-right: 12px; }
+  .booked-page .card.confirm {
+    padding: 22px 14px 24px;
+    border-radius: 16px;
+  }
+  .confirm-lede { font-size: 0.98rem; }
+  .confirm dl { padding: 14px 14px; margin: 18px 0 6px; }
+  .confirm-next { gap: 12px; }
+  .confirm-next-title { font-size: 1.15rem; margin-top: 8px; }
+  .confirm-step,
+  .confirm-portal { padding: 14px 14px 16px; }
+  .confirm-portal-btn { min-height: 50px; }
+  .confirm-secondary-actions { flex-direction: column; gap: 8px; }
+  .confirm-secondary-actions .btn { width: 100%; min-width: 0; }
+}
+
+@media (max-width: 390px) {
+  .booked-page .card.confirm { padding: 18px 12px 22px; }
+  .confirm-icon { width: 64px; height: 64px; margin-bottom: 12px; }
+  .confirm h1 { font-size: 1.55rem; }
+}
 
 /* Modal */
 .modal-backdrop {

@@ -2,7 +2,7 @@
 {% set compact_nav = true %}
 {% block title %}You’re on the calendar — ScheduleAVisit{% endblock %}
 {% block content %}
-<main class="app-wrap">
+<main class="app-wrap booked-page">
   <section class="card confirm">
     <div class="confirm-icon" aria-hidden="true">
       <svg width="36" height="36" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.2 4.2L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -13,7 +13,11 @@
     <span class="badge visit-kind session">Session</span>
     {% endif %}
     <h1>You’re on the calendar.</h1>
-    <p class="lede" style="margin:0 auto">This visit is booked. Write the time down — we do not send email yet. The office will see it on their dashboard.</p>
+    {% if first_visit %}
+    <p class="lede confirm-lede">Welcome — this is your first visit with {{ provider.first }}. Write the time down and save it below. We do not send email yet. The office will see this on their dashboard.</p>
+    {% else %}
+    <p class="lede confirm-lede">This visit is booked. Write the time down — we do not send email yet. The office will see it on their dashboard.</p>
+    {% endif %}
     <dl>
       <dt>When</dt><dd>{{ when_long }} · {{ when_time }}</dd>
       <dt>With</dt><dd>{{ provider.name }}<div class="tiny">{{ provider.clinic }} · {{ provider.address }}</div></dd>
@@ -22,22 +26,40 @@
         <dt>Referred by</dt><dd>{{ referred.name }} recommended this time <strong>so you were not turned away</strong>.</dd>
       {% endif %}
     </dl>
-    {% if show_portal and portal_url %}
-    <p class="notice" style="text-align:left;margin:0 0 16px">Your time is reserved. Finish paperwork where {{ provider.first }} already works.</p>
-    <div class="hero-actions" style="justify-content:center">
-      {% if portal_kind == 'headway' %}
-      <a class="btn btn-primary" href="{{ portal_url }}" target="_blank" rel="noopener">Continue on Headway</a>
-      {% elif portal_kind == 'sondermind' %}
-      <a class="btn btn-primary" href="{{ portal_url }}" target="_blank" rel="noopener">Continue on SonderMind</a>
-      {% else %}
-      <a class="btn btn-primary" href="{{ portal_url }}" target="_blank" rel="noopener">Start intake on {{ provider.first }}’s portal</a>
+
+    <div class="confirm-next">
+      <h2 class="confirm-next-title">What to do next</h2>
+      <p class="confirm-next-intro">A few calm steps. Nothing else is required right now.</p>
+
+      <div class="confirm-step">
+        <div class="confirm-step-label">1 · Save the time</div>
+        <p class="confirm-step-help">Download a calendar file for Apple, Google, or Outlook. We do not email reminders yet.</p>
+        <a class="btn btn-sage" href="/booked/{{ appointment.id }}.ics">Add to calendar</a>
+      </div>
+
+      {% if show_portal and portal_url %}
+      <div class="confirm-portal" data-portal-kind="{{ portal_kind }}">
+        <div class="confirm-step-label confirm-portal-label">2 · Finish paperwork</div>
+        <p class="confirm-portal-lead">Your time is reserved. Complete intake where {{ provider.first }} already works.</p>
+        {% if portal_kind == 'headway' %}
+        <a class="btn btn-primary confirm-portal-btn" href="{{ portal_url }}" target="_blank" rel="noopener">Continue on Headway</a>
+        {% elif portal_kind == 'sondermind' %}
+        <a class="btn btn-primary confirm-portal-btn" href="{{ portal_url }}" target="_blank" rel="noopener">Continue on SonderMind</a>
+        {% else %}
+        <a class="btn btn-primary confirm-portal-btn" href="{{ portal_url }}" target="_blank" rel="noopener">Start intake on {{ provider.first }}’s portal</a>
+        {% endif %}
+        <p class="confirm-portal-help">Opens in a new tab · usually a few minutes</p>
+      </div>
       {% endif %}
-    </div>
-    {% endif %}
-    <div class="hero-actions" style="justify-content:center">
-      <a class="btn btn-ghost" href="/booked/{{ appointment.id }}.ics">Add to calendar</a>
-      <a class="btn btn-ghost" href="/ride?address={{ provider.address | urlencode }}">Get a ride</a>
-      <a class="btn btn-sage" href="/p/{{ provider.slug }}">Book another visit</a>
+
+      <div class="confirm-step confirm-step-optional">
+        <div class="confirm-step-label">{% if show_portal and portal_url %}3{% else %}2{% endif %} · Getting there</div>
+        <p class="confirm-step-help">Optional — open maps for a ride to the office.</p>
+        <div class="confirm-secondary-actions">
+          <a class="btn btn-ghost" href="/ride?address={{ provider.address | urlencode }}">Get a ride</a>
+          <a class="btn btn-ghost" href="/p/{{ provider.slug }}">Book another visit</a>
+        </div>
+      </div>
     </div>
   </section>
 </main>
