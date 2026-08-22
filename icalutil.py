@@ -304,3 +304,56 @@ def _sync_ical(conn, user, url: str, timeout: float) -> None:
         conn.commit()
     except Exception:
         pass
+
+
+def _ics_escape(val: str) -> str:
+    return (
+        (val or "")
+        .replace("\\", "\\\\")
+        .replace(";", "\\;")
+        .replace(",", "\\,")
+        .replace("\r\n", "\\n")
+        .replace("\n", "\\n")
+        .replace("\r", "\\n")
+    )
+
+
+def _ics_dt_local(dt: datetime) -> str:
+    """Format as floating local / TZID America/Denver wall time (YYYYMMDDTHHMMSS)."""
+    local = dt.astimezone(TZ) if dt.tzinfo else dt.replace(tzinfo=TZ)
+    return local.strftime("%Y%m%dT%H%M%S")
+
+
+def build_appointment_ics(
+    *,
+    appt_id: int,
+    summary: str,
+    start: datetime,
+    duration_minutes: int,
+    description: str = "",
+    location: str = "",
+) -> str:
+    """Minimal VCALENDAR/VEVENT for a booked visit. Stdlib only."""
+    start_local = start.astimezone(TZ) if start.tzinfo else start.replace(tzinfo=TZ)
+    end_local = start_local + timedelta(minutes=int(duration_minutes or 0))
+    stamp = datetime.now(TZ).strftime("%Y%m%dT%H%M%S")
+    uid = f"sav-{appt_id}@scheduleavisit.com"
+    lines = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//ScheduleAVisit//EN",
+        "CALSCALE:GREGORIAN",
+        "METHOD:PUBLISH",
+        "BEGIN:VEVENT",
+        f"UID:{uid}",
+        f"DTSTAMP:{stamp}",
+        f"DTSTART;TZID=America/Denver:{_ics_dt_local(start_local)}",
+        f"DTEND;TZID=America/Denver:{_ics_dt_local(end_local)}",
+        f"SUMMARY:{_ics_escape(summary)}",
+    ]
+    if description:
+        lines.append(f"DESCRIPTION:{_ics_escape(description)}")
+    if location:
+        lines.append(f"LOCATION:{_ics_escape(location)}")
+    lines.extend(["END:VEVENT", "END:VCALENDAR", ""])
+    return "\r\n".join(lines)

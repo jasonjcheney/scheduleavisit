@@ -126,6 +126,46 @@ def main() -> None:
     expect("overflow-x: hidden" in css, "missing body overflow-x hidden")
     print("OK mobile CSS guards")
 
+    # —— Booked confirmation .ics download ——
+    from db import at_local, today as db_today
+    from datetime import timedelta
+    with connect() as conn:
+        prov = conn.execute("SELECT id, address FROM users WHERE slug=?", ("elena-vasquez-lpc",)).fetchone()
+        expect(prov is not None, "elena seed missing for ics test")
+        cur = conn.execute(
+            "INSERT INTO clients (provider_id, name, email, phone, created_at) VALUES (?,?,?,?,?)",
+            (prov["id"], "ICS Test Client", "ics@example.com", "", "2026-08-22T01:00:00-06:00"),
+        )
+        client_id = int(cur.lastrowid)
+        start = at_local(db_today() + timedelta(days=3), "10:00")
+        cur = conn.execute(
+            """INSERT INTO appointments
+               (provider_id, client_id, start_iso, duration_minutes, status, booked_via,
+                created_at, visit_kind, note)
+               VALUES (?,?,?,?, 'booked', 'direct', ?, 'session', ?)""",
+            (prov["id"], client_id, start.isoformat(timespec="seconds"), 50,
+             "2026-08-22T01:00:00-06:00", ""),
+        )
+        appt_id = int(cur.lastrowid)
+        conn.commit()
+
+    for ics_path in (f"/booked/{appt_id}.ics", f"/api/booked/{appt_id}/ics"):
+        r = c.get(ics_path)
+        expect(r.status_code == 200, f"{ics_path} expected 200, got {r.status_code}")
+        ctype = (r.headers.get("content-type") or "").lower()
+        expect("text/calendar" in ctype, f"{ics_path} content-type {ctype}")
+        expect("BEGIN:VEVENT" in r.text, f"{ics_path} missing BEGIN:VEVENT")
+        expect("SUMMARY:" in r.text, f"{ics_path} missing SUMMARY")
+        expect("DTSTART" in r.text and "DTEND" in r.text, f"{ics_path} missing DTSTART/DTEND")
+        expect("LOCATION:" in r.text, f"{ics_path} missing LOCATION")
+        print(f"OK {ics_path} 200 + VEVENT")
+
+    booked_html = c.get(f"/booked/{appt_id}")
+    expect(booked_html.status_code == 200, f"/booked/{appt_id} got {booked_html.status_code}")
+    expect("Add to calendar" in booked_html.text, "booked.html missing Add to calendar")
+    expect(f"/booked/{appt_id}.ics" in booked_html.text, "booked.html missing .ics href")
+    print("OK booked.html Add to calendar link")
+
     print("ALL LIVE PATH SMOKES PASSED")
 
 

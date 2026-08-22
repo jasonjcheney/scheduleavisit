@@ -35,6 +35,7 @@
     </div>
     {% endif %}
     <div class="hero-actions" style="justify-content:center">
+      <a class="btn btn-ghost" href="/booked/{{ appointment.id }}.ics">Add to calendar</a>
       <a class="btn btn-ghost" href="/ride?address={{ provider.address | urlencode }}">Get a ride</a>
       <a class="btn btn-sage" href="/p/{{ provider.slug }}">Book another visit</a>
     </div>

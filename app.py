@@ -11,7 +11,7 @@ from typing import Optional
 from urllib.parse import quote, urlencode
 
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -29,7 +29,7 @@ from db import (
     today,
     verify_password,
 )
-from icalutil import maybe_sync_ical, note_summary
+from icalutil import build_appointment_ics, maybe_sync_ical, note_summary
 from capacity import (
     WEEKLY_HORIZON,
     availability_for,
@@ -374,6 +374,47 @@ def booking_page(request: Request, slug: str):
         provider = public_provider(u)
     resp = tpl(request, "booking.html", provider=provider)
     return resp
+
+
+@app.get("/booked/{appt_id}.ics")
+@app.get("/api/booked/{appt_id}/ics")
+def booked_ics(appt_id: int):
+    """Download a minimal .ics so clients can add the visit to Apple/Google/Outlook."""
+    with db() as conn:
+        a = conn.execute("SELECT * FROM appointments WHERE id=?", (appt_id,)).fetchone()
+        if not a or a["status"] != "booked":
+            return Response("Visit not found", status_code=404, media_type="text/plain")
+        provider = user_by_id(conn, a["provider_id"])
+        client = conn.execute("SELECT * FROM clients WHERE id=?", (a["client_id"],)).fetchone() if a["client_id"] else None
+        start = parse_iso(a["start_iso"])
+        visit_kind = uget(a, "visit_kind", "session") or "session"
+        kind_label = "Consultation" if visit_kind == "consult" else "Visit"
+        provider_name = provider["name"] if provider else "your provider"
+        client_name = client["name"] if client else "Guest"
+        minutes = int(a["duration_minutes"] or 50)
+        location = (provider["address"] if provider else "") or ""
+        clinic = (provider["clinic"] if provider else "") or ""
+        summary = f"{kind_label} with {provider_name}"
+        desc_parts = [
+            f"{kind_label} for {client_name}",
+            f"{minutes}-minute {visit_kind}",
+        ]
+        if clinic:
+            desc_parts.append(clinic)
+        if location:
+            desc_parts.append(location)
+        body = build_appointment_ics(
+            appt_id=int(a["id"]),
+            summary=summary,
+            start=start,
+            duration_minutes=minutes,
+            description=" · ".join(desc_parts),
+            location=location,
+        )
+    headers = {
+        "Content-Disposition": f'attachment; filename="visit-{appt_id}.ics"',
+    }
+    return Response(content=body, media_type="text/calendar; charset=utf-8", headers=headers)
 
 
 @app.get("/booked/{appt_id}", response_class=HTMLResponse)

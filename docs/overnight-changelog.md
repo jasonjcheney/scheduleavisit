@@ -1,5 +1,21 @@
 # Overnight changelog
 
+## 2026-08-22 ~1:16 AM MT — Add to calendar (.ics) on booked page (local-only)
+
+Jason asleep. **Local only — not pushed; pending morning deploy.** No GitHub / Render API calls. No secrets printed.
+
+### Feature
+- `GET /booked/{id}.ics` and `GET /api/booked/{id}/ics` return `text/calendar` with a minimal VEVENT
+- Fields: SUMMARY, DTSTART/DTEND (`TZID=America/Denver`), DESCRIPTION, LOCATION (provider address)
+- Stdlib-only builder in `icalutil.build_appointment_ics` (no new deps)
+- Booked confirmation page: “Add to calendar” download link
+
+### Tests
+- `tests/test_live_paths.py`: .ics returns 200 and contains `BEGIN:VEVENT`
+
+### Ship status
+- **Local commit only.** Morning: push `main` + Render deploy when Jason is awake.
+
 ## 2026-08-22 ~1:15 AM MT — Waitlist dismiss (local-only)
 
 Jason asleep. **Local only — not pushed; pending morning deploy.** No GitHub / Render API calls. No secrets printed.
