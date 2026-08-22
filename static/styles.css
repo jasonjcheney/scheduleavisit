@@ -2050,3 +2050,53 @@ a:focus-visible,
 #clients-filter-empty {
   margin-top: 4px;
 }
+
+/* Booking link QR (MVP via public QR image API) */
+.booking-share {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-top: 10px;
+}
+.qr-block {
+  flex: 0 0 auto;
+  text-align: center;
+  max-width: 140px;
+}
+.qr-label {
+  margin: 0 0 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--sage-deep);
+  letter-spacing: 0.01em;
+}
+.qr-img {
+  display: block;
+  width: 140px;
+  height: 140px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid var(--line);
+  padding: 6px;
+  box-sizing: border-box;
+}
+.booking-share-link {
+  flex: 1;
+  min-width: 0;
+}
+.booking-share-link .link-box {
+  margin-top: 0;
+}
+@media (max-width: 719px) {
+  .booking-share {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .qr-block {
+    max-width: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+}

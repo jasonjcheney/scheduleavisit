@@ -110,6 +110,8 @@ def main() -> None:
     expect(dash.status_code == 200, f"/dashboard got {dash.status_code}")
     for n in ("Hello", "Month calendar", "Your booking link", "Clients never see"):
         expect(n in dash.text, f"/dashboard missing {n!r}")
+    expect("Scan to book" in dash.text, "/dashboard missing Scan to book QR label")
+    expect("api.qrserver.com" in dash.text, "/dashboard missing QR image API src")
     print("OK /dashboard 200")
 
     # —— Elena login → dashboard client name filter ——

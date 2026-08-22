@@ -61,12 +61,28 @@
     <section class="card share-strip">
       <h2>Your booking link</h2>
       <p class="muted">Clients never see your hour cap — only a time with you, or someone you recommend.</p>
-      <div class="link-box">
-        <code id="booking-link">{{ booking_display }}</code>
-        <button type="button" class="btn btn-sage btn-sm" id="copy-link" data-copy="{{ booking_url }}">Copy link</button>
+      <div class="booking-share">
+        <div class="qr-block">
+          <p class="qr-label">Scan to book</p>
+          <img
+            class="qr-img"
+            src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&amp;data={{ booking_url | urlencode }}"
+            width="140"
+            height="140"
+            alt="QR code for your booking link"
+            loading="lazy"
+            decoding="async"
+          >
+        </div>
+        <div class="booking-share-link">
+          <div class="link-box">
+            <code id="booking-link">{{ booking_display }}</code>
+            <button type="button" class="btn btn-sage btn-sm" id="copy-link" data-copy="{{ booking_url }}">Copy link</button>
+          </div>
+          <p class="help-tip" id="copy-link-feedback" style="margin:10px 0 0" hidden>Link copied — paste on your site or Psychology Today profile.</p>
+          <p style="margin-top:12px"><a class="btn btn-ghost btn-sm" href="/p/{{ me.slug }}">Open as a client</a></p>
+        </div>
       </div>
-      <p class="help-tip" id="copy-link-feedback" style="margin:10px 0 0" hidden>Link copied — paste on your site or Psychology Today profile.</p>
-      <p style="margin-top:12px"><a class="btn btn-ghost btn-sm" href="/p/{{ me.slug }}">Open as a client</a></p>
     </section>
   </div>
 

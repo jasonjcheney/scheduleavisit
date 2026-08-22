@@ -1,5 +1,22 @@
 # Overnight changelog
 
+## 2026-08-22 ~1:34 AM MT — Dashboard booking-link QR (local-only)
+
+Jason asleep. **Local only — not pushed; pending morning deploy.** No GitHub / Render API calls. No secrets printed.
+
+### Feature
+- Share strip: **Scan to book** QR next to the booking link / Copy button
+- MVP image via public QR API (`api.qrserver.com`) using existing `booking_url` (urlencode) — no new deps
+- Light flex CSS; stacks on mobile (≤719px)
+
+### Tests
+- `tests/test_live_paths.py`: asserts Scan to book + qrserver src on `/dashboard`
+
+### Ship status
+- **Local commit only.** Morning: push `main` + Render deploy when Jason is awake.
+
+
+
 ## 2026-08-22 ~1:36 AM MT — Dashboard client name filter (local-only)
 
 Jason asleep. **Local only — not pushed; pending morning deploy.** No GitHub / Render API calls. No secrets printed.
