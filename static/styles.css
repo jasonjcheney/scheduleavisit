@@ -2241,3 +2241,177 @@ a:focus-visible,
   padding-top: 4px;
   border-top: 1px dashed var(--line);
 }
+
+/* ——— Design pass #5: soft hero accent, FAQ breath, chip selected, QR align ——— */
+
+/* Landing — cream→sage hero wash + thin terracotta accent bar */
+.hero {
+  position: relative;
+  padding: 52px 20px 60px;
+  background:
+    linear-gradient(
+      165deg,
+      var(--card) 0%,
+      var(--paper) 42%,
+      var(--sage-wash) 100%
+    );
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+.hero::before {
+  content: "";
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  top: 0;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: linear-gradient(
+    90deg,
+    var(--clay) 0%,
+    var(--clay-soft) 38%,
+    var(--sage-mid) 100%
+  );
+  opacity: 0.85;
+  pointer-events: none;
+}
+@media (min-width: 900px) {
+  .hero {
+    max-width: var(--max);
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 28px;
+    padding-right: 28px;
+  }
+  .hero::before {
+    left: 28px;
+    right: 28px;
+  }
+}
+
+/* Landing FAQ — more air between items and inside answers */
+.faq {
+  padding: 20px 20px 48px;
+}
+.faq-head {
+  margin-bottom: 24px;
+}
+.faq-head h2 {
+  margin-bottom: 10px;
+}
+.faq-list {
+  gap: 14px;
+}
+.faq-item summary {
+  padding: 18px 52px 18px 20px;
+}
+.faq-body {
+  padding: 2px 20px 20px;
+  line-height: 1.65;
+}
+.faq-body p {
+  margin: 0;
+  max-width: 42em;
+}
+
+/* Booking — richer selected date-chip (forest fill, cream type, clay tick) */
+.date-chip {
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.12s ease;
+}
+.date-chip[aria-pressed="true"],
+.date-chip.active {
+  background: linear-gradient(180deg, var(--sage-mid) 0%, var(--sage) 55%, var(--sage-deep) 100%);
+  color: #fffdf8;
+  border-color: var(--sage-deep);
+  box-shadow:
+    0 2px 0 rgba(28, 43, 36, 0.12),
+    0 6px 16px rgba(45, 90, 74, 0.28),
+    inset 0 1px 0 rgba(255, 253, 248, 0.18);
+  transform: translateY(-1px);
+  position: relative;
+}
+.date-chip[aria-pressed="true"]::after,
+.date-chip.active::after {
+  content: "";
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  bottom: 6px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--clay);
+  opacity: 0.9;
+}
+.date-chip[aria-pressed="true"] .d,
+.date-chip.active .d {
+  color: #fffdf8;
+}
+.date-chip[aria-pressed="true"] .w,
+.date-chip.active .w {
+  color: #d5e6dc;
+}
+.date-chip:hover:not(.active):not([aria-pressed="true"]) {
+  border-color: var(--sage-mid);
+  background: var(--sage-wash);
+}
+
+/* Dashboard — QR block aligned with link box */
+.booking-share {
+  align-items: center;
+  gap: 18px;
+  margin-top: 14px;
+}
+.qr-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 12px 12px;
+  background: var(--sage-wash);
+  border: 1.5px solid #c5d9ce;
+  border-radius: var(--radius-sm);
+  max-width: none;
+  box-sizing: border-box;
+}
+.qr-label {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.qr-img {
+  width: 132px;
+  height: 132px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  padding: 4px;
+  background: #fff;
+}
+.booking-share-link {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-self: stretch;
+}
+.booking-share-link .link-box {
+  margin-top: 0;
+  min-height: 52px;
+  align-items: center;
+}
+.share-strip .booking-share-link .link-box {
+  margin-top: 0;
+}
+@media (max-width: 719px) {
+  .booking-share {
+    align-items: stretch;
+    gap: 12px;
+  }
+  .qr-block {
+    flex-direction: column;
+    align-items: center;
+    max-width: none;
+  }
+}

@@ -607,3 +607,29 @@ Local-only (no push / no Render).
 
 ### Deploy
 - Commit locally only (no push, no Render)
+
+## 2026-08-22 ~1:53 AM MT — Design pass #5 (local-only)
+
+Jason asleep. **Local only — not pushed; pending morning deploy.** No GitHub / Render API calls. No secrets printed.
+
+### Landing
+- Soft cream → paper → sage-wash hero gradient
+- Thin terracotta→sage accent bar across the top of the hero
+- FAQ: more section padding, larger item gaps, roomier summary/body spacing
+
+### Booking
+- Selected date-chip: forest gradient fill, cream type, soft lift shadow, small terracotta underline tick
+- Idle chip hover stays sage-wash (no layout thrash)
+
+### Dashboard
+- QR block and link box share sage-wash card chrome and vertical centering
+- Share row `align-items: center`; link box min-height kept flush with QR card
+
+### Palette
+- Still cream / forest / terracotta (`--paper`, `--sage*`, `--clay*`)
+
+### Tests
+- Full suite under `tests/` (see commit message / run log)
+
+### Deploy
+- Commit locally only (no push, no Render)
