@@ -1,5 +1,43 @@
 # Overnight changelog
 
+## Current product summary (22 Aug 2026 ~1:41 AM MT)
+
+Plain-language snapshot of what ScheduleAVisit does **now**. Detail entries below stay as the overnight history.
+
+### For clients
+- Open a provider’s booking link, pick **consult** (short free intro) or **full session**
+- If that provider’s week is at the hour cap, get a **trusted colleague** — and if they’re full too, the app keeps walking the network (**multi-hop**) until someone has room
+- If the whole reachable network is full, leave a **waitlist** name + email (no “not taking patients” dead end)
+- On the booked page: portal CTA when set, **Add to calendar** (`.ics`), Consultation / Session badge
+
+### For therapists
+- **Setup**: who you are, weekly hour cap + buffer, consult on/off, portal (Headway / SonderMind / custom), optional iCal busy import, **Change password**
+- **Dashboard**: share strip with booking URL + **Scan to book QR**, month calendar (**click a day** to add a client), upcoming visits with **cancel / reschedule**, Clients list with **name filter**, waitlist (dismiss), network invite, **notifications** with mark-one / mark-all read
+- Capacity math stays on the server; clients never see the hour-cap number
+
+### Demo logins
+- Jason: `jasoncheney` / `123456` → `/setup` then `/p/jason-cheney`
+- Elena: `Elena` / `demo1234` → near-cap demo with James / Maya peers
+
+### Ship note
+Local overnight commits after waitlist/OG deploy are **not pushed** until Jason is awake. Smoke path: `SMOKE.md`. Suites: `tests/test_public_paths.py`, `test_live_paths.py`, `test_setup_calendar.py`, `test_multihop_referral.py`.
+
+
+## 2026-08-22 ~1:41 AM MT — Docs refresh: SMOKE + product summary (local-only)
+
+Jason asleep. **Local only — not pushed; pending morning deploy.** No GitHub / Render API calls. No secrets printed.
+
+### Docs
+- `SMOKE.md` rewritten for the current product (waitlist, multi-hop, consult/session, calendar click, `.ics`, QR, password change, reschedule, client filter, notifications mark-read)
+- This file: **Current product summary** added at the top; plain language kept
+
+### Tests
+- Docs-only change; full `tests/` suite re-run to confirm green
+
+### Ship status
+- **Local commit only.** Morning: push `main` + Render deploy when Jason is awake.
+
+
 ## 2026-08-22 ~1:38 AM MT — Dashboard notifications polish (local-only)
 
 Jason asleep. **Local only — not pushed; pending morning deploy.** No GitHub / Render API calls. No secrets printed.
