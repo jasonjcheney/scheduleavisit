@@ -136,8 +136,16 @@
         visitKind = btn.getAttribute("data-kind") || "session";
         minutes = currentMinutes();
         $$("#visit-kind [data-kind]").forEach(function (b) {
-          b.classList.toggle("active", b === btn);
+          var on = b === btn;
+          b.classList.toggle("active", on);
+          b.setAttribute("aria-pressed", on ? "true" : "false");
         });
+        var help = $("#visit-kind-help");
+        if (help) {
+          help.textContent = visitKind === "consult"
+            ? "Consultation: a short free intro (" + consultMinutes + " min). Returning clients are booked as a full session automatically."
+            : "Full session: the regular " + sessionMinutes + "-minute clinical visit.";
+        }
         state.time = null;
         $("#book-result").innerHTML = "";
         if (state.date) loadSlots();
@@ -182,10 +190,32 @@
       }
       state.weekHasRoom = data.weekHasRoom;
       if (!data.slots || !data.slots.length) {
-        grid.innerHTML = '<p class="muted">No clinic hours this day.</p>';
+        grid.innerHTML =
+          '<div class="empty-state compact">' +
+            '<p class="muted" style="margin:0">No clinic hours this day.</p>' +
+            '<p class="help-tip" style="margin:8px 0 0">Try another day above, or check back later.</p>' +
+          '</div>';
         return;
       }
-      grid.innerHTML = data.slots.map(function (s) {
+      var openCount = data.slots.filter(function (s) { return !(s.booked || s.past || !s.open); }).length;
+      if (openCount === 0) {
+        var fuller = data.weekHasRoom === false
+          ? '<p class="help-tip" style="margin:8px 0 0">This week looks full on hours. Pick another day, or confirm a time to see a trusted referral.</p>'
+          : '<p class="help-tip" style="margin:8px 0 0">Every slot for this day is taken. Pick another day above.</p>';
+        grid.innerHTML =
+          '<div class="empty-state compact">' +
+            '<p class="muted" style="margin:0">No open times left on this day.</p>' +
+            fuller +
+          '</div>';
+        return;
+      }
+      var banner = "";
+      if (data.weekHasRoom === false) {
+        banner = '<p class="notice slot-banner" role="status">This week is at the clinical hour cap. Open squares may still show — confirming one will offer a trusted peer instead of overbooking.</p>';
+      } else if (openCount <= 2) {
+        banner = '<p class="help-tip slot-banner" role="status">Only a few times left this day — ' + openCount + ' still open.</p>';
+      }
+      grid.innerHTML = banner + data.slots.map(function (s) {
         var gone = s.booked || s.past || !s.open;
         var active = state.time === s.time;
         return '<button type="button" class="time-slot' + (gone ? " gone" : "") + (active ? " active" : "") +
@@ -205,10 +235,11 @@
 
     function showConfirm() {
       var d = parseISODate(state.date);
+      var kindLabel = visitKind === "consult" ? "free consultation" : "full session";
       $("#book-result").innerHTML =
         '<section class="card">' +
           "<h2>Confirm with " + escapeHtml(first) + "</h2>" +
-          "<p>" + formatLong(d) + " at " + formatTime(state.time) + " · " + minutes + " minutes</p>" +
+          "<p>" + formatLong(d) + " at " + formatTime(state.time) + " · " + minutes + " minutes · " + kindLabel + "</p>" +
           '<form id="visit-form" class="fields">' +
             '<p class="err hidden" id="visit-err"></p>' +
             '<label class="field">Your name<input type="text" name="name" required placeholder="Jordan Lee" autocomplete="name"></label>' +
@@ -258,17 +289,27 @@
       var rest = payload.alternatives || [];
       var body;
       if (!rec) {
-        body = '<section class="card"><h2>No openings nearby this week</h2><p>Please try another day, or call the office.</p></section>';
-      } else {
         body =
-          '<section class="referral" id="referral-panel">' +
+          '<section class="card empty-state">' +
+            "<h2>No openings nearby this week</h2>" +
+            "<p class=\"muted\">We could not find an open peer in " + escapeHtml(first) + "’s network right now.</p>" +
+            '<p class="help-tip">Try another day above — later weeks may have room with ' + escapeHtml(first) + " — or call the office.</p>" +
+          "</section>";
+      } else {
+        var hops = rec.hops || 1;
+        var hopLine = hops > 1
+          ? "If the closest peer is also full, we keep walking " + escapeHtml(first) +
+            "’s trusted network until someone has room — that is how you still leave with an appointment."
+          : escapeHtml(first) + " recommends someone they trust, on this same page.";
+        body =
+          '<section class="referral" id="referral-panel" tabindex="-1">' +
             '<p class="eyebrow">This week is full</p>' +
             "<h2>" + escapeHtml(first) + " does not have room for another " + minutes + "-minute visit this week.</h2>" +
-            "<p>The weekly cap already includes the people seen every week, plus time for notes and emergencies. You are not being sent away — " +
-            escapeHtml(first) + " recommends someone they trust, on this same page.</p>" +
+            "<p>The weekly cap already includes the people seen every week, plus time for notes and emergencies. You are not being sent away. " +
+            hopLine + "</p>" +
             recCard(rec, true) +
             (rest.length
-              ? '<button type="button" class="btn btn-text" id="see-more">See more options</button>' +
+              ? '<button type="button" class="btn btn-text" id="see-more" aria-expanded="false" aria-controls="more-list">See more options</button>' +
                 '<div class="more-list" id="more-list">' + rest.map(function (r) { return recCard(r, false); }).join("") + "</div>"
               : "") +
             '<p class="tiny">You can still pick a different day above. Later weeks may have room with ' + escapeHtml(first) + ".</p>" +
@@ -281,7 +322,12 @@
           var list = $("#more-list");
           var open = list.classList.toggle("open");
           more.textContent = open ? "Hide extra options" : "See more options";
+          more.setAttribute("aria-expanded", open ? "true" : "false");
         });
+      }
+      var panel = $("#referral-panel");
+      if (panel && panel.focus) {
+        try { panel.focus(); } catch (e) {}
       }
       $$("[data-book-ref]").forEach(function (btn) {
         btn.addEventListener("click", function () {
@@ -621,5 +667,25 @@
       }
       location.href = data.redirect || "/dashboard";
     });
+
+    var steps = $$(".setup-step");
+    if (steps.length) {
+      var sections = ["#who-you-are", "#your-hours", "#client-portal", "#calendar-ical"].map(function (id) {
+        return document.querySelector(id);
+      });
+      function markActive() {
+        var idx = 0;
+        sections.forEach(function (sec, i) {
+          if (!sec) return;
+          var top = sec.getBoundingClientRect().top;
+          if (top < 140) idx = i;
+        });
+        steps.forEach(function (el, i) {
+          el.classList.toggle("is-active", i === idx);
+        });
+      }
+      window.addEventListener("scroll", markActive, { passive: true });
+      markActive();
+    }
   }
 })();

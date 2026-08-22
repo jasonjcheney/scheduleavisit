@@ -7,10 +7,20 @@
   <h1 class="page-title">{% if editing %}Edit my page{% else %}Hello, {{ first }}. Let’s set you up.{% endif %}</h1>
   <p class="sub">Plain language. You can change any of this later. Clients see your name, hours, and booking link — not this form.</p>
 
-  <form id="setup-form" class="fields">
-    <p class="err hidden" id="setup-err"></p>
+  {% if not editing %}
+  <nav class="setup-progress" aria-label="Setup progress">
+    <a class="setup-step is-active" href="#who-you-are"><span>1</span> Who you are</a>
+    <a class="setup-step" href="#your-hours"><span>2</span> Hours</a>
+    <a class="setup-step" href="#client-portal"><span>3</span> Portal</a>
+    <a class="setup-step" href="#calendar-ical"><span>4</span> Calendar</a>
+  </nav>
+  <p class="help-tip">Four short sections. Finish all four, then you land on your dashboard with a public booking link.</p>
+  {% endif %}
 
-    <section class="card setup-section">
+  <form id="setup-form" class="fields">
+    <p class="err hidden" id="setup-err" role="alert"></p>
+
+    <section class="card setup-section" id="who-you-are">
       <p class="eyebrow">1</p>
       <h2>Who you are</h2>
       <p class="muted">This is what people see on your public booking page.</p>
@@ -39,7 +49,7 @@
       </div>
     </section>
 
-    <section class="card setup-section">
+    <section class="card setup-section" id="your-hours">
       <p class="eyebrow">2</p>
       <h2>Your hours</h2>
       <p class="muted">The weekly cap is clinical hours, not “squares on a calendar.” The buffer is for notes and emergencies.</p>
@@ -78,13 +88,14 @@
           <input type="number" name="consult_minutes" min="10" max="60" step="5" value="{{ me.consult_minutes or 15 }}">
         </label>
       </div>
+      <p class="help-tip">Tip: keep consult shorter than a full session so first visits fit even on tighter weeks.</p>
     </section>
 
-    <section class="card setup-section">
+    <section class="card setup-section" id="client-portal">
       <p class="eyebrow">3</p>
       <h2>Client portal</h2>
       <p class="muted">Paste the link your clients use to start intake. After a first booking we will show a “Get started on the online portal” button.</p>
-      <div class="choice-grid" id="portal-kind">
+      <div class="choice-grid" id="portal-kind" role="radiogroup" aria-label="Portal type">
         <label class="choice-card"><input type="radio" name="portal_kind" value="headway" {% if me.portal_kind=='headway' %}checked{% endif %}> Headway</label>
         <label class="choice-card"><input type="radio" name="portal_kind" value="sondermind" {% if me.portal_kind=='sondermind' %}checked{% endif %}> SonderMind</label>
         <label class="choice-card"><input type="radio" name="portal_kind" value="custom" {% if me.portal_kind=='custom' %}checked{% endif %}> My own page</label>
@@ -93,9 +104,10 @@
       <label class="field" style="margin-top:12px">Portal URL
         <input type="url" name="portal_url" value="{{ me.portal_url }}" placeholder="https://…">
       </label>
+      <p class="help-tip">Optional. Skip this if you are not ready — your booking link still works.</p>
     </section>
 
-    <section class="card setup-section">
+    <section class="card setup-section" id="calendar-ical">
       <p class="eyebrow">4</p>
       <h2>Calendar</h2>
       <p class="muted">Optional. Paste a secret iCal / ICS address so existing busy time counts toward your week. We do not use Google sign-in.</p>
@@ -107,6 +119,7 @@
         <p><strong>Outlook</strong> — Share → publish an ICS link.</p>
         <p><strong>Apple Calendar</strong> — “File → New Calendar Subscription” is for following someone else’s calendar. To publish yours: Calendar → Share calendar, or an iCloud public calendar, then paste that URL here.</p>
       </div>
+      <p class="help-tip">After setup, you can also click empty days on the dashboard month calendar to add clients by name.</p>
     </section>
 
     <div class="hero-actions">

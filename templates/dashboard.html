@@ -7,7 +7,7 @@
     <div>
       <p class="eyebrow">Provider dashboard</p>
       <h1 class="page-title">Hello, {{ first }}.</h1>
-      <p class="sub">Signed in as {{ me.name }}{% if me.clinic %} · {{ me.clinic }}{% endif %}</p>
+      <p class="sub">Signed in as {{ me.name }}{% if me.clinic %} · {{ me.clinic }}{% endif %}. Share your booking link, watch the weekly cap, and keep overflow with people you trust.</p>
     </div>
     <div class="hero-actions">
       <a class="btn btn-sage btn-sm" href="/setup">Edit my page</a>
@@ -16,6 +16,22 @@
       </form>
     </div>
   </div>
+
+  <section class="card getting-started" id="getting-started">
+    <div class="row">
+      <div>
+        <h2>Getting started</h2>
+        <p class="tiny" style="margin:0">A short checklist so nothing important hides. You can dismiss this anytime by finishing the steps.</p>
+      </div>
+    </div>
+    <ul class="checklist">
+      <li class="done"><span aria-hidden="true">✓</span> Finish setup and open your public link</li>
+      <li class="{% if upcoming or clients %}done{% endif %}"><span aria-hidden="true">{% if upcoming or clients %}✓{% else %}○{% endif %}</span> Add a client on the month calendar <a href="#month-cal-card">jump down</a></li>
+      <li class="{% if peers %}done{% endif %}"><span aria-hidden="true">{% if peers %}✓{% else %}○{% endif %}</span> Invite a trusted peer for overflow <a href="#referral-network">jump down</a></li>
+      <li class="{% if me.ical_url %}done{% endif %}"><span aria-hidden="true">{% if me.ical_url %}✓{% else %}○{% endif %}</span> Optional: paste an iCal URL under <a href="/setup#calendar-ical">Edit my page</a></li>
+    </ul>
+    <p class="help-tip">Tip: clients never see your hour cap. They either get a time with you, or a recommended peer.</p>
+  </section>
 
   <div class="dash-grid">
     <section class="card cap-hero">
@@ -44,7 +60,7 @@
 
     <section class="card">
       <h2>Your booking link</h2>
-      <p class="muted">Clients use this. They never see your hour cap — they just get a time, or a person you recommend.</p>
+      <p class="muted">Clients use this. They never see your hour cap — they get a time with you, or a trusted peer when you are full.</p>
       <div class="link-box">
         <code id="booking-link">{{ booking_display }}</code>
         <button type="button" class="btn btn-sage btn-sm" id="copy-link" data-copy="{{ booking_url }}">Copy</button>
@@ -57,7 +73,7 @@
     <div class="row">
       <div>
         <h2>Month calendar</h2>
-        <p class="tiny" style="margin:0">Click an empty day to add a client by name. Sage = booked on your link · terracotta = you added · blue = imported busy time.</p>
+        <p class="tiny" style="margin:0"><strong>Click any empty day</strong> to add a client by name — that time counts toward your weekly cap. Sage = booked on your link · terracotta = you added · blue = imported busy time.</p>
       </div>
       <div class="cal-nav">
         <button type="button" class="btn btn-ghost btn-sm" id="cal-prev">Previous</button>
@@ -65,7 +81,8 @@
         <button type="button" class="btn btn-ghost btn-sm" id="cal-next">Next</button>
       </div>
     </div>
-    <div class="month-cal" id="month-cal" style="margin-top:14px"></div>
+    <div class="month-cal" id="month-cal" style="margin-top:14px" aria-live="polite"></div>
+    <p class="help-tip" id="cal-help">Empty days are clickable. Use Previous / Next to plan ahead. Manual blocks keep capacity honest when someone is already on your caseload.</p>
   </section>
 
   <div id="block-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="block-modal-title">
@@ -136,7 +153,10 @@
           </div>
         </div>
         {% else %}
-        <p class="muted">No upcoming visits on the book.</p>
+        <div class="empty-state compact">
+          <p class="muted" style="margin:0">No upcoming visits yet.</p>
+          <p class="help-tip" style="margin:8px 0 0">Share your booking link, or click a day on the month calendar to add someone by name.</p>
+        </div>
         {% endfor %}
       </div>
     </section>
@@ -151,7 +171,10 @@
           <p class="tiny" style="margin:0">{{ n.body }}</p>
         </article>
         {% else %}
-        <p class="muted">Nothing yet.</p>
+        <div class="empty-state compact">
+          <p class="muted" style="margin:0">Nothing yet.</p>
+          <p class="help-tip" style="margin:8px 0 0">New bookings, referrals, and network invites show up here. We do not send email.</p>
+        </div>
         {% endfor %}
       </div>
     </section>
@@ -179,14 +202,17 @@
           </div>
         </div>
         {% else %}
-        <p class="muted">No clients yet. They appear when someone books your public link, or when you add a name on the calendar.</p>
+        <div class="empty-state compact">
+          <p class="muted" style="margin:0">No clients yet.</p>
+          <p class="help-tip" style="margin:8px 0 0">They appear when someone books your public link, or when you add a name on the month calendar above.</p>
+        </div>
         {% endfor %}
       </div>
     </section>
 
-    <section class="card">
+    <section class="card" id="referral-network">
       <h2>Referral network</h2>
-      <p class="muted">When you are full, the booking page offers the best match first. Invite a colleague by email — they accept, and their calendar feeds your overflow.</p>
+      <p class="muted">When you are full, the booking page offers the best match first — and can walk further through peers of peers if needed. Invite a colleague by email; they accept, and their open hours feed your overflow.</p>
       {% for p in peers %}
       <div class="peer">
         <div class="row">
@@ -202,7 +228,10 @@
         <div class="bar {{ p.status }}"><span style="width:{{ p.fill }}%"></span></div>
       </div>
       {% else %}
-      <p class="muted">No peers yet. Invite someone you would send your own family to.</p>
+      <div class="empty-state compact">
+        <p class="muted" style="margin:0">No peers yet.</p>
+        <p class="help-tip" style="margin:8px 0 0">Invite someone you would send your own family to. Multi-hop referrals only work once a few trusted links exist.</p>
+      </div>
       {% endfor %}
       <form id="invite-form" class="fields" style="margin-top:16px">
         <label class="field">Invite a colleague

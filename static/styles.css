@@ -534,3 +534,213 @@ input[type="url"]:focus { outline: 3px solid rgba(45,90,74,0.25); border-color: 
   .cal-day { min-height: 72px; padding: 3px; }
   .cal-block { font-size: 0.62rem; padding: 2px 3px; }
 }
+
+/* ——— Overnight polish: trust, audience, setup, a11y ——— */
+.trust-strip {
+  background: var(--card);
+  border-block: 1px solid var(--line);
+  padding: 18px 20px;
+}
+.trust-inner {
+  max-width: var(--max);
+  margin: 0 auto;
+  display: grid;
+  gap: 12px;
+}
+.trust-item {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--sage-wash);
+  border: 1px solid var(--line);
+}
+.trust-item strong {
+  font-family: var(--serif);
+  font-size: 1.05rem;
+  color: var(--sage-deep);
+}
+.trust-item span {
+  font-size: 0.86rem;
+  color: var(--ink-soft);
+}
+
+.audience {
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: 40px 20px 8px;
+}
+.audience-grid {
+  display: grid;
+  gap: 14px;
+}
+.audience-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 22px;
+  box-shadow: var(--shadow);
+}
+.audience-card h2 {
+  font-size: clamp(1.35rem, 2.6vw, 1.7rem);
+  margin-bottom: 10px;
+}
+.check-list {
+  margin: 0 0 16px;
+  padding: 0 0 0 1.1em;
+  color: var(--ink-soft);
+}
+.check-list li { margin: 0 0 8px; }
+
+.referral-story h3 { font-size: 1.2rem; margin-bottom: 6px; }
+
+.help-tip {
+  margin: 10px 0 0;
+  font-size: 0.86rem;
+  color: var(--ink-soft);
+  background: var(--sage-wash);
+  border-left: 3px solid var(--sage-mid);
+  padding: 8px 12px;
+  border-radius: 0 10px 10px 0;
+}
+.choice-hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--muted);
+  line-height: 1.35;
+}
+.choice-card.active .choice-hint,
+.choice-card:has(input:checked) .choice-hint {
+  color: var(--sage-deep);
+}
+
+.empty-state {
+  text-align: left;
+}
+.empty-state.compact {
+  padding: 4px 0 2px;
+}
+.slot-banner { margin: 0 0 10px; grid-column: 1 / -1; }
+
+.setup-progress {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+.setup-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1.5px solid var(--line);
+  background: var(--card);
+  color: var(--ink-soft);
+  text-decoration: none;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+.setup-step span {
+  width: 22px; height: 22px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--paper-2); color: var(--ink);
+  font-size: 0.75rem;
+}
+.setup-step.is-active {
+  border-color: var(--sage);
+  background: var(--sage-wash);
+  color: var(--sage-deep);
+}
+.setup-step.is-active span {
+  background: var(--sage);
+  color: #fff;
+}
+.setup-step:focus-visible {
+  outline: 3px solid var(--sage-mid);
+  outline-offset: 2px;
+}
+
+.getting-started .checklist {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.getting-started .checklist li {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 0.95rem;
+  color: var(--ink-soft);
+}
+.getting-started .checklist li span {
+  flex: 0 0 auto;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--paper-2);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.getting-started .checklist li.done {
+  color: var(--sage-deep);
+}
+.getting-started .checklist li.done span {
+  background: var(--sage);
+  color: #fff;
+}
+.getting-started .checklist a {
+  font-weight: 600;
+}
+
+.referral:focus {
+  outline: 3px solid var(--sage-mid);
+  outline-offset: 3px;
+}
+
+/* Stronger focus + contrast */
+.choice-card:focus-visible,
+.day-chip:focus-within,
+.cal-day:focus-within .cal-day-num:focus-visible,
+.cal-block:focus-visible {
+  outline: 3px solid var(--sage-mid);
+  outline-offset: 2px;
+}
+.btn-ghost {
+  border-color: #b7a894;
+  color: var(--ink);
+}
+.muted { color: #4a5c53; }
+.tiny { color: #4a5c53; }
+
+@media (min-width: 720px) {
+  .trust-inner { grid-template-columns: repeat(4, 1fr); }
+  .audience-grid { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 719px) {
+  .site-header { padding: 12px 14px; gap: 8px; }
+  .wordmark-name { font-size: 1.02rem; }
+  .nav-links .btn-sm { min-height: 36px; padding: 0 11px; font-size: 0.82rem; }
+  .hero { padding: 18px 16px 36px; gap: 22px; }
+  .hero h1 { font-size: clamp(1.85rem, 8vw, 2.4rem); }
+  .lede { font-size: 1.05rem; }
+  .hero-actions .btn { flex: 1 1 auto; min-width: min(100%, 160px); }
+  .mini-cal { grid-template-columns: 1fr; }
+  .steps, .who, .audience { padding-left: 16px; padding-right: 16px; }
+  .trust-strip { padding: 14px 16px; }
+  .band { padding: 36px 16px; }
+  .slot-grid { grid-template-columns: repeat(2, 1fr); }
+  .setup-progress { gap: 6px; }
+  .setup-step { font-size: 0.78rem; padding: 7px 10px; }
+  .choice-grid.two { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 420px) {
+  .nav-links .btn-ghost.btn-sm[href="/book"] { display: none; }
+}

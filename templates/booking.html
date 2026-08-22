@@ -17,26 +17,30 @@
   </section>
   {% if provider.consult_enabled %}
   <section class="card" id="visit-kind-card">
-    <h2>What would you like?</h2>
-    <p class="muted">First visits can be a short free consult. If you already see {{ provider.first }}, pick a full session.</p>
-    <div class="choice-grid two" id="visit-kind">
-      <button type="button" class="choice-card active" data-kind="consult">
+    <h2>What kind of visit?</h2>
+    <p class="muted">New here? Start with a short free consult to see if it is a fit. Already working with {{ provider.first }}? Book a full session.</p>
+    <div class="choice-grid two" id="visit-kind" role="group" aria-label="Visit type">
+      <button type="button" class="choice-card active" data-kind="consult" aria-pressed="true">
         <strong>Free consultation</strong>
-        <span class="tiny">{{ provider.consult_minutes }} minutes</span>
+        <span class="tiny">{{ provider.consult_minutes }} minutes · first visit intro</span>
+        <span class="choice-hint">Best if you have not met yet. Shorter, no commitment.</span>
       </button>
-      <button type="button" class="choice-card" data-kind="session">
+      <button type="button" class="choice-card" data-kind="session" aria-pressed="false">
         <strong>Full session</strong>
-        <span class="tiny">{{ provider.session_minutes }} minutes</span>
+        <span class="tiny">{{ provider.session_minutes }} minutes · clinical visit</span>
+        <span class="choice-hint">For ongoing work, or when you already know {{ provider.first }}.</span>
       </button>
     </div>
+    <p class="help-tip" id="visit-kind-help">A consultation is a short intro. A full session is the regular clinical hour.</p>
   </section>
   {% endif %}
   <section class="card">
     <h2>Pick a day</h2>
+    <p class="tiny" style="margin-top:-4px">Swipe or tap a day. Times update for the visit length you chose.</p>
     <div class="date-strip" id="date-strip" role="listbox" aria-label="Available days"></div>
     <h2 style="margin-top:8px">Pick a time</h2>
-    <div class="slot-grid" id="slot-grid" style="margin-top:8px"></div>
+    <div class="slot-grid" id="slot-grid" style="margin-top:8px" aria-live="polite"></div>
   </section>
-  <div id="book-result"></div>
+  <div id="book-result" aria-live="polite"></div>
 </main>
 {% endblock %}

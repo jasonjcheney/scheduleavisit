@@ -5,7 +5,8 @@
 <main class="app-wrap">
   <p class="eyebrow">Choose a professional</p>
   <h1 class="page-title">Book a visit</h1>
-  <p class="sub">Elena is nearly at her weekly cap this week, so the referral path is easy to see. James and Maya have room.</p>
+  <p class="sub">Pick someone below. Elena is often near her weekly cap — so you can see how trusted referrals work. James and Maya usually have room.</p>
+  {% if cards %}
   <div class="directory">
     {% for c in cards %}
     <a class="card who-card dir-link" href="/p/{{ c.slug }}">
@@ -18,5 +19,12 @@
     </a>
     {% endfor %}
   </div>
+  {% else %}
+  <section class="card empty-state">
+    <h2>No public calendars yet</h2>
+    <p class="muted">When a provider finishes setup, their booking link appears here.</p>
+    <a class="btn btn-sage" href="/signup">Get your booking link</a>
+  </section>
+  {% endif %}
 </main>
 {% endblock %}

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}ScheduleAVisit — Book a visit in seconds{% endblock %}</title>
-  <meta name="description" content="Book a visit in seconds — even when your doctor is full. One link for clients. A weekly hour cap that protects your time. Trusted peer referrals when you are at capacity.">
+  <meta name="description" content="Book a visit in seconds — even when your clinician is full. One link for clients. A weekly hour cap that protects your time. Trusted multi-hop referrals when you are at capacity.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -20,7 +20,7 @@
       </span>
       <span class="wordmark-name">Schedule<span>A</span>Visit</span>
     </a>
-    <nav class="nav-links">
+    <nav class="nav-links" aria-label="Primary">
       {% if compact_nav %}
         <a class="btn btn-ghost btn-sm" href="/">Home</a>
         {% if user %}<a class="btn btn-sage btn-sm" href="/dashboard">Dashboard</a>{% endif %}
@@ -30,7 +30,8 @@
           <a class="btn btn-sage btn-sm" href="/dashboard">Dashboard</a>
           <button type="button" class="btn btn-ghost btn-sm" data-logout>Log out</button>
         {% else %}
-          <a class="btn btn-sage btn-sm" href="/login">I'm a provider</a>
+          <a class="btn btn-ghost btn-sm" href="/login">Provider login</a>
+          <a class="btn btn-sage btn-sm" href="/signup">Get your booking link</a>
         {% endif %}
       {% endif %}
     </nav>
