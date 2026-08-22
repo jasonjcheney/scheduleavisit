@@ -28,3 +28,8 @@ Shipped while Jason slept. No HIPAA claims, payments, or SMTP.
 - `python3 tests/test_setup_calendar.py` — green
 - `python3 tests/test_multihop_referral.py` — green
 - Local template smoke: `/`, `/p/jason-cheney`, `/login`, `/dashboard`
+
+### Go-to-market pack
+- `docs/competitive-research.md` — competitive landscape notes informing UX polish
+- `docs/marketing-plan.md` — therapist acquisition / positioning plan
+- `docs/ScheduleAVisit-Marketing-Plan.pdf` — shareable marketing PDF
