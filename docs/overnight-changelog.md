@@ -578,3 +578,13 @@ Jason asleep. Full suite under `tests/` run twice. No code changes.
 
 ### Deploy
 - Local-only (no push, no Render)
+
+## 2026-08-22 ~1:50 AM PT — Morning recap for Jason
+
+Local-only (no push / no Render).
+
+### Docs
+- `docs/morning-recap.md` ready — short founder-facing overnight summary (live URL, logins, major ships, marketing PDF + research paths, known gaps)
+
+### Deploy
+- Commit locally only (no push, no Render)
