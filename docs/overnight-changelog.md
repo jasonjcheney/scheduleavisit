@@ -1,6 +1,6 @@
 # Overnight changelog
 
-## Current product summary (22 Aug 2026 ~1:46 AM MT)
+## Current product summary (22 Aug 2026 ~1:51 AM MT)
 
 Plain-language snapshot of what ScheduleAVisit does **now**. Detail entries below stay as the overnight history.
 
@@ -12,7 +12,7 @@ Plain-language snapshot of what ScheduleAVisit does **now**. Detail entries belo
 
 ### For therapists
 - **Setup**: who you are, weekly hour cap + buffer, consult on/off, portal (Headway / SonderMind / custom), optional iCal busy import, **Change password**
-- **Dashboard**: share strip with booking URL + **Scan to book QR**, month calendar (**click a day** to add a client), upcoming visits with **cancel / reschedule**, Clients list with **name filter**, waitlist (dismiss), network invite, **notifications** with mark-one / mark-all read
+- **Dashboard**: share strip with booking URL + **Scan to book QR**, month calendar (**click a day** to add a client), upcoming visits with **cancel / reschedule**, Clients list with **name filter** + dismiss/**restore**, waitlist (dismiss), network invite, **notifications** with mark-one / mark-all read
 - Capacity math stays on the server; clients never see the hour-cap number
 - Landing **FAQ** accordion (full / hour cap / referrals / HIPAA / booking link)
 
@@ -23,6 +23,25 @@ Plain-language snapshot of what ScheduleAVisit does **now**. Detail entries belo
 ### Ship note
 Local overnight commits after waitlist/OG deploy are **not pushed** until Jason is awake. Smoke path: `SMOKE.md`. Suites: `tests/test_public_paths.py`, `test_live_paths.py`, `test_setup_calendar.py`, `test_multihop_referral.py`.
 
+
+## 2026-08-22 ~1:51 AM MT — Client restore after dismiss (local-only)
+
+Jason asleep. **Local only — not pushed; pending morning deploy.** No GitHub / Render API calls. No secrets printed.
+
+### API
+- `POST /api/me/clients/{id}/restore` clears `dismissed_at` (auth required, owns row)
+- Idempotent if the client is already active
+- Soft restore only — cancelled future visits are not recreated
+
+### Dashboard + JS
+- Dismissed clients section: **Restore** button (`type="button"` + `aria-label`) with calm confirm
+- Wired like dismiss: `data-restore` → API → toast → reload
+
+### Tests
+- `tests/test_live_paths.py`: Elena dismiss Marcus → Restore → dashboard lists them active again
+
+### Ship status
+- **Local commit only.** Morning: push `main` + Render deploy when Jason is awake.
 
 ## 2026-08-22 ~1:47 AM MT — Sitewide honest footer note (local-only)
 

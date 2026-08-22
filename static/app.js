@@ -707,6 +707,15 @@
         location.reload();
       });
     });
+    $$("[data-restore]").forEach(function (btn) {
+      btn.addEventListener("click", async function () {
+        if (!confirm("Restore " + btn.getAttribute("data-name") + " to your caseload?")) return;
+        var data = await api("/api/me/clients/" + btn.getAttribute("data-restore") + "/restore", { method: "POST" });
+        if (!data.ok) { toast(data.error || "Could not restore"); return; }
+        toast("Client restored to your caseload");
+        location.reload();
+      });
+    });
 
     (function () {
       var input = $("#client-filter");

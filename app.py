@@ -1109,6 +1109,25 @@ def api_dismiss(request: Request, client_id: int):
         return {"ok": True}
 
 
+@app.post("/api/me/clients/{client_id}/restore")
+def api_restore(request: Request, client_id: int):
+    user, err = _auth(request)
+    if err:
+        return err
+    with db() as conn:
+        c = conn.execute(
+            "SELECT * FROM clients WHERE id=? AND provider_id=?", (client_id, user["id"])
+        ).fetchone()
+        if not c:
+            return json_err("Client not found", 404)
+        if not c["dismissed_at"]:
+            return {"ok": True}
+        conn.execute("UPDATE clients SET dismissed_at=NULL WHERE id=?", (client_id,))
+        notify(conn, user["id"], "client", f"{c['name']} restored",
+               "They’re back on your caseload. Future visits are not recreated automatically.")
+        return {"ok": True}
+
+
 @app.post("/api/me/waitlist/{waitlist_id}/dismiss")
 def api_waitlist_dismiss(request: Request, waitlist_id: int):
     user, err = _auth(request)

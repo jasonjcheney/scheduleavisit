@@ -123,6 +123,37 @@ def main() -> None:
     expect("client-filter" in elena_dash.text, "elena dashboard missing client-filter")
     print("OK elena dashboard client-filter")
 
+    # —— Client dismiss then restore ——
+    with connect() as conn:
+        elena_row = conn.execute("SELECT id FROM users WHERE slug=?", ("elena-vasquez-lpc",)).fetchone()
+        expect(elena_row is not None, "elena seed missing for dismiss/restore")
+        marcus = conn.execute(
+            "SELECT id, name FROM clients WHERE provider_id=? AND name=? AND dismissed_at IS NULL",
+            (elena_row["id"], "Marcus Hale"),
+        ).fetchone()
+        expect(marcus is not None, "Marcus Hale should be an active Elena client")
+        mid = int(marcus["id"])
+    expect(f'data-dismiss="{mid}"' in elena_dash.text, "elena dashboard missing Marcus dismiss button")
+    r = c.post(f"/api/me/clients/{mid}/dismiss")
+    expect(r.status_code == 200 and r.json().get("ok"), f"dismiss failed: {r.text}")
+    with connect() as conn:
+        row = conn.execute("SELECT dismissed_at FROM clients WHERE id=?", (mid,)).fetchone()
+        expect(row is not None and row["dismissed_at"], "dismiss should set dismissed_at")
+    dismissed_dash = c.get("/dashboard")
+    expect(dismissed_dash.status_code == 200, f"dashboard after dismiss got {dismissed_dash.status_code}")
+    expect(f'data-dismiss="{mid}"' not in dismissed_dash.text, "dismissed client should leave active list")
+    expect(f'data-restore="{mid}"' in dismissed_dash.text, "dismissed section missing Restore button")
+    r = c.post(f"/api/me/clients/{mid}/restore")
+    expect(r.status_code == 200 and r.json().get("ok"), f"restore failed: {r.text}")
+    with connect() as conn:
+        row = conn.execute("SELECT dismissed_at FROM clients WHERE id=?", (mid,)).fetchone()
+        expect(row is not None and row["dismissed_at"] is None, "restore should clear dismissed_at")
+    restored_dash = c.get("/dashboard")
+    expect(restored_dash.status_code == 200, f"dashboard after restore got {restored_dash.status_code}")
+    expect(f'data-dismiss="{mid}"' in restored_dash.text, "restored client should be active again")
+    expect(f'data-restore="{mid}"' not in restored_dash.text, "restored client should leave dismissed section")
+    print("OK client dismiss then restore")
+
     # —— Notifications list / mark-read API ——
     expect("mark-all-read" in elena_dash.text, "elena dashboard missing Mark all as read")
     expect("note-dot" in elena_dash.text or 'class="note unread"' in elena_dash.text
