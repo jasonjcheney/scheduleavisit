@@ -220,6 +220,7 @@ def main():
         expect(body.get("visitKind") == "session", f"returning client should be session, got {body}")
         expect(body.get("minutes") == 50, "returning visit should be 50 min")
         expect(body.get("portalUrl") in (None, ""), "portal should hide on returning visit")
+        session_id = body["appointmentId"]
 
         appts = client.get("/api/me/appointments").json().get("appointments") or []
         found = next((a for a in appts if a["id"] == consult_id), None)
@@ -256,6 +257,40 @@ def main():
 
         r = client.get("/setup")
         expect(r.status_code == 200 and "After they book" in r.text and "Headway" in r.text, "setup page missing")
+
+        dash = client.get("/dashboard")
+        expect(dash.status_code == 200, f"dashboard {dash.status_code}")
+        expect("Reschedule" in dash.text, "dashboard missing Reschedule")
+        expect("opens the time immediately" in dash.text, "dashboard missing cancel copy")
+
+        # Cancel frees the slot immediately; weekly hours drop with the visit.
+        r = client.post(f"/api/me/appointments/{consult_id}/cancel")
+        expect(r.status_code == 200 and r.json().get("ok"), f"cancel failed: {r.text}")
+        r = client.get("/api/p/jason-cheney/availability", params={"date": day.isoformat(), "minutes": 15, "visit_kind": "consult"})
+        slots = r.json().get("slots") or []
+        ten = next((s for s in slots if s.get("time") == t1), None)
+        expect(ten is not None and ten.get("open"), f"cancelled slot not open: {ten}")
+        r = client.post(f"/api/me/appointments/{consult_id}/cancel")
+        expect(r.json().get("ok"), "second cancel should stay ok")
+
+        # Reschedule the returning session to a later open hour the same day.
+        r = client.post(f"/api/me/appointments/{session_id}/reschedule", json={"date": day.isoformat(), "time": "14:00"})
+        expect(r.status_code == 200 and r.json().get("ok"), f"reschedule failed: {r.text}")
+        expect(r.json().get("time") == "14:00", f"reschedule time {r.json()}")
+        appts2 = client.get("/api/me/appointments").json().get("appointments") or []
+        moved = next((a for a in appts2 if a["id"] == session_id), None)
+        expect(moved is not None, "rescheduled visit missing")
+        expect("T14:00" in (moved.get("start_iso") or ""), f"expected 14:00, got {moved.get('start_iso')}")
+        expect(moved.get("status") == "booked", f"status {moved.get('status')}")
+        r = client.get("/api/p/jason-cheney/availability", params={"date": day.isoformat(), "minutes": 50})
+        slots = r.json().get("slots") or []
+        eleven = next((s for s in slots if s.get("time") == "11:00"), None)
+        fourteen = next((s for s in slots if s.get("time") == "14:00"), None)
+        expect(eleven is not None and eleven.get("open"), f"old 11:00 should be free: {eleven}")
+        expect(fourteen is not None and fourteen.get("booked"), f"new 14:00 should be booked: {fourteen}")
+
+        r = client.post("/api/me/appointments/999999/reschedule", json={"date": day.isoformat(), "time": "15:00"})
+        expect(r.status_code == 404, f"missing visit should 404, got {r.status_code}")
 
     print("ok")
     try:

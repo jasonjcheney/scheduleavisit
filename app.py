@@ -1113,13 +1113,16 @@ def api_cancel(request: Request, appt_id: int):
         ).fetchone()
         if not a:
             return json_err("Visit not found", 404)
+        if a["status"] == "cancelled":
+            return {"ok": True, "already": True}
         conn.execute(
             "UPDATE appointments SET status='cancelled', cancelled_at=? WHERE id=?",
             (now_iso(), appt_id),
         )
         start = parse_iso(a["start_iso"])
         notify(conn, user["id"], "cancel", "Visit cancelled",
-               f"The {format_time(start.strftime('%H:%M'))} slot on {format_long(start.date())} is open again.")
+               f"The {format_time(start.strftime('%H:%M'))} time on {format_long(start.date())} "
+               "is open again. This week's hours updated immediately.")
         return {"ok": True}
 
 
@@ -1143,20 +1146,26 @@ async def api_reschedule(request: Request, appt_id: int):
         ).fetchone()
         if not a:
             return json_err("Visit not found", 404)
+        if a["status"] != "booked":
+            return json_err("That visit is not on the calendar.")
         minutes = a["duration_minutes"]
         start = at_local(day, hhmm)
         if is_taken(conn, u["id"], start, minutes, ignore_id=appt_id):
             return json_err("That time is already booked.")
+        old = parse_iso(a["start_iso"])
         if not can_accept_visit(conn, u, day, minutes):
             # Allow moving within the same week without double-counting this visit.
-            old = parse_iso(a["start_iso"])
             if start_of_week(old.date()) != start_of_week(day):
                 return json_err("That week does not have hour-cap room.")
+        new_iso = start.isoformat(timespec="seconds")
         conn.execute(
             "UPDATE appointments SET start_iso=? WHERE id=?",
-            (start.isoformat(timespec="seconds"), appt_id),
+            (new_iso, appt_id),
         )
-        return {"ok": True}
+        notify(conn, user["id"], "reschedule", "Visit moved",
+               f"{format_long(old.date())} {format_time(old.strftime('%H:%M'))} → "
+               f"{format_long(day)} {format_time(hhmm)}. Hours stay with this visit.")
+        return {"ok": True, "startIso": new_iso, "date": day.isoformat(), "time": hhmm}
 
 
 @app.post("/api/me/network/invite")

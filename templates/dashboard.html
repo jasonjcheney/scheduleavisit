@@ -2,7 +2,7 @@
 {% set compact_nav = true %}
 {% block title %}Dashboard — ScheduleAVisit{% endblock %}
 {% block content %}
-<main class="app-wrap" id="dashboard-page">
+<main class="app-wrap" id="dashboard-page" data-slug="{{ me.slug }}">
   <div class="row" style="margin-bottom:8px">
     <div>
       <p class="eyebrow">Provider dashboard</p>
@@ -92,6 +92,24 @@
     <p class="help-tip" id="cal-help">Empty days show a + on hover or tap — click to add a client by name. Use Previous / Next to plan ahead. Manual blocks keep capacity honest when someone is already on your caseload.</p>
   </section>
 
+
+  <div id="reschedule-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="reschedule-modal-title">
+    <div class="modal">
+      <h2 id="reschedule-modal-title">Move this visit</h2>
+      <p class="tiny" id="reschedule-who" style="margin:0 0 12px"></p>
+      <p class="err hidden" id="reschedule-err" role="status" aria-live="polite"></p>
+      <p class="tiny" style="margin:0 0 6px">Pick a day</p>
+      <div class="date-strip" id="reschedule-dates"></div>
+      <p class="tiny" style="margin:8px 0 6px">Open times</p>
+      <div class="slot-grid" id="reschedule-slots" aria-live="polite"></div>
+      <p class="help-tip" id="reschedule-hint">The current time stays yours until you save a new one. Hours move with the visit.</p>
+      <div class="hero-actions" style="margin-top:14px">
+        <button type="button" class="btn btn-primary btn-sm" id="reschedule-save" disabled>Save new time</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="reschedule-close">Close</button>
+      </div>
+    </div>
+  </div>
+
   <div id="block-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="block-modal-title">
     <div class="modal">
       <h2 id="block-modal-title">Add a client</h2>
@@ -147,7 +165,7 @@
   <div class="dash-grid">
     <section class="card">
       <h2>Upcoming visits</h2>
-      <p class="tiny">Cancel frees the calendar slot. Capacity is recalculated on the server.</p>
+      <p class="tiny">Cancel opens the time immediately — this week’s hours drop as soon as you confirm. Reschedule keeps the client and picks a new slot.</p>
       <div class="list">
         {% for a in upcoming %}
         <div class="list-item">
@@ -156,7 +174,10 @@
             <div class="meta tiny">{{ a.when }} · {{ a.minutes }} min{% if a.visit_kind=='consult' %} · consult{% elif a.via=='manual' %} · on calendar{% elif a.via=='ical' %} · imported{% endif %}{% if a.referred %} · referral{% endif %}</div>
           </div>
           <div class="appt-actions">
-            <button type="button" class="btn btn-ghost btn-sm" data-cancel="{{ a.id }}">Cancel</button>
+            {% if a.via != 'ical' %}
+            <button type="button" class="btn btn-sage btn-sm" data-reschedule="{{ a.id }}" data-date="{{ a.date }}" data-time="{{ a.time }}" data-minutes="{{ a.minutes }}" data-name="{{ a.client_name }}" data-kind="{{ a.visit_kind }}" aria-label="Reschedule visit with {{ a.client_name }}">Reschedule</button>
+            {% endif %}
+            <button type="button" class="btn btn-ghost btn-sm" data-cancel="{{ a.id }}" data-name="{{ a.client_name }}" aria-label="Cancel visit with {{ a.client_name }}">Cancel</button>
           </div>
         </div>
         {% else %}

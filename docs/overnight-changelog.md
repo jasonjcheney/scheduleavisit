@@ -1,5 +1,27 @@
 # Overnight changelog
 
+## 2026-08-22 ~1:28 AM MT — Dashboard cancel / reschedule polish (local-only)
+
+Jason asleep. **Local only — not pushed; pending morning deploy.** No GitHub / Render API calls. No secrets printed.
+
+### Cancel
+- Confirmation copy is calmer: the time opens immediately and this week’s hours drop as soon as you confirm
+- Toast: “Cancelled — that hour is free now”
+- Repeat cancel is idempotent (`already: true`); notify body mentions hours update immediately
+
+### Reschedule
+- Upcoming list (non-imported visits) has Reschedule → modal with 16-day chips + availability slots
+- Reuses `GET /api/p/{slug}/availability` (current slot shown as open until save)
+- Existing `POST /api/me/appointments/{id}/reschedule` polished: reject non-booked, notify “Visit moved”, return `startIso`
+- Client booked page: no cancellation token; left as-is (office cancels from the dashboard)
+
+### Tests
+- `tests/test_setup_calendar.py`: cancel frees the slot; reschedule moves 11:00 → 14:00 and old slot opens
+
+### Ship status
+- **Local commit only.** Morning: push `main` + Render deploy when Jason is awake.
+
+
 ## 2026-08-22 ~1:16 AM MT — Add to calendar (.ics) on booked page (local-only)
 
 Jason asleep. **Local only — not pushed; pending morning deploy.** No GitHub / Render API calls. No secrets printed.

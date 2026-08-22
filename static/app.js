@@ -535,13 +535,169 @@
     }
     $$("[data-cancel]").forEach(function (btn) {
       btn.addEventListener("click", async function () {
-        if (!confirm("Cancel this visit? The slot will open again.")) return;
+        var who = btn.getAttribute("data-name");
+        var prompt = who
+          ? "Cancel " + who + "’s visit? The time opens immediately, and this week’s hours drop right away."
+          : "Cancel this visit? The time opens immediately, and this week’s hours drop right away.";
+        if (!confirm(prompt)) return;
         var data = await api("/api/me/appointments/" + btn.getAttribute("data-cancel") + "/cancel", { method: "POST" });
         if (!data.ok) { toast(data.error || "Could not cancel"); return; }
-        toast("Visit cancelled — slot is open");
+        toast("Cancelled — that hour is free now");
         location.reload();
       });
     });
+
+    (function setupReschedule() {
+      var modal = $("#reschedule-modal");
+      if (!modal) return;
+      var slug = ($("#dashboard-page") && $("#dashboard-page").getAttribute("data-slug")) || "";
+      var rs = { id: null, date: null, time: null, minutes: 50, origDate: null, origTime: null, name: "", kind: "session" };
+      var saveBtn = $("#reschedule-save");
+
+      function closeReschedule() {
+        modal.classList.add("hidden");
+        rs.id = null;
+        rs.time = null;
+      }
+
+      function setErr(msg) {
+        var err = $("#reschedule-err");
+        if (!msg) {
+          err.classList.add("hidden");
+          err.textContent = "";
+          return;
+        }
+        err.textContent = msg;
+        err.classList.remove("hidden");
+      }
+
+      function renderRsDates() {
+        var strip = $("#reschedule-dates");
+        var start = new Date();
+        start = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+        var html = "";
+        for (var i = 0; i < 16; i++) {
+          var d = addDays(start, i);
+          var iso = toISODate(d);
+          var active = iso === rs.date;
+          html += '<button type="button" class="date-chip' + (active ? " active" : "") +
+            '" data-date="' + iso + '" aria-pressed="' + active + '">' +
+            '<span class="w">' + weekdayName(d) + "</span>" +
+            '<span class="d">' + d.getDate() + "</span></button>";
+        }
+        strip.innerHTML = html;
+        $$(".date-chip", strip).forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            rs.date = btn.getAttribute("data-date");
+            rs.time = null;
+            if (saveBtn) saveBtn.disabled = true;
+            renderRsDates();
+            loadRsSlots();
+          });
+        });
+      }
+
+      async function loadRsSlots() {
+        var grid = $("#reschedule-slots");
+        grid.setAttribute("aria-busy", "true");
+        grid.innerHTML = '<div class="slot-loading" role="status" aria-label="Loading times">' +
+          '<div class="slot-skel"></div><div class="slot-skel"></div><div class="slot-skel"></div>' +
+          "</div>";
+        if (!slug || !rs.date) {
+          grid.innerHTML = '<p class="muted">Could not load times.</p>';
+          return;
+        }
+        var data = await api("/api/p/" + encodeURIComponent(slug) + "/availability?date=" + rs.date +
+          "&minutes=" + rs.minutes + "&visit_kind=" + encodeURIComponent(rs.kind || "session"));
+        grid.setAttribute("aria-busy", "false");
+        if (!data.ok && !data.slots) {
+          grid.innerHTML = '<p class="muted">Could not load times. Try another day.</p>';
+          return;
+        }
+        var slots = data.slots || [];
+        slots.forEach(function (s) {
+          if (rs.date === rs.origDate && s.time === rs.origTime) {
+            s.booked = false;
+            s.open = !s.past;
+          }
+        });
+        if (!slots.length) {
+          grid.innerHTML = '<div class="empty-state compact"><p class="empty-title">No clinic hours this day</p>' +
+            '<p class="muted">Try another day above.</p></div>';
+          return;
+        }
+        var html = slots.map(function (s) {
+          var isCurrent = rs.date === rs.origDate && s.time === rs.origTime;
+          var gone = (s.booked || s.past || !s.open) && !isCurrent;
+          var active = rs.time === s.time;
+          return '<button type="button" class="time-slot' + (gone ? " gone" : "") +
+            (active ? " active" : "") + (isCurrent ? " current" : "") +
+            '" data-time="' + s.time + '" ' + (gone ? "disabled" : "") +
+            ' aria-pressed="' + active + '">' + formatTime(s.time) +
+            (isCurrent ? ' <span class="tiny">now</span>' : "") + "</button>";
+        }).join("");
+        grid.innerHTML = html;
+        $$(".time-slot", grid).forEach(function (btn) {
+          if (btn.disabled) return;
+          btn.addEventListener("click", function () {
+            rs.time = btn.getAttribute("data-time");
+            $$(".time-slot", grid).forEach(function (b) {
+              var on = b === btn;
+              b.classList.toggle("active", on);
+              b.setAttribute("aria-pressed", on ? "true" : "false");
+            });
+            if (saveBtn) saveBtn.disabled = !rs.time;
+            setErr("");
+          });
+        });
+      }
+
+      $$("[data-reschedule]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          rs.id = btn.getAttribute("data-reschedule");
+          rs.origDate = btn.getAttribute("data-date") || "";
+          rs.origTime = btn.getAttribute("data-time") || "";
+          rs.date = rs.origDate;
+          rs.time = null;
+          rs.minutes = Number(btn.getAttribute("data-minutes") || 50);
+          rs.name = btn.getAttribute("data-name") || "this client";
+          rs.kind = btn.getAttribute("data-kind") || "session";
+          var who = $("#reschedule-who");
+          who.textContent = rs.name + " · currently " + (rs.origDate || "") + " at " +
+            (rs.origTime ? formatTime(rs.origTime) : "") + " · " + rs.minutes + " min";
+          setErr("");
+          if (saveBtn) saveBtn.disabled = true;
+          renderRsDates();
+          loadRsSlots();
+          modal.classList.remove("hidden");
+        });
+      });
+
+      if (saveBtn) {
+        saveBtn.addEventListener("click", async function () {
+          if (!rs.id || !rs.date || !rs.time) return;
+          setErr("");
+          saveBtn.disabled = true;
+          var data = await api("/api/me/appointments/" + rs.id + "/reschedule", {
+            method: "POST",
+            body: { date: rs.date, time: rs.time }
+          });
+          if (!data.ok) {
+            setErr(data.error || "Could not move this visit.");
+            saveBtn.disabled = false;
+            return;
+          }
+          closeReschedule();
+          toast("Visit moved — hours updated with the new time");
+          location.reload();
+        });
+      }
+      var closeBtn = $("#reschedule-close");
+      if (closeBtn) closeBtn.addEventListener("click", closeReschedule);
+      modal.addEventListener("click", function (e) {
+        if (e.target === modal) closeReschedule();
+      });
+    })();
     $$("[data-dismiss]").forEach(function (btn) {
       btn.addEventListener("click", async function () {
         if (!confirm("Dismiss " + btn.getAttribute("data-name") + "? Future visits cancel and they leave the weekly projection.")) return;

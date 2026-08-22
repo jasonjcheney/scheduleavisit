@@ -460,6 +460,11 @@ select { appearance: none; background-image: linear-gradient(45deg, transparent 
 .note.unread { background: var(--amber-soft); border-color: #ead7a0; }
 .note h4 { font-family: var(--font); font-size: 0.95rem; margin: 0 0 4px; }
 .appt-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.time-slot.current { border-style: dashed; border-color: var(--sage-mid); }
+#reschedule-modal .date-strip { margin: 0 0 4px; }
+#reschedule-modal .slot-grid { margin-bottom: 8px; }
+#reschedule-modal .time-slot span.tiny { display: block; font-size: 0.68rem; color: var(--sage); font-weight: 600; }
+
 .badge.dismissed { background: var(--paper-2); color: var(--muted); }
 .freed {
   background: var(--sky-soft); border: 1px solid #c5d6de; border-radius: 12px;
