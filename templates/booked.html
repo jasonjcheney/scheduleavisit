@@ -14,13 +14,19 @@
       <dt>With</dt><dd>{{ provider.name }}<div class="tiny">{{ provider.clinic }} · {{ provider.address }}</div></dd>
       <dt>For</dt><dd>{{ client_name }} · {{ appointment.duration_minutes }}-minute {% if visit_kind=='consult' %}consultation{% else %}visit{% endif %}</dd>
       {% if referred %}
-        <dt>Referred by</dt><dd>{{ referred.name }} recommended this time so you were not turned away.</dd>
+        <dt>Referred by</dt><dd>{{ referred.name }} recommended this time so you were <strong>not turned away</strong>.</dd>
       {% endif %}
     </dl>
     {% if show_portal and portal_url %}
-    <p class="notice" style="text-align:left;margin:0 0 16px">Your visit is on the calendar. Next, start intake on the online portal {{ provider.first }} uses.</p>
+    <p class="notice" style="text-align:left;margin:0 0 16px">Your time is reserved. Finish paperwork where {{ provider.first }} already works.</p>
     <div class="hero-actions" style="justify-content:center">
-      <a class="btn btn-primary" href="{{ portal_url }}" target="_blank" rel="noopener">Get started on the online portal</a>
+      {% if portal_kind == 'headway' %}
+      <a class="btn btn-primary" href="{{ portal_url }}" target="_blank" rel="noopener">Continue on Headway</a>
+      {% elif portal_kind == 'sondermind' %}
+      <a class="btn btn-primary" href="{{ portal_url }}" target="_blank" rel="noopener">Continue on SonderMind</a>
+      {% else %}
+      <a class="btn btn-primary" href="{{ portal_url }}" target="_blank" rel="noopener">Start intake on {{ provider.first }}’s portal</a>
+      {% endif %}
     </div>
     {% endif %}
     <div class="hero-actions" style="justify-content:center">

@@ -93,8 +93,8 @@
 
     <section class="card setup-section" id="client-portal">
       <p class="eyebrow">3</p>
-      <h2>Client portal</h2>
-      <p class="muted">Paste the link your clients use to start intake. After a first booking we will show a “Get started on the online portal” button.</p>
+      <h2>After they book → send them to intake</h2>
+      <p class="muted">Paste the Headway, SonderMind, or custom portal URL. After a first booking we show “Continue on Headway,” “Continue on SonderMind,” or “Start intake on your portal.”</p>
       <div class="choice-grid" id="portal-kind" role="radiogroup" aria-label="Portal type">
         <label class="choice-card"><input type="radio" name="portal_kind" value="headway" {% if me.portal_kind=='headway' %}checked{% endif %}> Headway</label>
         <label class="choice-card"><input type="radio" name="portal_kind" value="sondermind" {% if me.portal_kind=='sondermind' %}checked{% endif %}> SonderMind</label>

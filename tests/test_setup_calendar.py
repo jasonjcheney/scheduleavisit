@@ -255,7 +255,7 @@ def main():
         expect(r.status_code == 200 and "Free consultation" in r.text, "booking page missing consult choice")
 
         r = client.get("/setup")
-        expect(r.status_code == 200 and "Client portal" in r.text, "setup page missing")
+        expect(r.status_code == 200 and "After they book" in r.text and "Headway" in r.text, "setup page missing")
 
     print("ok")
     try:

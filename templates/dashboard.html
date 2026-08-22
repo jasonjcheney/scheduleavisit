@@ -58,13 +58,14 @@
       </form>
     </section>
 
-    <section class="card">
+    <section class="card share-strip">
       <h2>Your booking link</h2>
-      <p class="muted">Clients use this. They never see your hour cap — they get a time with you, or a trusted peer when you are full.</p>
+      <p class="muted">Clients never see your hour cap — only a time with you, or someone you recommend.</p>
       <div class="link-box">
         <code id="booking-link">{{ booking_display }}</code>
-        <button type="button" class="btn btn-sage btn-sm" id="copy-link" data-copy="{{ booking_url }}">Copy</button>
+        <button type="button" class="btn btn-sage btn-sm" id="copy-link" data-copy="{{ booking_url }}">Copy link</button>
       </div>
+      <p class="help-tip" id="copy-link-feedback" style="margin:10px 0 0" hidden>Link copied — paste on your site or Psychology Today profile.</p>
       <p style="margin-top:12px"><a class="btn btn-ghost btn-sm" href="/p/{{ me.slug }}">Open as a client</a></p>
     </section>
   </div>

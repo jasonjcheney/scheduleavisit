@@ -18,20 +18,20 @@
   {% if provider.consult_enabled %}
   <section class="card" id="visit-kind-card">
     <h2>What kind of visit?</h2>
-    <p class="muted">New here? Start with a short free consult to see if it is a fit. Already working with {{ provider.first }}? Book a full session.</p>
+    <p class="muted">New here? Start with a consult. Already working together? Book a session.</p>
     <div class="choice-grid two" id="visit-kind" role="group" aria-label="Visit type">
       <button type="button" class="choice-card active" data-kind="consult" aria-pressed="true">
-        <strong>Free consultation</strong>
-        <span class="tiny">{{ provider.consult_minutes }} minutes · first visit intro</span>
-        <span class="choice-hint">Best if you have not met yet. Shorter, no commitment.</span>
+        <strong>Free consultation ({{ provider.consult_minutes }} min) — see if it’s a fit</strong>
+        <span class="tiny">Short intro · no long commitment</span>
+        <span class="choice-hint">Best if you have not met {{ provider.first }} yet.</span>
       </button>
       <button type="button" class="choice-card" data-kind="session" aria-pressed="false">
-        <strong>Full session</strong>
-        <span class="tiny">{{ provider.session_minutes }} minutes · clinical visit</span>
+        <strong>Full session ({{ provider.session_minutes }} min) — therapy hour</strong>
+        <span class="tiny">Regular clinical visit</span>
         <span class="choice-hint">For ongoing work, or when you already know {{ provider.first }}.</span>
       </button>
     </div>
-    <p class="help-tip" id="visit-kind-help">A consultation is a short intro. A full session is the regular clinical hour.</p>
+    <p class="help-tip" id="visit-kind-help">A consultation is a short free intro. A full session is the regular therapy hour.</p>
   </section>
   {% endif %}
   <section class="card">

@@ -41,3 +41,23 @@ Shipped while Jason slept. No HIPAA claims, payments, or SMTP.
   - `/` — CTAs, trust strip, dual audience copy present
   - `/p/jason-cheney` — consult vs session choice present
   - `/login` — demo hints present
+
+
+## 2026-08-22 ~12:25 AM PT — Competitive-research P0 polish wave
+
+Ensured P0s from `docs/competitive-research.md` are truly in the UI (prior waves were close; gaps closed):
+
+1. **Full-state empathy headline** — Referral panel: **“{{first}}’s week is at capacity”** + **“You still get a time — with a colleague they trust.”** Eyebrow: Weekly capacity.
+2. **Consult vs session** — Cards: **“Free consultation (N min) — see if it’s a fit”** / **“Full session (N min) — therapy hour”**; helper: **“New here? Start with a consult. Already working together? Book a session.”**
+3. **Portal CTAs by Headway/SonderMind/custom** — `portal_kind` into `booked.html`; CTAs **Continue on Headway** / **Continue on SonderMind** / **Start intake on {{first}}’s portal**; notice about reserved time + paperwork. Setup retitled **After they book → send them to intake.**
+4. **Landing therapist + hour cap + trusted peer** — H1 **“Book a visit in seconds — even when your therapist is full.”** Lede/meta: one link, weekly hour cap, trusted peer at capacity.
+5. **Dashboard share strip + copy-link feedback** — “Clients never see your hour cap — only a time with you, or someone you recommend.” Toast/inline: **“Link copied — paste on your site or Psychology Today profile.”** Sage-wash share strip; mobile link-box stack.
+
+Also: referral CTA **Book this time with {{peerFirst}}**, **Show other trusted colleagues**, directory demo caption, design pass #2 (share-strip contrast/spacing). Palette unchanged (cream/forest/terracotta).
+
+### Tests
+- `python3 tests/test_setup_calendar.py` — green (assertion updated for new setup portal heading)
+- `python3 tests/test_multihop_referral.py` — green
+
+### Deploy
+- Commit + push + Render `srv-da463sou01pc73erg9l0`; smoke `/`, `/p/jason-cheney`, `/login`.

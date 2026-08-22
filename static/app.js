@@ -143,8 +143,8 @@
         var help = $("#visit-kind-help");
         if (help) {
           help.textContent = visitKind === "consult"
-            ? "Consultation: a short free intro (" + consultMinutes + " min). Returning clients are booked as a full session automatically."
-            : "Full session: the regular " + sessionMinutes + "-minute clinical visit.";
+            ? "Free consultation (" + consultMinutes + " min) — see if it’s a fit. Returning clients book a full session automatically."
+            : "Full session (" + sessionMinutes + " min) — therapy hour for ongoing work.";
         }
         state.time = null;
         $("#book-result").innerHTML = "";
@@ -263,9 +263,10 @@
                 var hops = r.hops || 1;
                 if (featured) {
                   if (hops > 1) {
-                    return "In " + escapeHtml(r.recommendedBy) + "’s wider network · via " + escapeHtml(r.viaName || r.recommendedBy);
+                    return escapeHtml(r.recommendedBy) + " recommends " + escapeHtml((r.name || "").split(" ")[0] || r.name) +
+                      " · In " + escapeHtml(r.recommendedBy) + "’s wider network";
                   }
-                  return "Recommended by " + escapeHtml(r.recommendedBy);
+                  return escapeHtml(r.recommendedBy) + " recommends " + escapeHtml((r.name || "").split(" ")[0] || r.name);
                 }
                 if (hops > 1) {
                   return "Also via " + escapeHtml(r.viaName || r.recommendedBy);
@@ -277,7 +278,8 @@
           "<p style=\"margin:0\"><strong>" + escapeHtml(r.displayWhen) + "</strong> · " + r.minutes + " minutes</p>" +
           '<div class="row">' +
             '<button type="button" class="btn btn-primary btn-sm" data-book-ref="' + escapeHtml(r.peerSlug) +
-              '" data-ref-date="' + r.date + '" data-ref-time="' + r.time + '">Book this time</button>' +
+              '" data-ref-date="' + r.date + '" data-ref-time="' + r.time + '">Book this time with ' +
+              escapeHtml((r.name || "").split(" ")[0] || "them") + "</button>" +
             '<a class="btn btn-ghost btn-sm" href="' + escapeHtml(r.rideUrl) + '">Get a ride</a>' +
           "</div>" +
         "</div>"
@@ -299,17 +301,17 @@
         var hops = rec.hops || 1;
         var hopLine = hops > 1
           ? "If the closest peer is also full, we keep walking " + escapeHtml(first) +
-            "’s trusted network until someone has room — that is how you still leave with an appointment."
-          : escapeHtml(first) + " recommends someone they trust, on this same page.";
+            "’s trusted network until someone has room."
+          : "You still get a time — with a colleague they trust.";
         body =
           '<section class="referral" id="referral-panel" tabindex="-1">' +
-            '<p class="eyebrow">This week is full</p>' +
-            "<h2>" + escapeHtml(first) + " does not have room for another " + minutes + "-minute visit this week.</h2>" +
-            "<p>The weekly cap already includes the people seen every week, plus time for notes and emergencies. You are not being sent away. " +
-            hopLine + "</p>" +
+            '<p class="eyebrow">Weekly capacity</p>' +
+            "<h2>" + escapeHtml(first) + "’s week is at capacity</h2>" +
+            "<p>" + hopLine + " The weekly cap already includes people seen every week, plus notes and emergencies — so open squares are not always bookable with " +
+            escapeHtml(first) + ".</p>" +
             recCard(rec, true) +
             (rest.length
-              ? '<button type="button" class="btn btn-text" id="see-more" aria-expanded="false" aria-controls="more-list">See more options</button>' +
+              ? '<button type="button" class="btn btn-text" id="see-more" aria-expanded="false" aria-controls="more-list">Show other trusted colleagues</button>' +
                 '<div class="more-list" id="more-list">' + rest.map(function (r) { return recCard(r, false); }).join("") + "</div>"
               : "") +
             '<p class="tiny">You can still pick a different day above. Later weeks may have room with ' + escapeHtml(first) + ".</p>" +
@@ -321,7 +323,7 @@
         more.addEventListener("click", function () {
           var list = $("#more-list");
           var open = list.classList.toggle("open");
-          more.textContent = open ? "Hide extra options" : "See more options";
+          more.textContent = open ? "Hide other colleagues" : "Show other trusted colleagues";
           more.setAttribute("aria-expanded", open ? "true" : "false");
         });
       }
@@ -428,10 +430,20 @@
     if (copy) {
       copy.addEventListener("click", function () {
         var text = copy.getAttribute("data-copy");
+        var feedback = $("#copy-link-feedback");
+        function showCopied() {
+          toast("Link copied — paste on your site or Psychology Today profile.");
+          if (feedback) {
+            feedback.hidden = false;
+            feedback.setAttribute("role", "status");
+          }
+          copy.textContent = "Copied";
+          setTimeout(function () { copy.textContent = "Copy link"; }, 2200);
+        }
         if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(text).then(function () { toast("Booking link copied"); }).catch(function () { toast(text); });
+          navigator.clipboard.writeText(text).then(showCopied).catch(function () { toast(text); });
         } else {
-          toast(text);
+          showCopied();
         }
       });
     }

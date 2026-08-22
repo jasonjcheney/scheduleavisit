@@ -606,7 +606,7 @@ input[type="url"]:focus { outline: 3px solid rgba(45,90,74,0.25); border-color: 
 .choice-hint {
   display: block;
   margin-top: 6px;
-  font-size: 0.8rem;
+  font-size: 0.86rem;
   font-weight: 400;
   color: var(--muted);
   line-height: 1.35;
@@ -718,6 +718,33 @@ input[type="url"]:focus { outline: 3px solid rgba(45,90,74,0.25); border-color: 
 .muted { color: #4a5c53; }
 .tiny { color: #4a5c53; }
 
+
+.share-strip .link-box {
+  margin-top: 10px;
+  padding: 12px 14px;
+  background: var(--sage-wash);
+  border: 1.5px solid #c5d9ce;
+  border-radius: var(--radius-sm);
+  gap: 12px;
+}
+.share-strip #copy-link-feedback:not([hidden]) {
+  color: var(--sage-deep);
+  font-weight: 600;
+}
+.referral h2 {
+  font-size: clamp(1.35rem, 3.5vw, 1.7rem);
+  margin-bottom: 0.35em;
+}
+.referral > p {
+  color: var(--ink-soft);
+  max-width: 42rem;
+}
+.choice-card strong {
+  display: block;
+  line-height: 1.3;
+  margin-bottom: 4px;
+}
+
 @media (min-width: 720px) {
   .trust-inner { grid-template-columns: repeat(4, 1fr); }
   .audience-grid { grid-template-columns: 1fr 1fr; }
@@ -739,6 +766,10 @@ input[type="url"]:focus { outline: 3px solid rgba(45,90,74,0.25); border-color: 
   .setup-progress { gap: 6px; }
   .setup-step { font-size: 0.78rem; padding: 7px 10px; }
   .choice-grid.two { grid-template-columns: 1fr; }
+  .share-strip .link-box { flex-direction: column; align-items: stretch; }
+  .share-strip .link-box code { word-break: break-all; font-size: 0.82rem; }
+  .share-strip .link-box .btn { width: 100%; }
+  .referral { padding: 18px 16px; }
 }
 
 @media (max-width: 420px) {

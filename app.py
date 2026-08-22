@@ -394,6 +394,7 @@ def booked_page(request: Request, appt_id: int):
             ).fetchone()["c"]
             first_visit = count == 1
         portal_url = (uget(provider, "portal_url", "") or "").strip()
+        portal_kind = (uget(provider, "portal_kind", "none") or "none").strip().lower()
         visit_kind = uget(a, "visit_kind", "session") or "session"
         ctx = {
             "appointment": row(a),
@@ -405,6 +406,7 @@ def booked_page(request: Request, appt_id: int):
             "referred": public_provider(referred) if referred else None,
             "show_portal": bool(first_visit and portal_url),
             "portal_url": portal_url,
+            "portal_kind": portal_kind,
             "visit_kind": visit_kind,
             "first_visit": first_visit,
         }
