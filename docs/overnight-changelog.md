@@ -1,5 +1,30 @@
 # Overnight changelog
 
+## 2026-08-22 ~1:35 AM MT — Therapist network invite polish (local-only)
+
+Jason asleep. **Local only — not pushed; pending morning deploy.** No GitHub / Render API calls. No secrets printed.
+
+### Dashboard invite peer
+- Clearer empty state when no peers: **“No trusted peers yet”** + mutual-cap catch copy
+- Pending invites list (email, sent label, Copy link) when status is pending
+- Success/error copy after invite: ready vs already-pending; self-invite / bad email messages
+- Invite form result is live (`aria-live`); Copy link on success and on each pending row
+
+### Invite accept page
+- Kept mutual-benefit payoff copy
+- Polished CTA → **Open your referral network** + hint to invite their own colleague
+- Calmer missing / already / wrong-email states
+
+### API
+- `POST /api/me/network/invite` returns `email`, `already`, `message`; skips duplicate notify on re-share
+
+### Tests
+- `tests/test_setup_calendar.py`: invite create TestClient case (validation, create, idempotent re-invite, pending on `/api/me/network` + dashboard)
+
+### Ship status
+- **Local commit only.** Morning: push `main` + Render deploy when Jason is awake.
+
+
 ## 2026-08-22 ~1:30 AM MT — Change password on /setup (local-only)
 
 Jason asleep. **Local only — not pushed; pending morning deploy.** No GitHub / Render API calls. No secrets printed.

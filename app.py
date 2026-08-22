@@ -628,6 +628,22 @@ def dashboard(request: Request):
 
         host = request.base_url
         booking_url = f"{host}p/{u['slug']}"
+        base = str(host).rstrip("/")
+        pending = conn.execute(
+            """SELECT id, to_email, token, created_at FROM network_invites
+               WHERE from_user_id=? AND status='pending' ORDER BY id DESC""",
+            (u["id"],),
+        ).fetchall()
+        pending_invites = []
+        for inv in pending:
+            ir = row(inv)
+            try:
+                sent = parse_iso(inv["created_at"])
+                ir["sent_label"] = "sent " + format_short(sent.date())
+            except Exception:
+                ir["sent_label"] = ""
+            ir["url"] = f"{base}/invite/{inv['token']}"
+            pending_invites.append(ir)
 
         ctx = {
             "me": row(u),
@@ -657,6 +673,7 @@ def dashboard(request: Request):
             "peers": peer_rows,
             "notes": note_rows,
             "waitlist_rows": waitlist_rows,
+            "pending_invites": pending_invites,
             "booking_url": booking_url,
             "booking_display": f"scheduleavisit.com/p/{u['slug']}",
             "workdays_json": u["workdays"],
@@ -1199,15 +1216,16 @@ async def api_invite(request: Request):
         return err
     data = await _body(request)
     email = (data.get("email") or "").strip().lower()
-    if "@" not in email:
-        return json_err("Enter a colleague's email.")
+    if "@" not in email or "." not in email.split("@")[-1]:
+        return json_err("Enter a colleague’s email address.")
     if email == user["email"].lower():
-        return json_err("That is your own email.")
+        return json_err("That’s your own email — invite a colleague instead.")
     with db() as conn:
         existing = conn.execute(
             "SELECT * FROM network_invites WHERE from_user_id=? AND lower(to_email)=? AND status='pending'",
             (user["id"], email),
         ).fetchone()
+        already = bool(existing)
         if existing:
             token = existing["token"]
         else:
@@ -1219,13 +1237,19 @@ async def api_invite(request: Request):
             )
         invite_url = str(request.base_url).rstrip("/") + f"/invite/{token}"
         print(f"[invite] {user['email']} → {email}  {invite_url}", flush=True)
-        notify(conn, user["id"], "invite", f"Invite sent to {email}",
-               f"They can accept at {invite_url}. No email was sent — share the link.")
-        target = user_by_email(conn, email)
-        if target:
-            notify(conn, target["id"], "invite", f"{first_name(user['name'])} invited you",
-                   f"Open {invite_url} while logged in as {email} to join their referral network.")
-        return {"ok": True, "token": token, "url": invite_url}
+        if not already:
+            notify(conn, user["id"], "invite", f"Invite sent to {email}",
+                   f"They can accept at {invite_url}. No email was sent — share the link.")
+            target = user_by_email(conn, email)
+            if target:
+                notify(conn, target["id"], "invite", f"{first_name(user['name'])} invited you",
+                       f"Open {invite_url} while logged in as {email} to join their referral network.")
+        message = (
+            f"You already have a pending invite for {email}. Share the link again — we do not send email."
+            if already
+            else f"Invite ready for {email}. Share the link — we do not send email."
+        )
+        return {"ok": True, "token": token, "url": invite_url, "email": email, "already": already, "message": message}
 
 
 @app.get("/api/me/network")

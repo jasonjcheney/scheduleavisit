@@ -4,21 +4,33 @@
 {% block content %}
 <main class="invite-box">
   {% if state == "missing" %}
-    <h1 class="page-title">This invite is not valid.</h1>
-    <p>Ask your colleague to send a new one from their dashboard.</p>
+    <section class="card confirm">
+      <h1 class="page-title">This invite is not valid.</h1>
+      <p class="muted">It may have expired or already been replaced. Ask your colleague to send a fresh invite from their dashboard.</p>
+      <p><a class="btn btn-ghost" href="/">Back to ScheduleAVisit</a></p>
+    </section>
   {% elif state == "already" %}
-    <h1 class="page-title">You are already connected.</h1>
-    <p><a class="btn btn-sage" href="/dashboard">Open dashboard</a></p>
+    <section class="card confirm">
+      <div class="confirm-icon" aria-hidden="true">✓</div>
+      <h1 class="page-title">You are already connected.</h1>
+      <p class="muted">Your referral network is ready. When either of you is at capacity, clients can still get a warm handoff.</p>
+      <p><a class="btn btn-sage" href="/dashboard#referral-network">Open your referral network</a></p>
+    </section>
   {% elif state == "wrong_email" %}
-    <h1 class="page-title">This invite is for a different email.</h1>
-    <p>It was sent to <strong>{{ expected }}</strong>. Log out and sign in — or sign up — with that address.</p>
-    <p><a class="btn btn-ghost" href="/login">Log in</a></p>
+    <section class="card confirm">
+      <h1 class="page-title">This invite is for a different email.</h1>
+      <p>It was sent to <strong>{{ expected }}</strong>. Log out and sign in — or sign up — with that address, then open the invite link again.</p>
+      <p><a class="btn btn-sage" href="/login">Log in with the right email</a></p>
+    </section>
   {% elif state == "accepted" %}
     <section class="card confirm">
       <div class="confirm-icon" aria-hidden="true">✓</div>
       <h1>You’re in {{ from_name.split(',')[0].split()[0] }}’s network.</h1>
       <p class="payoff"><strong>When either of you hits your weekly cap, the other can catch the next client — on the same booking page.</strong> Overflow stays warm, and clients never hit a dead end.</p>
-      <a class="btn btn-sage" href="/dashboard">Open dashboard</a>
+      <div class="invite-cta">
+        <a class="btn btn-sage" href="/dashboard#referral-network">Open your referral network</a>
+        <p class="tiny invite-cta-hint">Invite a colleague of your own from the dashboard — capacity protection works both ways.</p>
+      </div>
     </section>
   {% endif %}
 </main>

@@ -716,16 +716,119 @@
         location.reload();
       });
     });
+    function copyInviteLink(url, btn) {
+      function done() {
+        toast("Invite link copied — paste it to your colleague");
+        if (btn) {
+          var prev = btn.textContent;
+          btn.textContent = "Copied";
+          setTimeout(function () { btn.textContent = prev; }, 2000);
+        }
+      }
+      function fallback() {
+        var ta = document.createElement("textarea");
+        ta.value = url;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.left = "-9999px";
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand("copy"); done(); }
+        catch (err) { toast("Copy failed — select the link instead"); }
+        document.body.removeChild(ta);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(done).catch(fallback);
+      } else {
+        fallback();
+      }
+    }
+
+    $$("[data-copy-invite]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        copyInviteLink(btn.getAttribute("data-copy-invite"), btn);
+      });
+    });
+
     var invite = $("#invite-form");
     if (invite) {
       invite.addEventListener("submit", async function (e) {
         e.preventDefault();
-        var data = await api("/api/me/network/invite", { method: "POST", body: { email: invite.email.value } });
         var out = $("#invite-result");
-        if (!data.ok) { out.textContent = data.error || "Could not invite."; return; }
-        out.innerHTML = "Invite link (share it — we do not send email): <code>" + escapeHtml(data.url) + "</code>";
-        toast("Invite link ready");
+        var email = (invite.email.value || "").trim();
+        if (!email) {
+          out.className = "tiny invite-err";
+          out.textContent = "Enter a colleague’s email address.";
+          return;
+        }
+        var btn = invite.querySelector('button[type="submit"]');
+        if (btn) btn.disabled = true;
+        var data = await api("/api/me/network/invite", { method: "POST", body: { email: email } });
+        if (btn) btn.disabled = false;
+        if (!data.ok) {
+          out.className = "tiny invite-err";
+          out.textContent = data.error || "Could not create that invite. Check the email and try again.";
+          toast(data.error || "Could not invite");
+          return;
+        }
+                out.className = "tiny invite-ok";
+        out.innerHTML =
+          (data.already
+            ? "You already have a pending invite for <strong>" + escapeHtml(data.email || email) + "</strong>. "
+            : "Invite ready for <strong>" + escapeHtml(data.email || email) + "</strong>. ") +
+          "Copy and share — we do not send email:<br><code class=\"invite-link-code\">" +
+          escapeHtml(data.url) + "</code> " +
+          "<button type=\"button\" class=\"btn btn-ghost btn-sm\" data-copy-invite=\"" +
+          escapeHtml(data.url) + "\">Copy link</button>";
+        toast(data.message || "Invite link ready — share it with your colleague");
+        invite.email.value = "";
+        var fresh = out.querySelector("[data-copy-invite]");
+        if (fresh) {
+          fresh.addEventListener("click", function () {
+            copyInviteLink(fresh.getAttribute("data-copy-invite"), fresh);
+          });
+        }
+        upsertPendingInviteRow(data.email || email, data.url);
       });
+    }
+
+    function upsertPendingInviteRow(email, url) {
+      if (!email || !url) return;
+      var section = document.getElementById("pending-invites");
+      var list = document.getElementById("pending-invites-list");
+      var form = $("#invite-form");
+      if (!section && form) {
+        section = document.createElement("div");
+        section.className = "pending-invites";
+        section.id = "pending-invites";
+        section.innerHTML =
+          "<h3 class=\"pending-invites-heading\">Pending invites</h3>" +
+          "<p class=\"tiny\" style=\"margin:0 0 10px\">We do not send email — copy the link and share it yourself.</p>" +
+          "<div class=\"list\" role=\"list\" id=\"pending-invites-list\"></div>";
+        form.parentNode.insertBefore(section, form);
+        list = section.querySelector("#pending-invites-list");
+      }
+      if (!list) return;
+      var existing = null;
+      $$(".invite-pending-row", list).forEach(function (row) {
+        var strong = row.querySelector("strong");
+        if (strong && strong.textContent.trim().toLowerCase() === String(email).toLowerCase()) existing = row;
+      });
+      var row = existing || document.createElement("div");
+      row.className = "waitlist-row invite-pending-row";
+      row.setAttribute("role", "listitem");
+      row.innerHTML =
+        "<div><strong>" + escapeHtml(email) + "</strong>" +
+        "<div class=\"meta\">Waiting for them to accept</div></div>" +
+        "<button type=\"button\" class=\"btn btn-ghost btn-sm\" data-copy-invite=\"" +
+        escapeHtml(url) + "\">Copy link</button>";
+      var btn = row.querySelector("[data-copy-invite]");
+      if (btn) {
+        btn.addEventListener("click", function () {
+          copyInviteLink(btn.getAttribute("data-copy-invite"), btn);
+        });
+      }
+      if (!existing) list.insertBefore(row, list.firstChild);
     }
     var profile = $("#profile-form");
     if (profile) {

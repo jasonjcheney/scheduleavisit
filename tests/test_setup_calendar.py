@@ -292,6 +292,37 @@ def main():
         r = client.post("/api/me/appointments/999999/reschedule", json={"date": day.isoformat(), "time": "15:00"})
         expect(r.status_code == 404, f"missing visit should 404, got {r.status_code}")
 
+        # —— Network invite create ——
+        r = client.post("/api/me/network/invite", json={"email": "not-an-email"})
+        expect(not r.json().get("ok"), f"bad email should fail: {r.text}")
+
+        r = client.post("/api/me/network/invite", json={"email": "jasoncheney@scheduleavisit.example"})
+        expect(not r.json().get("ok"), f"self-invite should fail: {r.text}")
+
+        r = client.post("/api/me/network/invite", json={"email": "colleague@example.com"})
+        expect(r.status_code == 200 and r.json().get("ok"), f"invite create failed: {r.text}")
+        expect(r.json().get("token"), "invite missing token")
+        expect("/invite/" in (r.json().get("url") or ""), f"invite url {r.json()}")
+        expect(r.json().get("email") == "colleague@example.com", f"invite email {r.json()}")
+        tok = r.json()["token"]
+
+        r2 = client.post("/api/me/network/invite", json={"email": "colleague@example.com"})
+        expect(r2.json().get("ok") and r2.json().get("token") == tok, "re-invite should reuse pending token")
+        expect(r2.json().get("already") is True, f"expected already pending: {r2.json()}")
+
+        net = client.get("/api/me/network").json()
+        expect(net.get("ok"), f"network get failed: {net}")
+        invites = net.get("invites") or []
+        expect(
+            any(i.get("to_email") == "colleague@example.com" and i.get("status") == "pending" for i in invites),
+            f"pending invite missing: {invites}",
+        )
+
+        dash = client.get("/dashboard")
+        expect(dash.status_code == 200, f"dashboard after invite {dash.status_code}")
+        expect("Pending invites" in dash.text, "dashboard missing pending invites heading")
+        expect("colleague@example.com" in dash.text, "dashboard missing pending invite email")
+
         # —— Change password (disposable user; leave jasoncheney/123456 alone) ——
         r = client.get("/setup")
         expect(r.status_code == 200 and "Change password" in r.text, "setup missing Change password section")

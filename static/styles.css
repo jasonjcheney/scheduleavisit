@@ -1665,3 +1665,35 @@ a:focus-visible,
   .band-cta .btn { flex: 1 1 100%; }
   .waitlist-panel #waitlist-form { padding: 12px; }
 }
+
+/* Referral network pending invites + invite accept CTA */
+.pending-invites {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.pending-invites-heading {
+  font-family: var(--serif);
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0 0 4px;
+  color: var(--ink);
+}
+.invite-pending-row {
+  background: var(--paper);
+}
+.invite-ok { color: var(--sage-deep); font-weight: 600; }
+.invite-err { color: var(--clay-deep); font-weight: 600; }
+.invite-link-code {
+  display: inline-block;
+  margin: 6px 0;
+  word-break: break-all;
+  font-size: 0.82rem;
+}
+.invite-cta { margin-top: 4px; }
+.invite-cta-hint {
+  margin: 12px 0 0;
+  color: var(--muted);
+  max-width: 36ch;
+}
+.invite-box .confirm .muted { margin-top: 0; }

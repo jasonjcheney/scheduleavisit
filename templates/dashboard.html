@@ -283,16 +283,34 @@
       </div>
       {% else %}
       <div class="empty-state compact">
-        <p class="muted" style="margin:0">No peers yet.</p>
+        <p class="empty-title">No trusted peers yet</p>
+        <p class="muted" style="margin:0">Invite a colleague below. When either of you hits your weekly cap, the other can catch the next client on the same booking page.</p>
         <p class="help-tip" style="margin:8px 0 0">Invite someone you would send your own family to. Multi-hop referrals only work once a few trusted links exist.</p>
       </div>
       {% endfor %}
+      {% if pending_invites %}
+      <div class="pending-invites" id="pending-invites">
+        <h3 class="pending-invites-heading">Pending invites</h3>
+        <p class="tiny" style="margin:0 0 10px">We do not send email — copy the link and share it yourself.</p>
+        <div class="list" role="list" id="pending-invites-list">
+          {% for inv in pending_invites %}
+          <div class="waitlist-row invite-pending-row" role="listitem">
+            <div>
+              <strong>{{ inv.to_email }}</strong>
+              <div class="meta">{% if inv.sent_label %}{{ inv.sent_label }} · {% endif %}Waiting for them to accept</div>
+            </div>
+            <button type="button" class="btn btn-ghost btn-sm" data-copy-invite="{{ inv.url }}">Copy link</button>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
       <form id="invite-form" class="fields" style="margin-top:16px">
         <label class="field">Invite a colleague
-          <input type="email" name="email" required placeholder="colleague@clinic.com">
+          <input type="email" name="email" required placeholder="colleague@clinic.com" autocomplete="email">
         </label>
         <button type="submit" class="btn btn-sage btn-sm">Send invite link</button>
-        <p class="tiny" id="invite-result"></p>
+        <p class="tiny" id="invite-result" role="status" aria-live="polite"></p>
       </form>
     </section>
   </div>
