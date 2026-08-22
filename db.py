@@ -113,7 +113,17 @@ CREATE TABLE IF NOT EXISTS notifications (
   read_at TEXT
 );
 
+CREATE TABLE IF NOT EXISTS waitlist_requests (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  provider_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  requested_minutes INTEGER NOT NULL DEFAULT 50,
+  created_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_appt_provider ON appointments(provider_id, start_iso);
+CREATE INDEX IF NOT EXISTS idx_waitlist_provider ON waitlist_requests(provider_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_appt_client ON appointments(client_id);
 CREATE INDEX IF NOT EXISTS idx_clients_provider ON clients(provider_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
@@ -210,6 +220,20 @@ def migrate(conn: sqlite3.Connection) -> None:
     conn.execute(
         """CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username
            ON users(username) WHERE username IS NOT NULL AND username != ''"""
+    )
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS waitlist_requests (
+             id INTEGER PRIMARY KEY AUTOINCREMENT,
+             provider_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+             name TEXT NOT NULL,
+             email TEXT NOT NULL,
+             requested_minutes INTEGER NOT NULL DEFAULT 50,
+             created_at TEXT NOT NULL
+           )"""
+    )
+    conn.execute(
+        """CREATE INDEX IF NOT EXISTS idx_waitlist_provider
+           ON waitlist_requests(provider_id, created_at)"""
     )
     ensure_demo_usernames(conn)
     ensure_jason(conn)

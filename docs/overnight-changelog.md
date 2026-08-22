@@ -1,5 +1,29 @@
 # Overnight changelog
 
+## 2026-08-22 ~12:50 AM MT — Waitlist when whole network is full + Open Graph meta
+
+Jason asleep — overnight ship to live. No SMS/email send (dashboard notification + DB only).
+
+### Feature: calm waitlist
+- When booking returns `full` **and** referral candidates are empty, booking UI shows a waitlist panel (name + email).
+- Table `waitlist_requests` (`provider_id`, `name`, `email`, `requested_minutes`, `created_at`) via SCHEMA + `migrate()` CREATE IF NOT EXISTS.
+- `POST /api/p/{slug}/waitlist` stores the row and notifies the origin provider (`kind=waitlist`) on the dashboard.
+- `static/app.js` `showReferral` when `!rec` offers the waitlist form.
+
+### Sharing
+- Open Graph / Twitter meta on `base.html` with landing + booking overrides (`og:title`, `og:description`, `og:url`, canonical).
+
+### Also includes prior local commit
+- 480px mobile overflow guards + `tests/test_public_paths.py` (was local-only; now shipping).
+
+### Tests
+- Extended `tests/test_multihop_referral.py`: pack A→B→C → book `full` + `waitlist: true` → waitlist API **200** + DB + notification.
+- Live-path smokes assert OG tags. All suites green. Elena + jasoncheney intact.
+
+### Deploy
+- Commit + push `main` + Render `srv-da463sou01pc73erg9l0` (status after trigger).
+
+
 ## 2026-08-22 ~12:45 AM MT — Local-only: 480px mobile overflow + public-path tests
 
 Jason asleep. **Local only — not pushed; pending morning ship if needed.** No Render / GitHub API calls.

@@ -116,6 +116,63 @@ def main() -> None:
     assert r2.status_code == 200, r2.text
     assert r2.json().get("ok") is True, r2.text
     print("ok multihop referral")
+
+    # Pack Gamma too so the entire reachable network has no room → waitlist.
+    for w in range(0, 5):
+        ws = db.start_of_week(when) + timedelta(days=7 * w)
+        for i, (wd, hh) in enumerate([(1, "09:00"), (1, "10:00"), (2, "09:00"), (3, "09:00"), (4, "09:00")]):
+            cid = db.add_client(conn, c, f"Fill C-w{w}-{i}")
+            db.add_appt(conn, c, cid, db.date_on_weekday(ws, wd), hh, 50)
+    conn.execute("UPDATE users SET weekly_target_hours=1, buffer_hours=0 WHERE id=?", (c,))
+    conn.commit()
+
+    ua2 = conn.execute("SELECT * FROM users WHERE id=?", (a,)).fetchone()
+    empty = capacity.referral_candidates(conn, ua2, when, "15:00", 50)
+    assert not empty, f"expected empty referral network, got {empty}"
+
+    r3 = client.post(
+        "/api/p/alpha-therapist/book",
+        json={
+            "date": when.isoformat(),
+            "time": "15:00",
+            "name": "Pat Waitlist",
+            "email": "pat.waitlist@example.com",
+            "visitKind": "session",
+        },
+    )
+    assert r3.status_code == 200, r3.text
+    d3 = r3.json()
+    assert d3.get("full") is True, d3
+    assert d3.get("recommendation") is None, d3
+    assert d3.get("waitlist") is True, d3
+
+    r4 = client.post(
+        "/api/p/alpha-therapist/waitlist",
+        json={
+            "name": "Pat Waitlist",
+            "email": "pat.waitlist@example.com",
+            "requested_minutes": 50,
+        },
+    )
+    assert r4.status_code == 200, r4.text
+    d4 = r4.json()
+    assert d4.get("ok") is True, d4
+    assert d4.get("waitlistId"), d4
+    row = conn.execute(
+        "SELECT * FROM waitlist_requests WHERE provider_id=? AND email=?",
+        (a, "pat.waitlist@example.com"),
+    ).fetchone()
+    assert row is not None
+    assert row["name"] == "Pat Waitlist"
+    assert int(row["requested_minutes"]) == 50
+    note = conn.execute(
+        "SELECT * FROM notifications WHERE user_id=? AND kind='waitlist' ORDER BY id DESC LIMIT 1",
+        (a,),
+    ).fetchone()
+    assert note is not None
+    assert "Pat Waitlist" in note["title"]
+    print("ok full-network waitlist")
+
     conn.close()
     os.unlink(tmp.name)
 

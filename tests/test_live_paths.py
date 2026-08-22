@@ -43,9 +43,9 @@ def main() -> None:
 
     # —— Public pages ——
     cases = [
-        ("/", 200, ["Book a visit in seconds", "Get your booking link", "Provider login"]),
+        ("/", 200, ["Book a visit in seconds", "Get your booking link", "Provider login", 'property="og:title"', "og:description"]),
         ("/book", 200, ["Book a visit", "Elena Vasquez", "Choose a professional"]),
-        ("/p/jason-cheney", 200, ["Jason Cheney", "Pick a day", "Pick a time"]),
+        ("/p/jason-cheney", 200, ["Jason Cheney", "Pick a day", "Pick a time", 'property="og:title"', "Book with Jason Cheney"]),
         ("/p/elena-vasquez-lpc", 200, ["Elena Vasquez", "Free consultation", "Full session"]),
         ("/login", 200, ["Welcome back", "jasoncheney", "demo1234"]),
         ("/signup", 200, ["Set your name", "Create account", 'data-next="/setup"']),

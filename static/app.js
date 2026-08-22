@@ -313,11 +313,21 @@
       var body;
       if (!rec) {
         body =
-          '<section class="card empty-state">' +
-            '<p class="eyebrow">Referral network</p>' +
-            "<h2>No openings nearby this week</h2>" +
-            "<p class=\"muted\">We could not find an open peer in " + escapeHtml(first) + "’s network right now.</p>" +
-            '<p class="help-tip">Try another day above — later weeks may have room with ' + escapeHtml(first) + " — or call the office.</p>" +
+          '<section class="card waitlist-panel" id="waitlist-panel" tabindex="-1">' +
+            '<p class="eyebrow">Waitlist</p>' +
+            "<h2>No openings in " + escapeHtml(first) + "’s network right now</h2>" +
+            "<p class=\"muted\">Everyone reachable through " + escapeHtml(first) +
+              "’s trusted colleagues is also at capacity this week. Leave your name and email — " +
+              escapeHtml(first) + " will see it on their dashboard when room opens.</p>" +
+            '<form id="waitlist-form" class="fields">' +
+              '<p class="err hidden" id="waitlist-err"></p>' +
+              '<label class="field">Your name<input type="text" name="name" required placeholder="Jordan Lee" autocomplete="name"></label>' +
+              '<label class="field">Email<input type="email" name="email" required placeholder="you@email.com" autocomplete="email"></label>' +
+              '<button type="submit" class="btn btn-primary">Join the waitlist</button>' +
+            "</form>" +
+            '<p class="help-tip">You can still pick a different day above. Later weeks may have room with ' +
+              escapeHtml(first) + ".</p>" +
+            '<p class="tiny" id="waitlist-ok" hidden></p>' +
           "</section>";
       } else {
         var hops = rec.hops || 1;
@@ -350,7 +360,36 @@
           more.setAttribute("aria-expanded", open ? "true" : "false");
         });
       }
-      var panel = $("#referral-panel");
+      var wlForm = $("#waitlist-form");
+      if (wlForm) {
+        wlForm.addEventListener("submit", async function (e) {
+          e.preventDefault();
+          var err = $("#waitlist-err");
+          var okEl = $("#waitlist-ok");
+          err.classList.add("hidden");
+          if (okEl) okEl.hidden = true;
+          var data = await api("/api/p/" + encodeURIComponent(slug) + "/waitlist", {
+            method: "POST",
+            body: {
+              name: this.name.value.trim(),
+              email: this.email.value.trim(),
+              requested_minutes: currentMinutes()
+            }
+          });
+          if (!data.ok) {
+            err.textContent = data.error || "Could not join the waitlist.";
+            err.classList.remove("hidden");
+            return;
+          }
+          this.querySelectorAll("input, button").forEach(function (el) { el.disabled = true; });
+          if (okEl) {
+            okEl.hidden = false;
+            okEl.textContent = data.message || ("You're on " + first + "'s waitlist. They will see your request on their dashboard.");
+          }
+          toast("You're on the waitlist");
+        });
+      }
+      var panel = $("#referral-panel") || $("#waitlist-panel");
       if (panel && panel.focus) {
         try { panel.focus(); } catch (e) {}
       }

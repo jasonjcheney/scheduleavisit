@@ -568,6 +568,12 @@ def dashboard(request: Request):
             "SELECT * FROM notifications WHERE user_id=? ORDER BY created_at DESC LIMIT 20",
             (u["id"],),
         ).fetchall()
+        waitlist = conn.execute(
+            """SELECT id, name, email, requested_minutes, created_at FROM waitlist_requests
+               WHERE provider_id=? ORDER BY created_at DESC LIMIT 30""",
+            (u["id"],),
+        ).fetchall()
+        waitlist_rows = [row(w) for w in waitlist]
         note_rows = [row(n) | {"unread": not n["read_at"]} for n in notes]
 
         host = request.base_url
@@ -600,6 +606,7 @@ def dashboard(request: Request):
             "upcoming": upcoming,
             "peers": peer_rows,
             "notes": note_rows,
+            "waitlist_rows": waitlist_rows,
             "booking_url": booking_url,
             "booking_display": f"scheduleavisit.com/p/{u['slug']}",
             "workdays_json": u["workdays"],
@@ -767,6 +774,8 @@ async def api_book(slug: str, request: Request):
                 "full": True,
                 "recommendation": recommendation,
                 "alternatives": alternatives,
+                "waitlist": recommendation is None,
+                "minutes": minutes,
                 "message": f"{first_name(u['name'])} does not have room for another {minutes}-minute visit this week.",
             })
         cid = get_or_create_client(conn, u["id"], name, email, phone)
@@ -829,6 +838,46 @@ async def api_book_referral(slug: str, request: Request):
         )
         print(f"[book-referral] {name} {origin['slug']} → {peer['slug']} {day} {hhmm}", flush=True)
         return {"ok": True, "appointmentId": appt_id, "redirect": f"/booked/{appt_id}"}
+
+
+@app.post("/api/p/{slug}/waitlist")
+async def api_waitlist(slug: str, request: Request):
+    """Client joins origin provider waitlist when the whole network is full.
+    Dashboard notification + DB only — no SMS/email send."""
+    data = await _body(request)
+    name = (data.get("name") or "").strip()
+    email = (data.get("email") or "").strip()
+    try:
+        minutes = int(data.get("requested_minutes") or data.get("minutes") or 50)
+    except (TypeError, ValueError):
+        minutes = 50
+    minutes = max(5, min(180, minutes))
+    if len(name) < 2:
+        return json_err("Please tell us your name.")
+    if "@" not in email:
+        return json_err("Please leave an email so the office can reach you.")
+    with db() as conn:
+        u = user_by_slug(conn, slug)
+        if not u:
+            return json_err("Calendar not found", 404)
+        cur = conn.execute(
+            """INSERT INTO waitlist_requests
+               (provider_id, name, email, requested_minutes, created_at)
+               VALUES (?,?,?,?,?)""",
+            (u["id"], name, email, minutes, now_iso()),
+        )
+        wid = int(cur.lastrowid)
+        notify(
+            conn, u["id"], "waitlist",
+            f"Waitlist — {name}",
+            f"{name} ({email}) asked to be notified when you or your network have room for a {minutes}-minute visit.",
+        )
+        print(f"[waitlist] {name} <{email}> → {u['slug']} {minutes}min id={wid}", flush=True)
+        return {
+            "ok": True,
+            "waitlistId": wid,
+            "message": f"You're on {first_name(u['name'])}'s waitlist. The office will see your request on their dashboard.",
+        }
 
 
 # ───────── Provider API ─────────

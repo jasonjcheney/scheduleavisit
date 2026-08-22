@@ -1,6 +1,13 @@
 {% extends "base.html" %}
 {% set compact_nav = true %}
 {% block title %}Book with {{ provider.name }} — ScheduleAVisit{% endblock %}
+{% block meta_description %}Book a visit with {{ provider.name }}{% if provider.specialty %} — {{ provider.specialty }}{% endif %}. If they’re at capacity, ScheduleAVisit finds a trusted peer or offers a waitlist.{% endblock %}
+{% block og_title %}Book with {{ provider.name }} — ScheduleAVisit{% endblock %}
+{% block og_description %}{% if provider.about %}{{ provider.about[:160] }}{% else %}Book a visit with {{ provider.name }}{% if provider.clinic %} at {{ provider.clinic }}{% endif %}. Weekly capacity caps and trusted peer referrals when full.{% endif %}{% endblock %}
+{% block twitter_title %}Book with {{ provider.name }} — ScheduleAVisit{% endblock %}
+{% block twitter_description %}{% if provider.about %}{{ provider.about[:160] }}{% else %}Book a visit with {{ provider.name }}.{% endif %}{% endblock %}
+{% block og_url %}https://scheduleavisit.onrender.com/p/{{ provider.slug }}{% endblock %}
+{% block canonical %}https://scheduleavisit.onrender.com/p/{{ provider.slug }}{% endblock %}
 {% block content %}
 <main class="app-wrap" id="booking-page" data-slug="{{ provider.slug }}" data-minutes="{{ provider.session_minutes }}" data-consult-minutes="{{ provider.consult_minutes }}" data-consult-enabled="{{ provider.consult_enabled }}" data-first="{{ provider.first }}">
   <section class="card">
