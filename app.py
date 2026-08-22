@@ -573,7 +573,15 @@ def dashboard(request: Request):
                WHERE provider_id=? ORDER BY created_at DESC LIMIT 30""",
             (u["id"],),
         ).fetchall()
-        waitlist_rows = [row(w) for w in waitlist]
+        waitlist_rows = []
+        for w in waitlist:
+            wr = row(w)
+            try:
+                asked = parse_iso(w["created_at"])
+                wr["asked_label"] = "asked " + format_short(asked.date())
+            except Exception:
+                wr["asked_label"] = ""
+            waitlist_rows.append(wr)
         note_rows = [row(n) | {"unread": not n["read_at"]} for n in notes]
 
         host = request.base_url

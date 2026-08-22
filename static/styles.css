@@ -1348,14 +1348,314 @@ textarea:focus-visible {
 }
 
 
-/* Waitlist — calm capture when the whole network is full */
-.waitlist-panel {
-  border: 1px solid rgba(45, 90, 74, 0.18);
-  background: linear-gradient(180deg, #fff 0%, #f7f3ec 100%);
+/* ——— Design pass #3: rhythm, waitlist, focus, global polish ——— */
+
+/* Skip link — always keyboard-visible when focused */
+.skip {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  z-index: 100;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--sage);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-decoration: none;
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-140%);
+  transition: transform var(--ease);
 }
-.waitlist-panel:focus { outline: 2px solid #2D5A4A; outline-offset: 2px; }
-.waitlist-panel #waitlist-ok {
-  color: #2D5A4A;
-  font-weight: 500;
+.skip:focus,
+.skip:focus-visible {
+  left: 12px;
+  top: 12px;
+  transform: translateY(0);
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+  color: #fff;
+  background: var(--sage-deep);
+}
+
+/* Global radius / shadow / hover consistency */
+:root {
+  --radius: 18px;
+  --radius-sm: 12px;
+  --radius-lg: 22px;
+  --shadow: 0 1px 2px rgba(28, 43, 36, 0.04), 0 10px 28px rgba(28, 43, 36, 0.06);
+  --shadow-hover: 0 4px 18px rgba(28, 43, 36, 0.09);
+  --shadow-lg: 0 8px 40px rgba(28, 43, 36, 0.1);
+}
+
+.card,
+.step,
+.audience-card,
+.who-card,
+.trust-item,
+.rec-card,
+.waitlist-panel,
+.referral {
+  border-radius: var(--radius);
+}
+
+.hero-card,
+.referral,
+.waitlist-panel {
+  border-radius: var(--radius-lg);
+}
+
+.card:hover,
+.step:hover,
+.audience-card:hover,
+.who-card:hover {
+  box-shadow: var(--shadow-hover);
+  border-color: #d0c4b2;
+}
+
+a:focus-visible,
+.wordmark:focus-visible,
+.nav-links a:focus-visible,
+.setup-step:focus-visible,
+.footer-links a:focus-visible,
+.btn-text:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: 8px;
+}
+
+/* Landing spacing rhythm + subtle section dividers */
+.hero {
+  padding: 44px 20px 52px;
+  gap: 44px;
+}
+.section-rule {
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: 0 20px;
+  border: 0;
+  height: 0;
+  border-top: 1px solid var(--line);
+  opacity: 0.85;
+}
+.trust-strip {
+  border-block: 0;
+  padding: 28px 20px 8px;
+  background: transparent;
+}
+.trust-inner {
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.audience {
+  padding: 48px 20px 12px;
+}
+.steps {
+  padding: 36px 20px 52px;
+  gap: 20px;
+}
+.band {
+  padding: 60px 20px;
+  margin-top: 8px;
+}
+.band-inner {
+  gap: 22px;
+  text-align: left;
+}
+.band h2 { max-width: 18ch; }
+.band p { max-width: 46em; margin-bottom: 0; }
+.band .stat-row { margin-top: 6px; }
+.band-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
   margin-top: 10px;
+  padding-top: 8px;
+}
+.band-cta .btn-on-sage {
+  background: #fff;
+  color: var(--sage-deep);
+  border-color: transparent;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+}
+.band-cta .btn-on-sage:hover {
+  background: #f3f8f5;
+  color: var(--sage-deep);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.16);
+}
+.band-cta .btn-ghost-on-sage {
+  background: transparent;
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.5);
+}
+.band-cta .btn-ghost-on-sage:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-color: #fff;
+}
+
+/* Final CTA band after “who” */
+.final-cta {
+  max-width: var(--max);
+  margin: 8px auto 0;
+  padding: 8px 20px 56px;
+}
+.final-cta-inner {
+  background: linear-gradient(180deg, var(--card) 0%, var(--sage-wash) 100%);
+  border: 1.5px solid #c9d8cf;
+  border-radius: var(--radius-lg);
+  padding: 28px 26px;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 14px;
+}
+.final-cta-inner h2 {
+  font-size: clamp(1.45rem, 2.8vw, 1.9rem);
+  margin: 0;
+}
+.final-cta-inner p {
+  margin: 0;
+  color: var(--ink-soft);
+  max-width: 42em;
+}
+.final-cta .hero-actions { margin-top: 4px; }
+
+.who {
+  padding: 48px 20px 28px;
+  border-top: 1px solid var(--line);
+}
+
+/* Waitlist panel — aligned with referral cards */
+.waitlist-panel {
+  background: linear-gradient(180deg, #fffdf8 0%, #f8efe8 100%);
+  border: 1.5px solid #e0c4b4;
+  border-radius: var(--radius-lg);
+  padding: 22px 22px 20px;
+  box-shadow: var(--shadow);
+  margin-bottom: 16px;
+}
+.waitlist-panel h2 {
+  font-size: clamp(1.35rem, 3.5vw, 1.7rem);
+  margin-bottom: 0.35em;
+}
+.waitlist-panel > p {
+  color: var(--ink-soft);
+  max-width: 42rem;
+}
+.waitlist-panel:focus,
+.waitlist-panel:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring), var(--shadow);
+}
+.referral:focus,
+.referral:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring), var(--shadow);
+}
+.waitlist-panel #waitlist-form {
+  margin-top: 14px;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+.waitlist-panel #waitlist-ok {
+  color: var(--sage-deep);
+  font-weight: 650;
+  margin-top: 12px;
+}
+
+/* Dashboard waitlist rows */
+.waitlist-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 14px;
+  align-items: center;
+  padding: 14px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--sage-wash);
+  margin-bottom: 8px;
+}
+.waitlist-row:last-child { margin-bottom: 0; }
+.waitlist-row strong {
+  display: block;
+  font-size: 1rem;
+}
+.waitlist-row .meta {
+  margin-top: 2px;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+.waitlist-row .waitlist-mins {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--sage-deep);
+  background: #fff;
+  border: 1px solid #c5d4cb;
+  border-radius: 999px;
+  padding: 6px 12px;
+  white-space: nowrap;
+}
+#waitlist-card .list { gap: 0; }
+
+/* Calendar legend spacing */
+.cal-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  margin: 16px 0 4px;
+  padding: 12px 14px;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+.cal-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 28px;
+}
+.cal-legend i {
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  margin-right: 8px;
+}
+
+@media (min-width: 720px) {
+  .hero { padding-top: 60px; padding-bottom: 68px; }
+  .final-cta-inner {
+    grid-template-columns: 1.4fr auto;
+    align-items: center;
+    gap: 20px 28px;
+  }
+  .final-cta-inner .hero-actions { justify-content: flex-end; }
+  .band h2 { max-width: 22ch; }
+}
+
+@media (max-width: 719px) {
+  .hero { padding: 24px 16px 40px; gap: 26px; }
+  .section-rule { padding: 0 16px; }
+  .audience { padding: 36px 16px 8px; }
+  .steps { padding: 28px 16px 44px; }
+  .band { padding: 48px 16px; }
+  .who { padding: 36px 16px 20px; }
+  .final-cta { padding: 4px 16px 44px; }
+  .final-cta-inner { padding: 22px 18px; }
+  .waitlist-panel { padding: 18px 16px; }
+  .waitlist-row {
+    grid-template-columns: 1fr;
+    align-items: flex-start;
+  }
+  .cal-legend { gap: 10px 14px; padding: 10px 12px; }
+}
+
+@media (max-width: 480px) {
+  .final-cta { padding-left: 12px; padding-right: 12px; }
+  .band-cta .btn { flex: 1 1 100%; }
+  .waitlist-panel #waitlist-form { padding: 12px; }
 }

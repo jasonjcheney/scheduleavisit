@@ -191,13 +191,14 @@
     <h2>Waitlist</h2>
     <p class="tiny">People who asked to hear from you when you or your trusted network have room. No email is sent yet — reach out yourself for now.</p>
     {% if waitlist_rows %}
-    <div class="list">
+    <div class="list" role="list">
       {% for w in waitlist_rows %}
-      <div class="list-item">
+      <div class="waitlist-row" role="listitem">
         <div>
           <strong>{{ w.name }}</strong>
-          <div class="meta tiny">{{ w.email }} · {{ w.requested_minutes }} min</div>
+          <div class="meta">{{ w.email }}{% if w.asked_label %} · {{ w.asked_label }}{% endif %}</div>
         </div>
+        <span class="waitlist-mins" title="Requested visit length">{{ w.requested_minutes }} min</span>
       </div>
       {% endfor %}
     </div>

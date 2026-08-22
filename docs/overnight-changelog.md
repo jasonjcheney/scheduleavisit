@@ -1,5 +1,38 @@
 # Overnight changelog
 
+## 2026-08-22 ~1:05 AM MT — Design pass #3 (local-only)
+
+Jason asleep. **Local only — not pushed; pending morning deploy.** No GitHub / Render API calls. No secrets printed.
+
+### Landing
+- Spacing rhythm tightened across hero → trust → audience → how → band → who
+- Subtle `section-rule` dividers between major blocks
+- Stronger sage CTA band (on-sage / ghost-on-sage buttons) plus a final cream CTA band before the footer
+
+### Booking waitlist
+- Waitlist panel chrome aligned with referral cards (warm gradient, terracotta border, inner form card)
+- Focus ring matches referral (`:focus-visible` via global focus token)
+
+### Dashboard
+- Waitlist rows: clearer name / email / asked-date + minutes pill
+- Calendar legend: padded strip with more gap between keys
+
+### Global CSS
+- Consistent radius / shadow / hover on cards and landing tiles
+- Visible skip-link (slides in on focus) and broader `:focus-visible` coverage
+
+### Docs
+- README shortened into plain language for Jason: live URL, jasoncheney/123456 + Elena demo1234, one paragraph each for referral and waitlist
+
+### Tests
+- `python3 tests/test_public_paths.py` — green
+- `python3 tests/test_live_paths.py` — green
+- `python3 tests/test_setup_calendar.py` — green
+- `python3 tests/test_multihop_referral.py` — green (incl. waitlist)
+
+### Ship status
+- **Local commit only.** Morning: push `main` + Render deploy when Jason is awake.
+
 ## 2026-08-22 ~12:50 AM MT — Waitlist when whole network is full + Open Graph meta
 
 Jason asleep — overnight ship to live. No SMS/email send (dashboard notification + DB only).

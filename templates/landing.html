@@ -46,6 +46,8 @@
     </div>
   </section>
 
+  <hr class="section-rule" />
+
   <section class="audience" id="for-whom">
     <div class="audience-grid">
       <article class="audience-card">
@@ -83,6 +85,8 @@
     </div>
   </section>
 
+  <hr class="section-rule" />
+
   <section class="steps" id="how">
     <div class="steps-head">
       <p class="eyebrow">How it works</p>
@@ -100,6 +104,8 @@
     </div>
   </section>
 
+  <hr class="section-rule" />
+
   <section class="band">
     <div class="band-inner">
       <h2>Built for people who cannot keep adding one more client.</h2>
@@ -109,12 +115,14 @@
         <div class="stat"><strong>8 weeks</strong><span>Look-ahead before you take a new weekly client</span></div>
         <div class="stat"><strong>Multi-hop</strong><span>Trusted peers, until someone has room</span></div>
       </div>
-      <div class="hero-actions" style="margin-top:8px">
+      <div class="band-cta">
         {% if not user %}
-          <a class="btn btn-primary" href="/signup" style="background:#fff;color:var(--sage-deep)">Get your booking link</a>
-          <a class="btn btn-ghost" href="/login" style="border-color:rgba(255,255,255,0.45);color:#fff">Provider login</a>
+          <a class="btn btn-on-sage" href="/signup">Get your booking link</a>
+          <a class="btn btn-ghost-on-sage" href="/login">Provider login</a>
+          <a class="btn btn-ghost-on-sage" href="/book">Book a visit</a>
         {% else %}
-          <a class="btn btn-primary" href="/dashboard" style="background:#fff;color:var(--sage-deep)">Open dashboard</a>
+          <a class="btn btn-on-sage" href="/dashboard">Open dashboard</a>
+          <a class="btn btn-ghost-on-sage" href="/book">Book a visit</a>
         {% endif %}
       </div>
     </div>
@@ -139,6 +147,26 @@
       <div class="who-card">
         <div class="avatar av-maya" aria-hidden="true">MC</div>
         <div><strong>The person booking the visit</strong><p class="muted" style="margin:4px 0 0">No “we are not taking new patients” dead end. A time, a name, and a way to get there.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="final-cta" aria-label="Get started">
+    <div class="final-cta-inner">
+      <div>
+        <p class="eyebrow">Ready when you are</p>
+        <h2>Get a booking link, or try a visit as a client.</h2>
+        <p>Providers set a weekly hour cap and invite trusted peers. Clients open one link and still leave with a time — even when the first clinician is full.</p>
+      </div>
+      <div class="hero-actions">
+        {% if user %}
+          <a class="btn btn-sage" href="/dashboard">Open dashboard</a>
+          <a class="btn btn-ghost" href="/book">Book a visit</a>
+        {% else %}
+          <a class="btn btn-primary" href="/signup">Get your booking link</a>
+          <a class="btn btn-sage" href="/login">Provider login</a>
+          <a class="btn btn-ghost" href="/book">Book a visit</a>
+        {% endif %}
       </div>
     </div>
   </section>

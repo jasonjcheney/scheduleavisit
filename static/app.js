@@ -313,7 +313,7 @@
       var body;
       if (!rec) {
         body =
-          '<section class="card waitlist-panel" id="waitlist-panel" tabindex="-1">' +
+          '<section class="waitlist-panel" id="waitlist-panel" tabindex="-1">' +
             '<p class="eyebrow">Waitlist</p>' +
             "<h2>No openings in " + escapeHtml(first) + "’s network right now</h2>" +
             "<p class=\"muted\">Everyone reachable through " + escapeHtml(first) +
