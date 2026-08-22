@@ -454,12 +454,26 @@ select { appearance: none; background-image: linear-gradient(45deg, transparent 
   border-radius: 12px; padding: 12px 14px; font-size: 0.9rem; margin-bottom: 16px; color: var(--sage-deep);
 }
 .note-list { display: grid; gap: 10px; }
+.notes-head { align-items: flex-start; gap: 12px; }
+.notes-unread-badge { margin-left: 8px; vertical-align: middle; }
 .note {
   background: var(--sage-wash); border: 1px solid var(--line); border-radius: 12px;
   padding: 12px 14px;
 }
-.note.unread { background: var(--amber-soft); border-color: #ead7a0; }
-.note h4 { font-family: var(--font); font-size: 0.95rem; margin: 0 0 4px; }
+.note.unread {
+  background: var(--amber-soft); border-color: #ead7a0;
+  box-shadow: inset 3px 0 0 var(--amber);
+}
+.note-head {
+  display: flex; align-items: flex-start; gap: 8px; margin: 0 0 4px;
+}
+.note-dot {
+  display: none; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--amber); margin-top: 6px; flex-shrink: 0;
+}
+.note.unread .note-dot { display: inline-block; }
+.note h4 { font-family: var(--font); font-size: 0.95rem; margin: 0; flex: 1; }
+.note-mark-read { flex-shrink: 0; margin-top: -2px; }
 .appt-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .time-slot.current { border-style: dashed; border-color: var(--sage-mid); }
 #reschedule-modal .date-strip { margin: 0 0 4px; }

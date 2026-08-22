@@ -205,13 +205,24 @@
       </div>
     </section>
 
-    <section class="card">
-      <h2>Notifications</h2>
-      <p class="tiny">We do not send email. New bookings, waitlist requests, and invites land here, and a line is printed in the server log.</p>
+    <section class="card" id="notifications-card">
+      <div class="row notes-head">
+        <div>
+          <h2>Notifications{% if unread_count %}<span class="badge nearly notes-unread-badge" id="notes-unread-badge" aria-live="polite">{{ unread_count }} new</span>{% endif %}</h2>
+          <p class="tiny">We do not send email. New bookings, waitlist requests, and invites land here, and a line is printed in the server log.</p>
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm" id="mark-all-read"{% if not unread_count %} hidden{% endif %}>Mark all as read</button>
+      </div>
       <div class="note-list">
         {% for n in notes %}
-        <article class="note {% if n.unread %}unread{% endif %}">
-          <h4>{{ n.title }}</h4>
+        <article class="note {% if n.unread %}unread{% endif %}" data-note-id="{{ n.id }}"{% if n.unread %} data-unread="1"{% endif %}>
+          <div class="note-head">
+            <span class="note-dot" aria-hidden="true"></span>
+            <h4>{{ n.title }}</h4>
+            {% if n.unread %}
+            <button type="button" class="btn btn-text btn-sm note-mark-read" data-note-read="{{ n.id }}" aria-label="Mark {{ n.title }} as read">Mark read</button>
+            {% endif %}
+          </div>
           <p class="tiny" style="margin:0">{{ n.body }}</p>
         </article>
         {% else %}

@@ -123,6 +123,35 @@ def main() -> None:
     expect("client-filter" in elena_dash.text, "elena dashboard missing client-filter")
     print("OK elena dashboard client-filter")
 
+    # —— Notifications list / mark-read API ——
+    expect("mark-all-read" in elena_dash.text, "elena dashboard missing Mark all as read")
+    expect("note-dot" in elena_dash.text or 'class="note unread"' in elena_dash.text
+           or "notes-unread-badge" in elena_dash.text,
+           "elena dashboard missing unread notification chrome")
+    r = c.get("/api/me/notifications")
+    expect(r.status_code == 200 and r.json().get("ok"), f"GET notifications failed: {r.text}")
+    notes = r.json().get("notifications") or []
+    expect(len(notes) >= 1, "elena should have at least one notification")
+    # GET must not auto-mark as read
+    expect(any(n.get("unread") for n in notes), "GET /api/me/notifications should leave unread intact")
+    nid = notes[0]["id"]
+    r = c.post(f"/api/me/notifications/{nid}/read")
+    expect(r.status_code == 200 and r.json().get("ok"), f"individual mark-read failed: {r.text}")
+    r = c.get("/api/me/notifications")
+    one = next(n for n in r.json()["notifications"] if n["id"] == nid)
+    expect(not one.get("unread"), "individual mark-read should clear unread")
+    from db import notify
+    with connect() as conn:
+        elena = conn.execute("SELECT id FROM users WHERE slug=?", ("elena-vasquez-lpc",)).fetchone()
+        notify(conn, elena["id"], "test", "Mark-all smoke", "Created for notifications API test")
+        conn.commit()
+    r = c.post("/api/me/notifications/read-all")
+    expect(r.status_code == 200 and r.json().get("ok"), f"mark-all failed: {r.text}")
+    r = c.get("/api/me/notifications")
+    expect(r.json().get("unread") == 0, "mark-all should leave unread count at 0")
+    expect(all(not n.get("unread") for n in r.json()["notifications"]), "mark-all should clear every unread")
+    print("OK notifications mark-read API")
+
     # —— Elena booking page still has capacity copy hooks ——
     elena = c.get("/p/elena-vasquez-lpc")
     expect("see if it’s a fit" in elena.text or "see if it's a fit" in elena.text, "consult fit copy missing")

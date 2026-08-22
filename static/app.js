@@ -864,7 +864,52 @@
       });
     }
 
-    fetch("/api/me/notifications", { credentials: "same-origin" });
+    (function wireNotifications() {
+      var card = $("#notifications-card");
+      if (!card) return;
+      var markAll = $("#mark-all-read");
+      var badge = $("#notes-unread-badge");
+
+      function refreshUnreadChrome() {
+        var left = $$(".note[data-unread]", card).length;
+        if (badge) {
+          if (left) {
+            badge.hidden = false;
+            badge.textContent = left + " new";
+          } else {
+            badge.hidden = true;
+          }
+        }
+        if (markAll) markAll.hidden = left === 0;
+      }
+
+      function markNoteRead(article) {
+        if (!article || !article.getAttribute("data-unread")) return;
+        article.classList.remove("unread");
+        article.removeAttribute("data-unread");
+        var btn = article.querySelector("[data-note-read]");
+        if (btn) btn.remove();
+        refreshUnreadChrome();
+      }
+
+      $$("[data-note-read]", card).forEach(function (btn) {
+        btn.addEventListener("click", async function () {
+          var id = btn.getAttribute("data-note-read");
+          var data = await api("/api/me/notifications/" + id + "/read", { method: "POST" });
+          if (!data.ok) { toast(data.error || "Could not mark read"); return; }
+          markNoteRead(btn.closest(".note"));
+        });
+      });
+
+      if (markAll) {
+        markAll.addEventListener("click", async function () {
+          var data = await api("/api/me/notifications/read-all", { method: "POST" });
+          if (!data.ok) { toast(data.error || "Could not mark all read"); return; }
+          $$(".note[data-unread]", card).forEach(markNoteRead);
+          toast("All notifications marked read");
+        });
+      }
+    })();
 
     var calCard = $("#month-cal-card");
     if (calCard) {

@@ -1,5 +1,23 @@
 # Overnight changelog
 
+## 2026-08-22 ~1:38 AM MT — Dashboard notifications polish (local-only)
+
+Jason asleep. **Local only — not pushed; pending morning deploy.** No GitHub / Render API calls. No secrets printed.
+
+### Notifications
+- GET `/api/me/notifications` lists only (no longer auto-marks read on fetch); returns `unread` count
+- POST `/api/me/notifications/{id}/read` marks one as read
+- POST `/api/me/notifications/read-all` marks all as read
+- Dashboard: **Mark all as read** button + per-note **Mark read**; unread badge (“N new”)
+- Clearer unread styling: amber side bar + amber dot beside title
+
+### Tests
+- `tests/test_live_paths.py`: Elena notifications GET / individual mark-read / mark-all
+
+### Ship status
+- **Local commit only.** Morning: push `main` + Render deploy when Jason is awake.
+
+
 ## 2026-08-22 ~1:34 AM MT — Dashboard booking-link QR (local-only)
 
 Jason asleep. **Local only — not pushed; pending morning deploy.** No GitHub / Render API calls. No secrets printed.

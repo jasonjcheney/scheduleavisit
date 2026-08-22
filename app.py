@@ -625,6 +625,7 @@ def dashboard(request: Request):
                 wr["asked_label"] = ""
             waitlist_rows.append(wr)
         note_rows = [row(n) | {"unread": not n["read_at"]} for n in notes]
+        unread_count = sum(1 for n in note_rows if n["unread"])
 
         host = request.base_url
         booking_url = f"{host}p/{u['slug']}"
@@ -672,6 +673,7 @@ def dashboard(request: Request):
             "upcoming": upcoming,
             "peers": peer_rows,
             "notes": note_rows,
+            "unread_count": unread_count,
             "waitlist_rows": waitlist_rows,
             "pending_invites": pending_invites,
             "booking_url": booking_url,
@@ -1280,11 +1282,45 @@ def api_notes(request: Request):
             "SELECT * FROM notifications WHERE user_id=? ORDER BY created_at DESC LIMIT 40",
             (user["id"],),
         ).fetchall()
-        conn.execute(
+        notes = [row(r) | {"unread": not r["read_at"]} for r in rows]
+        return {
+            "ok": True,
+            "notifications": notes,
+            "unread": sum(1 for n in notes if n["unread"]),
+        }
+
+
+@app.post("/api/me/notifications/read-all")
+def api_notes_read_all(request: Request):
+    user, err = _auth(request)
+    if err:
+        return err
+    with db() as conn:
+        cur = conn.execute(
             "UPDATE notifications SET read_at=? WHERE user_id=? AND read_at IS NULL",
             (now_iso(), user["id"]),
         )
-        return {"ok": True, "notifications": [row(r) for r in rows]}
+        return {"ok": True, "marked": cur.rowcount}
+
+
+@app.post("/api/me/notifications/{note_id}/read")
+def api_note_read(request: Request, note_id: int):
+    user, err = _auth(request)
+    if err:
+        return err
+    with db() as conn:
+        n = conn.execute(
+            "SELECT * FROM notifications WHERE id=? AND user_id=?",
+            (note_id, user["id"]),
+        ).fetchone()
+        if not n:
+            return json_err("Notification not found", 404)
+        if not n["read_at"]:
+            conn.execute(
+                "UPDATE notifications SET read_at=? WHERE id=?",
+                (now_iso(), note_id),
+            )
+        return {"ok": True}
 
 
 def _parse_workdays(raw) -> list[int] | None:
