@@ -1697,3 +1697,326 @@ a:focus-visible,
   max-width: 36ch;
 }
 .invite-box .confirm .muted { margin-top: 0; }
+
+
+/* ——— Design pass #4: type scale, density, spacing polish ——— */
+
+/* Landing — hero type, CTA size, footer breath */
+.hero {
+  padding: 48px 20px 56px;
+  gap: 40px;
+}
+.hero .eyebrow {
+  font-size: 0.76rem;
+  letter-spacing: 0.09em;
+  margin-bottom: 14px;
+}
+.hero h1 {
+  font-size: clamp(2.2rem, 5.6vw, 3.75rem);
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+  margin-bottom: 16px;
+}
+.hero .lede {
+  font-size: clamp(1.05rem, 2.1vw, 1.2rem);
+  line-height: 1.62;
+  max-width: 38em;
+}
+.hero-actions {
+  margin-top: 28px;
+  gap: 12px;
+}
+.hero-actions .btn {
+  min-height: 50px;
+  padding: 0 22px;
+  font-size: 0.98rem;
+}
+.hero-actions .btn-sm {
+  min-height: 42px;
+  padding: 0 16px;
+  font-size: 0.9rem;
+}
+.hero-card {
+  padding: 28px 26px;
+}
+.hero-card h3 {
+  font-size: 1.32rem;
+  letter-spacing: -0.02em;
+}
+
+.footer-inner {
+  padding: 44px 20px 56px;
+  gap: 20px;
+}
+.footer-brand {
+  font-size: 1.22rem;
+  letter-spacing: -0.02em;
+}
+.footer-links {
+  gap: 12px 22px;
+  font-size: 0.92rem;
+}
+.footer-note {
+  font-size: 0.84rem;
+  line-height: 1.5;
+  margin-top: 2px;
+}
+
+/* Booking — date strip + slot grid + waitlist spacing */
+.date-strip {
+  gap: 10px;
+  padding: 6px 2px 16px;
+  scroll-padding-inline: 4px;
+}
+.date-chip {
+  min-width: 78px;
+  min-height: 84px;
+  padding: 8px 6px;
+  border-radius: 16px;
+  gap: 4px;
+}
+.date-chip .d {
+  font-size: 1.42rem;
+  letter-spacing: -0.03em;
+}
+.date-chip .w {
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+}
+.date-chip[aria-pressed="true"],
+.date-chip.active {
+  box-shadow: 0 2px 10px rgba(45, 90, 74, 0.22);
+}
+
+.slot-grid {
+  gap: 10px;
+  margin-top: 2px;
+}
+.time-slot {
+  min-height: 50px;
+  border-radius: 14px;
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
+}
+.time-slot:hover:not(.gone):not(:disabled) {
+  background: var(--sage-wash);
+  border-color: var(--sage-mid);
+}
+.time-slot.active,
+.time-slot[aria-pressed="true"] {
+  box-shadow: 0 2px 10px rgba(45, 90, 74, 0.22);
+}
+
+.waitlist-panel {
+  padding: 24px 24px 22px;
+  margin-top: 8px;
+  margin-bottom: 18px;
+}
+.waitlist-panel h2 {
+  margin-bottom: 0.4em;
+}
+.waitlist-panel > p {
+  margin-bottom: 0;
+  line-height: 1.55;
+}
+.waitlist-panel #waitlist-form {
+  margin-top: 16px;
+  padding: 18px 16px;
+  display: grid;
+  gap: 12px;
+}
+.waitlist-panel #waitlist-form .fields {
+  gap: 12px;
+}
+.waitlist-panel #waitlist-ok {
+  margin-top: 14px;
+  margin-bottom: 0;
+}
+
+/* Dashboard — denser readable cards, clearer section gaps */
+.app-wrap {
+  padding: 16px 16px 72px;
+}
+.page-title {
+  margin-bottom: 0.25em;
+}
+.sub {
+  margin-bottom: 20px;
+}
+.dash-grid {
+  gap: 14px;
+}
+.card {
+  padding: 16px 18px;
+  margin-bottom: 12px;
+}
+.card h2,
+.card h3 {
+  font-size: 1.12rem;
+  margin-bottom: 0.45em;
+}
+.list {
+  gap: 0;
+}
+.list-item {
+  padding: 10px 0;
+  gap: 6px 12px;
+}
+.peer {
+  gap: 4px;
+  padding: 10px 0;
+}
+.waitlist-row {
+  padding: 12px 12px;
+  margin-bottom: 6px;
+  gap: 6px 12px;
+}
+.cap-hero {
+  gap: 6px;
+}
+.cap-number {
+  font-size: 2.35rem;
+}
+.week-grid {
+  gap: 6px;
+  margin-top: 4px;
+}
+.week-col {
+  padding: 8px 6px;
+}
+.share-strip .link-box {
+  margin-top: 8px;
+  padding: 10px 12px;
+}
+.getting-started .checklist {
+  margin-top: 10px;
+  gap: 6px;
+}
+.note-list {
+  gap: 8px;
+}
+.note {
+  padding: 10px 12px;
+}
+.pending-invites {
+  margin-top: 14px;
+  padding-top: 12px;
+}
+
+/* Setup — consistent field rhythm */
+.setup-wrap {
+  padding: 16px 16px 80px;
+}
+.setup-progress-wrap {
+  margin: 0 0 16px;
+}
+.setup-section {
+  padding: 18px 18px 16px;
+  margin-bottom: 14px;
+}
+.setup-section .eyebrow {
+  margin-bottom: 6px;
+}
+.setup-section .fields {
+  gap: 14px;
+  margin-top: 4px;
+}
+.setup-section label.field {
+  gap: 7px;
+}
+.setup-section .field-help {
+  margin-top: 5px;
+}
+.setup-section .days {
+  gap: 8px;
+  margin-top: 4px;
+}
+.setup-section .choice-grid {
+  gap: 10px;
+  margin-top: 4px;
+}
+.setup-section .howto {
+  margin-top: 16px;
+}
+.setup-section .check-line {
+  margin-top: 10px;
+}
+.setup-section .btn {
+  margin-top: 4px;
+}
+
+@media (min-width: 720px) {
+  .hero {
+    padding-top: 64px;
+    padding-bottom: 72px;
+    gap: 48px;
+  }
+  .hero-actions .btn {
+    min-height: 52px;
+    padding: 0 24px;
+  }
+  .footer-inner {
+    padding: 52px 20px 64px;
+  }
+  .app-wrap {
+    padding-top: 24px;
+  }
+  .dash-grid {
+    gap: 16px;
+  }
+  .card {
+    padding: 18px 20px;
+  }
+  .setup-section .fields.two {
+    gap: 14px 16px;
+  }
+}
+
+@media (max-width: 719px) {
+  .hero {
+    padding: 26px 16px 42px;
+    gap: 24px;
+  }
+  .hero h1 {
+    font-size: clamp(1.95rem, 8vw, 2.55rem);
+  }
+  .hero-actions .btn {
+    min-height: 48px;
+  }
+  .footer-inner {
+    padding: 32px 16px 48px;
+    gap: 16px;
+  }
+  .date-chip {
+    min-width: 70px;
+    min-height: 76px;
+  }
+  .waitlist-panel {
+    padding: 20px 16px 18px;
+  }
+  .card {
+    padding: 14px 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero h1 {
+    font-size: clamp(1.75rem, 8.5vw, 2.25rem);
+  }
+  .hero-actions .btn {
+    min-height: 48px;
+    padding: 0 16px;
+  }
+  .footer-inner {
+    padding-left: 12px;
+    padding-right: 12px;
+    padding-bottom: 44px;
+  }
+  .date-chip {
+    min-width: 64px;
+    min-height: 72px;
+  }
+  .time-slot {
+    min-height: 50px;
+  }
+}

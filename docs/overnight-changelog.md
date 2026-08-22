@@ -1,5 +1,37 @@
 # Overnight changelog
 
+## 2026-08-22 ~1:31 AM MT — Design pass #4 (local-only)
+
+Jason asleep. **Local only — not pushed; pending morning deploy.** No GitHub / Render API calls. No secrets printed.
+
+### Landing
+- Hero type scale: slightly larger clamp, tighter letter-spacing, calmer lede measure
+- CTA buttons: taller primary actions (50–52px) with a bit more horizontal padding
+- Footer: more vertical padding and clearer brand / link / note gaps
+
+### Booking
+- Date-strip: roomier chips, stronger selected shadow, scroll-padding
+- Slot-grid: 50px slots, sage-wash hover, selected elevation
+- Waitlist panel: consistent inner form gap and padding with referral chrome
+
+### Dashboard
+- Cards denser (16–18px padding) but readable; tighter list/peer/waitlist row rhythm
+- Section gaps via `.dash-grid` and slightly reduced card margins
+
+### Setup
+- Field spacing consistency: 14px field gaps, aligned help/day/choice margins
+- Section padding aligned with dashboard density
+
+### Palette
+- Unchanged cream / forest / terracotta — CSS-only polish, no layout rewrites
+
+### Tests
+- All suites under `tests/` run after this pass
+
+### Ship status
+- **Local commit only.** Morning: push `main` + Render deploy when Jason is awake.
+
+
 ## 2026-08-22 ~1:35 AM MT — Therapist network invite polish (local-only)
 
 Jason asleep. **Local only — not pushed; pending morning deploy.** No GitHub / Render API calls. No secrets printed.
