@@ -370,8 +370,10 @@
     </form>
   </section>
 </main>
+{% endblock %}
+{% block footer %}
 <footer class="site-footer">
   <span>ScheduleAVisit.com</span>
-  <span>Not HIPAA-compliant. No payments. Time zone: {{ me.timezone }}.</span>
+  <span>Scheduling tool for independent counselors. Not a substitute for clinical judgment. Not HIPAA-compliant yet (no BAA). Time zone: {{ me.timezone }}.</span>
 </footer>
 {% endblock %}

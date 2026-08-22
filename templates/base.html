@@ -50,6 +50,13 @@
   <div id="app">
     {% block content %}{% endblock %}
   </div>
+  {% block footer %}
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <p class="footer-note">Scheduling tool for independent counselors. Not a substitute for clinical judgment. Not HIPAA-compliant yet (no BAA).</p>
+    </div>
+  </footer>
+  {% endblock %}
   <div id="toast-root" aria-live="polite"></div>
   <script src="/static/app.js"></script>
   {% block extra_js %}{% endblock %}

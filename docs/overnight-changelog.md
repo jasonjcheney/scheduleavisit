@@ -24,6 +24,23 @@ Plain-language snapshot of what ScheduleAVisit does **now**. Detail entries belo
 Local overnight commits after waitlist/OG deploy are **not pushed** until Jason is awake. Smoke path: `SMOKE.md`. Suites: `tests/test_public_paths.py`, `test_live_paths.py`, `test_setup_calendar.py`, `test_multihop_referral.py`.
 
 
+## 2026-08-22 ~1:47 AM MT — Sitewide honest footer note (local-only)
+
+Jason asleep. **Local only — not pushed; pending morning deploy.** No GitHub / Render API calls. No secrets printed.
+
+### Footer
+- Default note in `templates/base.html` (`{% block footer %}`) so every page gets it
+- Landing keeps its richer footer links; dashboard keeps timezone line — both override the block with the same calm copy
+- Copy: scheduling tool for independent counselors; not a substitute for clinical judgment; not HIPAA-compliant yet (no BAA)
+
+### Tests
+- `tests/test_public_paths.py` asserts the note on `/`, `/book`, `/login`, `/signup`
+- Full `tests/` suite re-run — green
+
+### Ship status
+- **Local commit only.** Morning: push `main` + Render deploy when Jason is awake.
+
+
 ## 2026-08-22 ~1:46 AM MT — Landing FAQ accordion (local-only)
 
 Jason asleep. **Local only — not pushed; pending morning deploy.** No GitHub / Render API calls. No secrets printed.
