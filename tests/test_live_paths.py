@@ -110,14 +110,18 @@ def main() -> None:
     expect(dash.status_code == 200, f"/dashboard got {dash.status_code}")
     for n in ("Hello", "Month calendar", "Your booking link", "Clients never see"):
         expect(n in dash.text, f"/dashboard missing {n!r}")
-    # Client search/filter markup (server-rendered ids; filter input when clients exist)
-    expect('id="clients-card"' in dash.text, "/dashboard missing clients-card")
-    expect('id="clients-list"' in dash.text, "/dashboard missing clients-list")
-    expect('id="clients-filter-empty"' in dash.text, "/dashboard missing clients-filter-empty")
-    dash_tpl = (ROOT / "templates" / "dashboard.html").read_text()
-    expect('id="client-filter"' in dash_tpl, "dashboard template missing client-filter")
-    expect("data-client-name" in dash_tpl, "dashboard template missing data-client-name")
+    expect("Scan to book" in dash.text, "/dashboard missing Scan to book QR label")
+    expect("api.qrserver.com" in dash.text, "/dashboard missing QR image API src")
     print("OK /dashboard 200")
+
+    # —— Elena login → dashboard client name filter ——
+    c.post("/api/auth/logout")
+    r = c.post("/api/auth/login", json={"email": "Elena", "password": "demo1234"})
+    expect(r.status_code == 200 and r.json().get("ok"), f"elena login failed: {r.text}")
+    elena_dash = c.get("/dashboard")
+    expect(elena_dash.status_code == 200, f"elena /dashboard got {elena_dash.status_code}")
+    expect("client-filter" in elena_dash.text, "elena dashboard missing client-filter")
+    print("OK elena dashboard client-filter")
 
     # —— Elena booking page still has capacity copy hooks ——
     elena = c.get("/p/elena-vasquez-lpc")

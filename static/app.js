@@ -715,10 +715,10 @@
       if (!input || !list) return;
       function applyFilter() {
         var q = (input.value || "").trim().toLowerCase();
-        var items = $$(".list-item[data-client-name]", list);
+        var items = $$(".list-item[data-name]", list);
         var shown = 0;
         items.forEach(function (row) {
-          var name = (row.getAttribute("data-client-name") || "").toLowerCase();
+          var name = (row.getAttribute("data-name") || "").toLowerCase();
           var match = !q || name.indexOf(q) !== -1;
           row.hidden = !match;
           if (match) shown += 1;

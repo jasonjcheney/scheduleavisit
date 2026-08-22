@@ -1,16 +1,17 @@
 # Overnight changelog
 
-## 2026-08-22 ~1:33 AM MT — Dashboard client name filter (local-only)
+## 2026-08-22 ~1:36 AM MT — Dashboard client name filter (local-only)
 
 Jason asleep. **Local only — not pushed; pending morning deploy.** No GitHub / Render API calls. No secrets printed.
 
 ### Feature
-- Clients card: text search input filters the visible list by name (client-side)
-- Empty filter shows all rows; no-match empty state (“No clients match that name.”)
-- Kept existing list-item / badge / dismiss patterns; light sage-focus CSS
+- Clients card: `#client-filter` search input filters rows by name client-side
+- Each client row marked `data-name` (lowercase) for matching
+- No-match empty state when the filter has zero hits
+- Sage-focus CSS aligned with existing field inputs
 
 ### Tests
-- `tests/test_live_paths.py`: clients-card / clients-list / clients-filter-empty + template `client-filter` / `data-client-name` presence
+- `tests/test_live_paths.py`: Elena login → logged-in `/dashboard` HTML contains `client-filter`
 
 ### Ship status
 - **Local commit only.** Morning: push `main` + Render deploy when Jason is awake.
