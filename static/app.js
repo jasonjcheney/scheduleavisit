@@ -255,7 +255,7 @@
       $("#book-result").innerHTML =
         '<section class="card">' +
           "<h2>Confirm with " + escapeHtml(first) + "</h2>" +
-          "<p>" + formatLong(d) + " at " + formatTime(state.time) + " · " + minutes + " minutes · " + kindLabel + "</p>" +
+          "<p>" + formatLong(d) + " at " + formatTime(state.time) + " · " + currentMinutes() + " minutes · " + kindLabel + "</p>" +
           '<form id="visit-form" class="fields">' +
             '<p class="err hidden" id="visit-err"></p>' +
             '<label class="field">Your name<input type="text" name="name" required placeholder="Jordan Lee" autocomplete="name"></label>' +
@@ -298,7 +298,8 @@
           "<p style=\"margin:0\"><strong>" + escapeHtml(r.displayWhen) + "</strong> · " + r.minutes + " minutes</p>" +
           '<div class="row">' +
             '<button type="button" class="btn btn-primary btn-sm" data-book-ref="' + escapeHtml(r.peerSlug) +
-              '" data-ref-date="' + r.date + '" data-ref-time="' + r.time + '">Book this time with ' +
+              '" data-ref-date="' + r.date + '" data-ref-time="' + r.time +
+              '" data-ref-minutes="' + (r.minutes || sessionMinutes) + '">Book this time with ' +
               escapeHtml(peerFirst) + "</button>" +
             '<a class="btn btn-ghost btn-sm" href="' + escapeHtml(r.rideUrl) + '">Get a ride</a>' +
           "</div>" +
@@ -354,18 +355,24 @@
       }
       $$("[data-book-ref]").forEach(function (btn) {
         btn.addEventListener("click", function () {
-          showRefConfirm(btn.getAttribute("data-book-ref"), btn.getAttribute("data-ref-date"), btn.getAttribute("data-ref-time"));
+          showRefConfirm(
+            btn.getAttribute("data-book-ref"),
+            btn.getAttribute("data-ref-date"),
+            btn.getAttribute("data-ref-time"),
+            Number(btn.getAttribute("data-ref-minutes") || sessionMinutes)
+          );
         });
       });
       $("#book-result").scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
-    function showRefConfirm(peerSlug, date, time) {
+    function showRefConfirm(peerSlug, date, time, refMinutes) {
       var d = parseISODate(date);
+      var peerMinutes = refMinutes || sessionMinutes;
       $("#book-result").innerHTML =
         '<section class="card">' +
           "<h2>Confirm this referred visit</h2>" +
-          "<p>" + formatLong(d) + " at " + formatTime(time) + " · " + minutes + " minutes</p>" +
+          "<p>" + formatLong(d) + " at " + formatTime(time) + " · " + peerMinutes + " minutes</p>" +
           '<form id="ref-form" class="fields">' +
             '<p class="err hidden" id="visit-err"></p>' +
             '<label class="field">Your name<input type="text" name="name" required placeholder="Jordan Lee" autocomplete="name"></label>' +

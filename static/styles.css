@@ -43,6 +43,7 @@ body {
   line-height: 1.55;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
 img { max-width: 100%; }
 a { color: var(--sage); text-decoration-thickness: 1px; text-underline-offset: 3px; }
@@ -265,6 +266,8 @@ input:focus { outline: 3px solid rgba(45,90,74,0.25); border-color: var(--sage);
 }
 .list-item:last-child { border-bottom: 0; }
 .person { display: flex; gap: 12px; align-items: center; }
+.person > div { min-width: 0; flex: 1; }
+.person strong, .rec-trust { overflow-wrap: anywhere; }
 .person .meta { font-size: 0.82rem; color: var(--muted); }
 
 .week-grid {
@@ -1234,6 +1237,60 @@ textarea:focus-visible {
 }
 
 @media (max-width: 420px) {
-  .slot-grid { grid-template-columns: repeat(2, 1fr); }
+  .slot-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .slot-loading { grid-template-columns: repeat(2, 1fr); }
   .date-chip { min-width: 68px; min-height: 72px; }
+  .rec-card .row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .rec-card .row .btn { width: 100%; justify-content: center; }
+  .cal-nav { width: 100%; }
+  .cal-nav #cal-title { flex: 1; text-align: center; font-size: 0.95rem; }
+}
+
+/* iPhone 12/13/14 width — keep slots, referral cards, month calendar inside the viewport */
+@media (max-width: 390px) {
+  .app-wrap, .setup-wrap, .auth-wrap { padding-left: 12px; padding-right: 12px; }
+  .site-header { padding-left: 12px; padding-right: 12px; }
+  .slot-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .slot-loading { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .time-slot {
+    min-height: 48px;
+    font-size: 0.9rem;
+    padding: 8px 4px;
+  }
+  .date-chip { min-width: 62px; min-height: 68px; }
+  .referral { padding: 14px 12px; }
+  .rec-card { padding: 12px; margin: 10px 0; }
+  .rec-card .row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .rec-card .row .btn { width: 100%; justify-content: center; }
+  .month-cal {
+    gap: 2px;
+    width: 100%;
+    max-width: 100%;
+  }
+  .cal-day {
+    min-height: 62px;
+    padding: 2px;
+    border-radius: 8px;
+    min-width: 0;
+  }
+  .cal-day-num { min-height: 20px; padding: 0 3px; font-size: 0.82rem; }
+  .cal-block {
+    font-size: 0.55rem;
+    padding: 1px 2px;
+    max-width: 100%;
+  }
+  .cal-dow { font-size: 0.6rem; padding: 4px 0 6px; }
+  .cal-legend { gap: 8px 10px; font-size: 0.72rem; }
+  .visit-chips .choice-card strong { font-size: 0.95rem; }
+  .share-strip .link-box code { font-size: 0.78rem; }
 }

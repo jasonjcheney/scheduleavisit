@@ -347,7 +347,7 @@ def signup_page(request: Request):
         request,
         "signup.html",
         prefill_email=request.query_params.get("email") or "",
-        next=request.query_params.get("next") or "/dashboard",
+        next=request.query_params.get("next") or "/setup",
     )
 
 

@@ -1,5 +1,24 @@
 # Overnight changelog
 
+## 2026-08-22 ~12:31 AM MT — Visual QA: referral minutes, mobile 390px, live-path smokes
+
+Overnight QA pass (WebFetch + TestClient; no browser MCP). Jason asleep — no contact.
+
+### Bugs / polish fixed
+1. **Referral confirm showed wrong duration** — If the client picked a consult, “Confirm this referred visit” echoed 15 minutes even though `book-referral` always books the peer’s session length. Buttons now carry `data-ref-minutes`; confirm uses the peer’s minutes. Direct confirm uses `currentMinutes()`.
+2. **Signup `data-next` pointed at `/dashboard`** — Page defaulted to dashboard while copy + API send new providers to `/setup`. Signup route now defaults `next=/setup`.
+3. **Directory caption omitted Jason** — Now: “James, Maya, and Jason have room.”
+4. **Mobile overflow at ~390px** — Added `@media (max-width: 390px)` for booking slots, referral card CTA stack, month calendar cells/legend, share-strip code; `overflow-x: hidden` on `body`; `.person > div { min-width: 0 }` so long names wrap.
+
+### Tests
+- Added `tests/test_live_paths.py` — TestClient smokes for `/`, `/book`, `/p/jason-cheney`, `/p/elena-vasquez-lpc`, `/login`, `/signup`, auth gates, jasoncheney/123456 → setup/dashboard, mobile CSS guards.
+- `python3 tests/test_live_paths.py` — green
+- `python3 tests/test_setup_calendar.py` — green
+- `python3 tests/test_multihop_referral.py` — green
+
+### Deploy
+- Commit + push to `main` + Render deploy `srv-da463sou01pc73erg9l0`
+
 ## 2026-08-22 (America/Denver) — design + completeness + reliability polish
 
 Shipped while Jason slept. No HIPAA claims, payments, or SMTP.
