@@ -21,7 +21,9 @@ Jason asleep — overnight ship to live. No SMS/email send (dashboard notificati
 - Live-path smokes assert OG tags. All suites green. Elena + jasoncheney intact.
 
 ### Deploy
-- Commit + push `main` + Render `srv-da463sou01pc73erg9l0` (status after trigger).
+- Commits `accba28` + `0b468f4` pushed to `main`
+- Render deploy `dep-da4kah5d9g6s738ovn10` on `srv-da463sou01pc73erg9l0` → **live** (~12:45 AM MT / 06:45 UTC)
+- Live smoke: `/` and `/p/jason-cheney` HTTP 200 with `og:title` present
 
 
 ## 2026-08-22 ~12:45 AM MT — Local-only: 480px mobile overflow + public-path tests
