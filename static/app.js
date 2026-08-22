@@ -179,32 +179,48 @@
       });
     }
 
+    function slotSkeleton() {
+      return '<div class="slot-loading" role="status" aria-label="Loading times">' +
+        '<div class="slot-skel"></div><div class="slot-skel"></div><div class="slot-skel"></div>' +
+        '<div class="slot-skel"></div><div class="slot-skel"></div><div class="slot-skel"></div>' +
+        "</div>";
+    }
+
     async function loadSlots() {
       var grid = $("#slot-grid");
-      grid.innerHTML = '<p class="muted">Loading times…</p>';
+      grid.setAttribute("aria-busy", "true");
+      grid.innerHTML = slotSkeleton();
       var data = await api("/api/p/" + encodeURIComponent(slug) + "/availability?date=" + state.date +
         "&minutes=" + currentMinutes() + "&visit_kind=" + encodeURIComponent(visitKind));
+      grid.setAttribute("aria-busy", "false");
       if (!data.ok && !data.slots) {
-        grid.innerHTML = '<p class="muted">Could not load times.</p>';
+        grid.innerHTML =
+          '<div class="empty-state compact">' +
+            '<p class="empty-title">Could not load times</p>' +
+            '<p class="muted">Check your connection, then try again.</p>' +
+            '<button type="button" class="btn btn-ghost btn-sm empty-retry" id="slot-retry">Retry</button>' +
+          "</div>";
+        var retry = $("#slot-retry");
+        if (retry) retry.addEventListener("click", loadSlots);
         return;
       }
       state.weekHasRoom = data.weekHasRoom;
       if (!data.slots || !data.slots.length) {
         grid.innerHTML =
           '<div class="empty-state compact">' +
-            '<p class="muted" style="margin:0">No clinic hours this day.</p>' +
-            '<p class="help-tip" style="margin:8px 0 0">Try another day above, or check back later.</p>' +
+            '<p class="empty-title">No clinic hours this day</p>' +
+            '<p class="muted">Try another day above, or check back later.</p>' +
           '</div>';
         return;
       }
       var openCount = data.slots.filter(function (s) { return !(s.booked || s.past || !s.open); }).length;
       if (openCount === 0) {
         var fuller = data.weekHasRoom === false
-          ? '<p class="help-tip" style="margin:8px 0 0">This week looks full on hours. Pick another day, or confirm a time to see a trusted referral.</p>'
-          : '<p class="help-tip" style="margin:8px 0 0">Every slot for this day is taken. Pick another day above.</p>';
+          ? '<p class="muted">This week looks full on hours. Pick another day, or confirm a time to see a trusted referral.</p>'
+          : '<p class="muted">Every slot for this day is taken. Pick another day above.</p>';
         grid.innerHTML =
           '<div class="empty-state compact">' +
-            '<p class="muted" style="margin:0">No open times left on this day.</p>' +
+            '<p class="empty-title">No open times left</p>' +
             fuller +
           '</div>';
         return;
@@ -293,6 +309,7 @@
       if (!rec) {
         body =
           '<section class="card empty-state">' +
+            '<p class="eyebrow">Referral network</p>' +
             "<h2>No openings nearby this week</h2>" +
             "<p class=\"muted\">We could not find an open peer in " + escapeHtml(first) + "’s network right now.</p>" +
             '<p class="help-tip">Try another day above — later weeks may have room with ' + escapeHtml(first) + " — or call the office.</p>" +
@@ -524,12 +541,19 @@
       async function loadMonth() {
         var grid = $("#month-cal");
         $("#cal-title").textContent = MONTHS[calMonth - 1] + " " + calYear;
-        grid.innerHTML = '<p class="muted">Loading calendar…</p>';
+        var skel = "";
+        for (var s = 0; s < 7; s++) skel += '<div class="slot-skel"></div>';
+        grid.innerHTML = '<div class="cal-loading" role="status" aria-label="Loading calendar">' + skel + skel + "</div>";
         var data = await api("/api/calendar?year=" + calYear + "&month=" + calMonth);
         if (!data.ok) {
-          grid.innerHTML = '<p class="muted">Could not load the calendar.</p>';
+          grid.innerHTML =
+            '<div class="empty-state compact">' +
+              '<p class="empty-title">Could not load the calendar</p>' +
+              '<p class="muted">Try Previous / Next, or refresh the page.</p>' +
+            "</div>";
           return;
         }
+        var todayIso = toISODate(new Date());
         var start = parseISODate(data.gridStart);
         var html = DOW.map(function (d) { return '<div class="cal-dow">' + d + "</div>"; }).join("");
         for (var i = 0; i < 42; i++) {
@@ -537,11 +561,13 @@
           var iso = toISODate(d);
           var inMonth = d.getMonth() + 1 === calMonth;
           var blocks = (data.days && data.days[iso]) || [];
-          html += '<div class="cal-day' + (inMonth ? "" : " out") + '" data-date="' + iso + '">';
-          html += '<button type="button" class="cal-day-num" data-add-date="' + iso + '">' + d.getDate() + "</button>";
+          var classes = "cal-day" + (inMonth ? "" : " out") + (iso === todayIso ? " is-today" : "") +
+            (blocks.length ? "" : " is-empty");
+          html += '<div class="' + classes + '" data-date="' + iso + '">';
+          html += '<button type="button" class="cal-day-num" data-add-date="' + iso + '" aria-label="Add client on ' + iso + '">' + d.getDate() + "</button>";
           blocks.forEach(function (b) {
             html += '<button type="button" class="cal-block ' + escapeHtml(b.source) + '" data-block="' +
-              encodeURIComponent(JSON.stringify(b)) + '">' +
+              encodeURIComponent(JSON.stringify(b)) + '" title="' + escapeHtml(formatTime(b.time) + " " + b.name) + '">' +
               escapeHtml(formatTime(b.time)) + " " + escapeHtml(b.name) + "</button>";
           });
           html += "</div>";
@@ -685,16 +711,22 @@
       var sections = ["#who-you-are", "#your-hours", "#client-portal", "#calendar-ical"].map(function (id) {
         return document.querySelector(id);
       });
+      var fill = $("#setup-progress-fill");
       function markActive() {
         var idx = 0;
         sections.forEach(function (sec, i) {
           if (!sec) return;
           var top = sec.getBoundingClientRect().top;
-          if (top < 140) idx = i;
+          if (top < 160) idx = i;
         });
         steps.forEach(function (el, i) {
           el.classList.toggle("is-active", i === idx);
+          el.classList.toggle("is-done", i < idx);
         });
+        sections.forEach(function (sec, i) {
+          if (sec) sec.classList.toggle("is-current", i === idx);
+        });
+        if (fill) fill.style.width = (((idx + 1) / steps.length) * 100) + "%";
       }
       window.addEventListener("scroll", markActive, { passive: true });
       markActive();

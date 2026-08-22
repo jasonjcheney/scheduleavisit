@@ -19,7 +19,7 @@
   <section class="card" id="visit-kind-card">
     <h2>What kind of visit?</h2>
     <p class="muted">New here? Start with a consult. Already working together? Book a session.</p>
-    <div class="choice-grid two" id="visit-kind" role="group" aria-label="Visit type">
+    <div class="choice-grid two visit-chips" id="visit-kind" role="group" aria-label="Visit type">
       <button type="button" class="choice-card active" data-kind="consult" aria-pressed="true">
         <strong>Free consultation ({{ provider.consult_minutes }} min) — see if it’s a fit</strong>
         <span class="tiny">Short intro · no long commitment</span>
@@ -39,7 +39,12 @@
     <p class="tiny" style="margin-top:-4px">Swipe or tap a day. Times update for the visit length you chose.</p>
     <div class="date-strip" id="date-strip" role="listbox" aria-label="Available days"></div>
     <h2 style="margin-top:8px">Pick a time</h2>
-    <div class="slot-grid" id="slot-grid" style="margin-top:8px" aria-live="polite"></div>
+    <div class="slot-grid" id="slot-grid" style="margin-top:10px" aria-live="polite" aria-busy="false">
+      <div class="slot-loading" aria-hidden="true">
+        <div class="slot-skel"></div><div class="slot-skel"></div><div class="slot-skel"></div>
+        <div class="slot-skel"></div><div class="slot-skel"></div><div class="slot-skel"></div>
+      </div>
+    </div>
   </section>
   <div id="book-result" aria-live="polite"></div>
 </main>

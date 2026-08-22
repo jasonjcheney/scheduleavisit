@@ -74,7 +74,7 @@
     <div class="row">
       <div>
         <h2>Month calendar</h2>
-        <p class="tiny" style="margin:0"><strong>Click any empty day</strong> to add a client by name — that time counts toward your weekly cap. Sage = booked on your link · terracotta = you added · blue = imported busy time.</p>
+        <p class="tiny" style="margin:0"><strong>Click any empty day</strong> to add a client by name — that time counts toward your weekly cap.</p>
       </div>
       <div class="cal-nav">
         <button type="button" class="btn btn-ghost btn-sm" id="cal-prev">Previous</button>
@@ -82,8 +82,14 @@
         <button type="button" class="btn btn-ghost btn-sm" id="cal-next">Next</button>
       </div>
     </div>
-    <div class="month-cal" id="month-cal" style="margin-top:14px" aria-live="polite"></div>
-    <p class="help-tip" id="cal-help">Empty days are clickable. Use Previous / Next to plan ahead. Manual blocks keep capacity honest when someone is already on your caseload.</p>
+    <div class="cal-legend" aria-label="Calendar color key">
+      <span><i class="lg-booked" aria-hidden="true"></i>Booked on your link</span>
+      <span><i class="lg-manual" aria-hidden="true"></i>You added</span>
+      <span><i class="lg-ical" aria-hidden="true"></i>Imported busy</span>
+      <span><i class="lg-today" aria-hidden="true"></i>Today</span>
+    </div>
+    <div class="month-cal" id="month-cal" style="margin-top:12px" aria-live="polite"></div>
+    <p class="help-tip" id="cal-help">Empty days show a + on hover or tap — click to add a client by name. Use Previous / Next to plan ahead. Manual blocks keep capacity honest when someone is already on your caseload.</p>
   </section>
 
   <div id="block-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="block-modal-title">

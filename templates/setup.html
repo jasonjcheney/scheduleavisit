@@ -8,13 +8,16 @@
   <p class="sub">Plain language. You can change any of this later. Clients see your name, hours, and booking link — not this form.</p>
 
   {% if not editing %}
-  <nav class="setup-progress" aria-label="Setup progress">
-    <a class="setup-step is-active" href="#who-you-are"><span>1</span> Who you are</a>
-    <a class="setup-step" href="#your-hours"><span>2</span> Hours</a>
-    <a class="setup-step" href="#client-portal"><span>3</span> Portal</a>
-    <a class="setup-step" href="#calendar-ical"><span>4</span> Calendar</a>
-  </nav>
-  <p class="help-tip">Four short sections. Finish all four, then you land on your dashboard with a public booking link.</p>
+  <div class="setup-progress-wrap">
+    <div class="setup-progress-bar" aria-hidden="true"><span id="setup-progress-fill" style="width:25%"></span></div>
+    <nav class="setup-progress" id="setup-progress" aria-label="Setup progress">
+      <a class="setup-step is-active" href="#who-you-are" data-step="1"><span>1</span> Who you are</a>
+      <a class="setup-step" href="#your-hours" data-step="2"><span>2</span> Hours</a>
+      <a class="setup-step" href="#client-portal" data-step="3"><span>3</span> Portal</a>
+      <a class="setup-step" href="#calendar-ical" data-step="4"><span>4</span> Calendar</a>
+    </nav>
+    <p class="help-tip">Four short sections. The bar and highlight move as you scroll. Finish all four, then you land on your dashboard with a public booking link.</p>
+  </div>
   {% endif %}
 
   <form id="setup-form" class="fields">
@@ -56,9 +59,11 @@
       <div class="fields two">
         <label class="field">Weekly hour cap
           <input type="number" name="weekly_target_hours" min="4" max="60" step="1" value="{{ me.weekly_target_hours }}">
+          <span class="field-help">Clinical hours this week (sessions + consults), not empty calendar squares.</span>
         </label>
         <label class="field">Buffer hours
           <input type="number" name="buffer_hours" min="0" max="20" step="0.5" value="{{ me.buffer_hours }}">
+          <span class="field-help">Notes, crises, and admin — counted before anyone can book.</span>
         </label>
         <label class="field">Day starts (hour)
           <input type="number" name="slot_start" min="6" max="16" value="{{ me.slot_start }}">

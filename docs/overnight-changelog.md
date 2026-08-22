@@ -61,3 +61,35 @@ Also: referral CTA **Book this time with {{peerFirst}}**, **Show other trusted c
 
 ### Deploy
 - Commit + push + Render `srv-da463sou01pc73erg9l0`; smoke `/`, `/p/jason-cheney`, `/login`.
+
+## 2026-08-22 ~12:35 AM PT — Design pass #2 (hierarchy, states, calendar)
+
+Second overnight UX pass (distinct from the first polish / P0 wave). Palette unchanged (cream / forest / terracotta; Fraunces + Outfit).
+
+### Landing
+- Stronger hero spacing and section rhythm (audience → how → band → who)
+- Footer rebuilt with brand, nav links, and clearer disclaimer block
+
+### Booking
+- Slot loading skeleton + retry empty state on failure
+- Clearer empty titles (no hours / day full)
+- Visit-kind choice cards as chip-style with inset active edge
+- Mobile slot grid: taller touch targets, 2-column skeleton
+
+### Dashboard / setup
+- Month calendar: today highlight, empty-day “+” affordance, color legend, loading skeleton, block titles
+- Setup wizard: progress bar fill + done/active steps while scrolling; section “current” highlight
+- P1 field helpers under weekly cap and buffer (clinical hours vs notes/admin)
+
+### Also
+- Invite accept payoff copy (mutual weekly-cap catch)
+- Booked page Consultation / Session badge
+- CSS type scale, button/focus-ring/card polish
+
+### Tests
+- `python3 tests/test_setup_calendar.py` — green
+- `python3 tests/test_multihop_referral.py` — green
+
+### Deploy
+- Commit + push + Render `srv-da463sou01pc73erg9l0`
+
