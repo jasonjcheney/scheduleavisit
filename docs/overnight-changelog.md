@@ -525,3 +525,17 @@ Local-only polish (no push / no Render).
 ### Deploy
 - Commit locally only (no push, no Render)
 
+## 2026-08-22 ~1:50 AM PT — Landing FAQ plain-language answers
+
+Local-only (no push / no Render).
+
+### Landing
+- FAQ accordion before final CTA uses `<details>` / `<summary>`
+- Five plain answers: full → peers/waitlist; hour cap hidden; peer invites + hops; not yet HIPAA / no BAA; signup → setup → dashboard link + QR
+- In-dashboard notifications called out (no email yet)
+
+### Tests
+- `tests/test_public_paths.py` asserts key FAQ strings on `GET /`
+
+### Deploy
+- Commit locally only (no push, no Render)
