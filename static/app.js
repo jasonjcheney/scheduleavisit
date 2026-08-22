@@ -344,6 +344,7 @@
       if (more) {
         more.addEventListener("click", function () {
           var list = $("#more-list");
+          if (!list) return;
           var open = list.classList.toggle("open");
           more.textContent = open ? "Hide other colleagues" : "Show other trusted colleagues";
           more.setAttribute("aria-expanded", open ? "true" : "false");
@@ -380,6 +381,7 @@
             '<button type="submit" class="btn btn-primary">Confirm this visit</button>' +
           "</form>" +
         "</section>";
+      $("#book-result").scrollIntoView({ behavior: "smooth", block: "start" });
       $("#ref-form").addEventListener("submit", async function (e) {
         e.preventDefault();
         var err = $("#visit-err");
@@ -468,10 +470,27 @@
           copy.textContent = "Copied";
           setTimeout(function () { copy.textContent = "Copy link"; }, 2200);
         }
+        function fallbackCopy() {
+          try {
+            var ta = document.createElement("textarea");
+            ta.value = text || "";
+            ta.setAttribute("readonly", "");
+            ta.style.position = "fixed";
+            ta.style.left = "-9999px";
+            document.body.appendChild(ta);
+            ta.select();
+            var ok = document.execCommand("copy");
+            document.body.removeChild(ta);
+            if (ok) showCopied();
+            else toast(text);
+          } catch (err) {
+            toast(text);
+          }
+        }
         if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(text).then(showCopied).catch(function () { toast(text); });
+          navigator.clipboard.writeText(text).then(showCopied).catch(fallbackCopy);
         } else {
-          showCopied();
+          fallbackCopy();
         }
       });
     }

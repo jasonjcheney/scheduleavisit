@@ -120,6 +120,7 @@ def main() -> None:
 
     # —— CSS mobile guards present in static file ——
     css = (ROOT / "static" / "styles.css").read_text()
+    expect("@media (max-width: 480px)" in css, "missing 480px media query")
     expect("@media (max-width: 390px)" in css, "missing 390px media query")
     expect(".rec-card .row" in css, "missing referral card mobile row rules")
     expect("overflow-x: hidden" in css, "missing body overflow-x hidden")

@@ -1,5 +1,25 @@
 # Overnight changelog
 
+## 2026-08-22 ~12:45 AM MT — Local-only: 480px mobile overflow + public-path tests
+
+Jason asleep. **Local only — not pushed; pending morning ship if needed.** No Render / GitHub API calls.
+
+### CSS
+- Added `@media (max-width: 480px)` covering booking slots (`minmax(0,1fr)`), referral card CTA stack, dashboard month calendar + week-grid (2-col), landing hero/actions/footer padding, setup progress steps, share-strip link wrap.
+- Kept tighter `@media (max-width: 390px)` cascade; `provider-hero` min-width/wrap guards.
+
+### JS (small)
+- Referral “see more” null-guards `#more-list`.
+- Referred-visit confirm scrolls into view on mobile.
+- Copy-link uses textarea `execCommand` fallback when Clipboard API is missing/fails (no false “Copied”).
+
+### Tests
+- Added `tests/test_public_paths.py` — TestClient + temp `SAV_DB` for `GET /`, `/book`, `/login`, `/signup`, `/p/jason-cheney`, `/p/elena-vasquez-lpc` (200 + key strings) and 480px CSS guards.
+- `tests/test_live_paths.py` also asserts 480px present.
+
+### Ship status
+- **Local commit only.** Do not treat as live until morning push + Render deploy.
+
 ## 2026-08-22 ~12:31 AM MT — Visual QA: referral minutes, mobile 390px, live-path smokes
 
 Overnight QA pass (WebFetch + TestClient; no browser MCP). Jason asleep — no contact.

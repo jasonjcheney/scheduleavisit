@@ -287,6 +287,8 @@ input:focus { outline: 3px solid rgba(45,90,74,0.25); border-color: var(--sage);
 .provider-hero {
   display: flex; gap: 16px; align-items: flex-start; margin-bottom: 8px;
 }
+.provider-hero > div { min-width: 0; flex: 1; }
+.provider-hero .page-title { overflow-wrap: anywhere; }
 .date-strip {
   display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px 12px;
   -webkit-overflow-scrolling: touch;
@@ -1236,36 +1238,35 @@ textarea:focus-visible {
   .cal-block { font-size: 0.6rem; padding: 2px 3px; }
 }
 
-@media (max-width: 420px) {
-  .slot-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
-  .slot-loading { grid-template-columns: repeat(2, 1fr); }
-  .date-chip { min-width: 68px; min-height: 72px; }
-  .rec-card .row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .rec-card .row .btn { width: 100%; justify-content: center; }
-  .cal-nav { width: 100%; }
-  .cal-nav #cal-title { flex: 1; text-align: center; font-size: 0.95rem; }
-}
-
-/* iPhone 12/13/14 width — keep slots, referral cards, month calendar inside the viewport */
-@media (max-width: 390px) {
+/* Phones ≤480px — booking slots, referral cards, dashboard calendar, landing, setup */
+@media (max-width: 480px) {
   .app-wrap, .setup-wrap, .auth-wrap { padding-left: 12px; padding-right: 12px; }
   .site-header { padding-left: 12px; padding-right: 12px; }
+  .hero { padding: 18px 12px 32px; gap: 18px; }
+  .hero h1 { font-size: clamp(1.7rem, 8.5vw, 2.2rem); }
+  .hero-actions { gap: 8px; }
+  .hero-actions .btn { flex: 1 1 100%; min-width: 0; }
+  .audience, .steps, .band, .who, .trust-strip { padding-left: 12px; padding-right: 12px; }
+  .footer-inner { padding-left: 12px; padding-right: 12px; }
   .slot-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 6px;
+    gap: 8px;
   }
-  .slot-loading { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .slot-loading { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .time-slot {
-    min-height: 48px;
-    font-size: 0.9rem;
-    padding: 8px 4px;
+    min-height: 50px;
+    font-size: 0.92rem;
+    padding: 8px 6px;
+    min-width: 0;
   }
-  .date-chip { min-width: 62px; min-height: 68px; }
-  .referral { padding: 14px 12px; }
-  .rec-card { padding: 12px; margin: 10px 0; }
+  .date-chip { min-width: 64px; min-height: 70px; }
+  .visit-chips .choice-card strong {
+    font-size: 0.95rem;
+    overflow-wrap: anywhere;
+  }
+  .referral { padding: 16px 12px; max-width: 100%; }
+  .referral h2 { overflow-wrap: anywhere; }
+  .rec-card { padding: 12px; margin: 10px 0; max-width: 100%; }
   .rec-card .row {
     flex-direction: column;
     align-items: stretch;
@@ -1277,20 +1278,84 @@ textarea:focus-visible {
     width: 100%;
     max-width: 100%;
   }
+  .cal-nav { width: 100%; }
+  .cal-nav #cal-title { flex: 1; text-align: center; font-size: 0.95rem; min-width: 0; }
   .cal-day {
-    min-height: 62px;
-    padding: 2px;
+    min-height: 68px;
+    padding: 3px;
     border-radius: 8px;
     min-width: 0;
   }
-  .cal-day-num { min-height: 20px; padding: 0 3px; font-size: 0.82rem; }
+  .cal-day-num { min-height: 22px; padding: 0 4px; font-size: 0.85rem; }
   .cal-block {
-    font-size: 0.55rem;
+    font-size: 0.58rem;
     padding: 1px 2px;
     max-width: 100%;
   }
-  .cal-dow { font-size: 0.6rem; padding: 4px 0 6px; }
-  .cal-legend { gap: 8px 10px; font-size: 0.72rem; }
-  .visit-chips .choice-card strong { font-size: 0.95rem; }
-  .share-strip .link-box code { font-size: 0.78rem; }
+  .cal-dow { font-size: 0.62rem; padding: 4px 0 6px; }
+  .cal-legend { gap: 8px 10px; font-size: 0.74rem; }
+  .week-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .week-col { padding: 8px 6px; min-width: 0; }
+  .week-col .hrs { font-size: 0.95rem; }
+  .setup-progress {
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .setup-step {
+    font-size: 0.75rem;
+    padding: 7px 8px;
+    min-height: 42px;
+    min-width: 0;
+  }
+  .share-strip .link-box { flex-direction: column; align-items: stretch; }
+  .share-strip .link-box code {
+    word-break: break-all;
+    overflow-wrap: anywhere;
+    font-size: 0.8rem;
+    min-width: 0;
+  }
+  .share-strip .link-box .btn { width: 100%; }
+  .fields.two { grid-template-columns: 1fr; }
+  .dash-grid { grid-template-columns: 1fr; }
+  .card { max-width: 100%; }
+}
+
+/* iPhone 12/13/14 width — tighter than the 480px phone band */
+@media (max-width: 390px) {
+  .app-wrap, .setup-wrap, .auth-wrap { padding-left: 10px; padding-right: 10px; }
+  .site-header { padding-left: 10px; padding-right: 10px; }
+  .slot-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .slot-loading { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .time-slot {
+    min-height: 48px;
+    font-size: 0.9rem;
+    padding: 8px 4px;
+  }
+  .date-chip { min-width: 58px; min-height: 66px; }
+  .referral { padding: 14px 10px; }
+  .rec-card { padding: 10px; margin: 10px 0; }
+  .month-cal { gap: 2px; }
+  .cal-day { min-height: 60px; padding: 2px; }
+  .cal-day-num { min-height: 20px; padding: 0 3px; font-size: 0.8rem; }
+  .cal-block { font-size: 0.55rem; padding: 1px 2px; }
+  .cal-dow { font-size: 0.58rem; }
+  .cal-legend { gap: 6px 8px; font-size: 0.7rem; }
+  .setup-step { font-size: 0.72rem; padding: 6px 7px; }
+  .share-strip .link-box code { font-size: 0.76rem; }
+}
+
+
+/* Waitlist — calm capture when the whole network is full */
+.waitlist-panel {
+  border: 1px solid rgba(45, 90, 74, 0.18);
+  background: linear-gradient(180deg, #fff 0%, #f7f3ec 100%);
+}
+.waitlist-panel:focus { outline: 2px solid #2D5A4A; outline-offset: 2px; }
+.waitlist-panel #waitlist-ok {
+  color: #2D5A4A;
+  font-weight: 500;
+  margin-top: 10px;
 }
