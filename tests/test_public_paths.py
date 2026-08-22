@@ -41,7 +41,19 @@ def main() -> None:
     c = TestClient(app)
 
     cases = [
-        ("/", 200, ["Book a visit in seconds", "Get your booking link", "Provider login"]),
+        ("/", 200, [
+            "Book a visit in seconds",
+            "Get your booking link",
+            "Provider login",
+            "What happens when I",
+            "Do clients see my hour cap?",
+            "How do peer referrals work?",
+            "Is this HIPAA?",
+            "How do I get my booking link?",
+            "not a HIPAA product",
+            "not email yet",
+            "faq-item",
+        ]),
         ("/book", 200, ["Book a visit", "Elena Vasquez", "Choose a professional"]),
         ("/login", 200, ["Welcome back", "jasoncheney", "demo1234"]),
         ("/signup", 200, ["Set your name", "Create account", 'data-next="/setup"']),

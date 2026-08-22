@@ -1,6 +1,6 @@
 # Overnight changelog
 
-## Current product summary (22 Aug 2026 ~1:41 AM MT)
+## Current product summary (22 Aug 2026 ~1:46 AM MT)
 
 Plain-language snapshot of what ScheduleAVisit does **now**. Detail entries below stay as the overnight history.
 
@@ -14,6 +14,7 @@ Plain-language snapshot of what ScheduleAVisit does **now**. Detail entries belo
 - **Setup**: who you are, weekly hour cap + buffer, consult on/off, portal (Headway / SonderMind / custom), optional iCal busy import, **Change password**
 - **Dashboard**: share strip with booking URL + **Scan to book QR**, month calendar (**click a day** to add a client), upcoming visits with **cancel / reschedule**, Clients list with **name filter**, waitlist (dismiss), network invite, **notifications** with mark-one / mark-all read
 - Capacity math stays on the server; clients never see the hour-cap number
+- Landing **FAQ** accordion (full / hour cap / referrals / HIPAA / booking link)
 
 ### Demo logins
 - Jason: `jasoncheney` / `123456` → `/setup` then `/p/jason-cheney`
@@ -21,6 +22,28 @@ Plain-language snapshot of what ScheduleAVisit does **now**. Detail entries belo
 
 ### Ship note
 Local overnight commits after waitlist/OG deploy are **not pushed** until Jason is awake. Smoke path: `SMOKE.md`. Suites: `tests/test_public_paths.py`, `test_live_paths.py`, `test_setup_calendar.py`, `test_multihop_referral.py`.
+
+
+## 2026-08-22 ~1:46 AM MT — Landing FAQ accordion (local-only)
+
+Jason asleep. **Local only — not pushed; pending morning deploy.** No GitHub / Render API calls. No secrets printed.
+
+### Landing FAQ
+- Added accessible FAQ accordion (`details` / `summary`) on `/` with five questions:
+  - What happens when I'm full?
+  - Do clients see my hour cap?
+  - How do peer referrals work?
+  - Is this HIPAA?
+  - How do I get my booking link?
+- Honest copy: not a HIPAA product; waitlist / booking alerts are dashboard notifications (not email yet)
+- Brand CSS (cream cards, sage chevron, focus-visible); footer link to `#faq`
+
+### Tests
+- `tests/test_public_paths.py` asserts FAQ question/answer strings + `faq-item` on `GET /`
+- Full `tests/` suite re-run
+
+### Ship status
+- **Local commit only.** Morning: push `main` + Render deploy when Jason is awake.
 
 
 ## 2026-08-22 ~1:45 AM MT — Branded friendly not-found (local-only)
