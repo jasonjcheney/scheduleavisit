@@ -448,6 +448,7 @@ select { appearance: none; background-image: linear-gradient(45deg, transparent 
 .auth-wrap { max-width: 460px; margin: 0 auto; padding: 28px 16px 64px; }
 .auth-wrap .card { padding: 28px 24px; }
 .err { color: var(--clay-deep); font-size: 0.9rem; margin: 0 0 10px; }
+.ok-msg { color: var(--sage-deep); font-size: 0.9rem; margin: 0 0 10px; font-weight: 600; }
 .demo-hint {
   background: var(--sage-wash); border: 1px dashed var(--sage-mid);
   border-radius: 12px; padding: 12px 14px; font-size: 0.9rem; margin-bottom: 16px; color: var(--sage-deep);

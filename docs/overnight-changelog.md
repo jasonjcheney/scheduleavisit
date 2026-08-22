@@ -1,5 +1,23 @@
 # Overnight changelog
 
+## 2026-08-22 ~1:30 AM MT — Change password on /setup (local-only)
+
+Jason asleep. **Local only — not pushed; pending morning deploy.** No GitHub / Render API calls. No secrets printed.
+
+### Feature
+- `/setup` Account card: current / new / confirm password fields
+- `POST /api/me/password`: auth required; current must match; new min 6 chars; new must match confirm
+- Success message on the form; light `.ok-msg` CSS aligned with existing `.err`
+- `jasoncheney` / `123456` left untouched until he changes it (`ensure_jason` already does not reset)
+
+### Tests
+- `tests/test_setup_calendar.py`: wrong current → 401; short/mismatch fail; correct update; login with new password; Jason default still works (disposable user)
+
+### Ship status
+- **Local commit only.** Morning: push `main` + Render deploy when Jason is awake.
+
+
+
 ## 2026-08-22 ~1:28 AM MT — Dashboard cancel / reschedule polish (local-only)
 
 Jason asleep. **Local only — not pushed; pending morning deploy.** No GitHub / Render API calls. No secrets printed.

@@ -132,5 +132,30 @@
       {% if editing %}<a class="btn btn-ghost" href="/dashboard">Cancel</a>{% endif %}
     </div>
   </form>
+
+  <section class="card setup-section" id="change-password">
+    <p class="eyebrow">Account</p>
+    <h2>Change password</h2>
+    <p class="muted">Updates the password for this login. Your page and hours stay the same.</p>
+    <form id="password-form" class="fields" autocomplete="off">
+      <p class="err hidden" id="password-err" role="alert"></p>
+      <p class="ok-msg hidden" id="password-ok" role="status"></p>
+      <div class="fields two">
+        <label class="field" style="grid-column:1/-1">Current password
+          <input type="password" name="current_password" required autocomplete="current-password">
+        </label>
+        <label class="field">New password
+          <input type="password" name="new_password" required minlength="6" autocomplete="new-password">
+          <span class="field-help">At least 6 characters.</span>
+        </label>
+        <label class="field">Confirm new password
+          <input type="password" name="confirm_password" required minlength="6" autocomplete="new-password">
+        </label>
+      </div>
+      <div class="hero-actions" style="margin-top:8px">
+        <button type="submit" class="btn btn-primary">Update password</button>
+      </div>
+    </form>
+  </section>
 </main>
 {% endblock %}

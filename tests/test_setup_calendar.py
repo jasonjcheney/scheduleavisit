@@ -292,6 +292,56 @@ def main():
         r = client.post("/api/me/appointments/999999/reschedule", json={"date": day.isoformat(), "time": "15:00"})
         expect(r.status_code == 404, f"missing visit should 404, got {r.status_code}")
 
+        # —— Change password (disposable user; leave jasoncheney/123456 alone) ——
+        r = client.get("/setup")
+        expect(r.status_code == 200 and "Change password" in r.text, "setup missing Change password section")
+
+        r = client.post("/api/auth/signup", json={
+            "email": "pwchange@example.com",
+            "password": "oldpass12",
+            "name": "Pw Change Test",
+            "username": "pwchangeuser",
+        })
+        expect(r.status_code == 200 and r.json().get("ok"), f"signup for pw test failed: {r.text}")
+
+        r = client.post("/api/me/password", json={
+            "current_password": "wrong-current",
+            "new_password": "newpass1",
+            "confirm_password": "newpass1",
+        })
+        expect(r.status_code == 401 and not r.json().get("ok"), f"wrong current should fail: {r.status_code} {r.text}")
+
+        r = client.post("/api/me/password", json={
+            "current_password": "oldpass12",
+            "new_password": "short",
+            "confirm_password": "short",
+        })
+        expect(not r.json().get("ok"), f"short new password should fail: {r.text}")
+
+        r = client.post("/api/me/password", json={
+            "current_password": "oldpass12",
+            "new_password": "newpass1",
+            "confirm_password": "mismatch",
+        })
+        expect(not r.json().get("ok"), f"confirm mismatch should fail: {r.text}")
+
+        r = client.post("/api/me/password", json={
+            "current_password": "oldpass12",
+            "new_password": "newpass1",
+            "confirm_password": "newpass1",
+        })
+        expect(r.status_code == 200 and r.json().get("ok"), f"password update failed: {r.text}")
+
+        client.post("/api/auth/logout")
+        r = client.post("/api/auth/login", json={"email": "pwchangeuser", "password": "oldpass12"})
+        expect(not r.json().get("ok"), "old password should no longer work")
+        r = client.post("/api/auth/login", json={"email": "pwchangeuser", "password": "newpass1"})
+        expect(r.status_code == 200 and r.json().get("ok"), f"login with new password failed: {r.text}")
+
+        # Jason default login still works (ensure_jason did not reset; we never changed him)
+        r = client.post("/api/auth/login", json={"email": "jasoncheney", "password": "123456"})
+        expect(r.status_code == 200 and r.json().get("ok"), f"jasoncheney/123456 should still work: {r.text}")
+
     print("ok")
     try:
         os.remove(DBFILE)

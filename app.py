@@ -1023,6 +1023,30 @@ async def api_me_patch(request: Request):
     return {"ok": True}
 
 
+@app.post("/api/me/password")
+async def api_me_password(request: Request):
+    user, err = _auth(request)
+    if err:
+        return err
+    data = await _body(request)
+    current = data.get("current_password") or data.get("current") or ""
+    new = data.get("new_password") or data.get("new") or ""
+    confirm = data.get("confirm_password") or data.get("confirm") or ""
+    if len(new) < 6:
+        return json_err("New password needs at least 6 characters.")
+    if new != confirm:
+        return json_err("New password and confirmation do not match.")
+    with db() as conn:
+        u = user_by_id(conn, user["id"])
+        if not u or not verify_password(current, u["password_hash"]):
+            return json_err("Current password is incorrect.", 401)
+        conn.execute(
+            "UPDATE users SET password_hash=? WHERE id=?",
+            (hash_password(new), user["id"]),
+        )
+    return {"ok": True, "message": "Password updated."}
+
+
 @app.get("/api/me/clients")
 def api_clients(request: Request):
     user, err = _auth(request)

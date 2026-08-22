@@ -966,4 +966,45 @@
       markActive();
     }
   }
+
+  /* ——— Change password (setup / settings) ——— */
+  var passwordForm = $("#password-form");
+  if (passwordForm) {
+    passwordForm.addEventListener("submit", async function (e) {
+      e.preventDefault();
+      var err = $("#password-err");
+      var ok = $("#password-ok");
+      err.classList.add("hidden");
+      ok.classList.add("hidden");
+      var current = passwordForm.current_password.value;
+      var neu = passwordForm.new_password.value;
+      var confirm = passwordForm.confirm_password.value;
+      if (neu.length < 6) {
+        err.textContent = "New password needs at least 6 characters.";
+        err.classList.remove("hidden");
+        return;
+      }
+      if (neu !== confirm) {
+        err.textContent = "New password and confirmation do not match.";
+        err.classList.remove("hidden");
+        return;
+      }
+      var data = await api("/api/me/password", {
+        method: "POST",
+        body: {
+          current_password: current,
+          new_password: neu,
+          confirm_password: confirm
+        }
+      });
+      if (!data.ok) {
+        err.textContent = data.error || "Could not update password.";
+        err.classList.remove("hidden");
+        return;
+      }
+      passwordForm.reset();
+      ok.textContent = data.message || "Password updated.";
+      ok.classList.remove("hidden");
+    });
+  }
 })();
