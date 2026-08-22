@@ -556,3 +556,25 @@ Local-only (no push / no Render).
 
 ### Deploy
 - Commit locally only (no push, no Render)
+
+## 2026-08-22 ~1:49 AM PT — Overnight retest (local-only)
+
+Jason asleep. Full suite under `tests/` run twice. No code changes.
+
+### Pass 1
+- `python3 tests/test_setup_calendar.py` — green
+- `python3 tests/test_multihop_referral.py` — green
+- `python3 tests/test_public_paths.py` — green
+- `python3 tests/test_live_paths.py` — green
+
+### Pass 2 (retest)
+- `python3 tests/test_setup_calendar.py` — green
+- `python3 tests/test_multihop_referral.py` — green
+- `python3 tests/test_public_paths.py` — green
+- `python3 tests/test_live_paths.py` — green
+
+### Result
+- All green ×2. No fixes needed.
+
+### Deploy
+- Local-only (no push, no Render)
