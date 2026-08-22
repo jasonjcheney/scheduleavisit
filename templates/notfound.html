@@ -2,8 +2,17 @@
 {% set compact_nav = true %}
 {% block title %}Not found — ScheduleAVisit{% endblock %}
 {% block content %}
-<main class="app-wrap">
-  <h1 class="page-title">{{ message or "We could not find that page." }}</h1>
-  <p><a href="/book">See providers</a> · <a href="/">Home</a></p>
+<main class="app-wrap empty-hero">
+  <section class="card empty-hero-card" aria-labelledby="empty-hero-title">
+    <p class="eyebrow">ScheduleAVisit</p>
+    <h1 id="empty-hero-title" class="page-title">{{ message or "We could not find that page." }}</h1>
+    <p class="sub">That link may be mistyped, retired, or not set up yet. You can still book with someone else, or head home.</p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="/book">Book a visit</a>
+      <a class="btn btn-sage" href="/">Home</a>
+      <a class="btn btn-ghost" href="/login">Provider login</a>
+    </div>
+    <p class="tiny empty-hero-help">Need help? Providers set up a public booking link from their dashboard.</p>
+  </section>
 </main>
 {% endblock %}

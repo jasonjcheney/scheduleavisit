@@ -2114,3 +2114,60 @@ a:focus-visible,
     align-items: center;
   }
 }
+
+
+/* ——— Not found / generic error empty states ——— */
+.notfound-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.empty-state .eyebrow {
+  margin-bottom: 6px;
+}
+.empty-state .notfound-actions {
+  margin-top: 14px;
+}
+.invite-box .notfound-actions {
+  margin-top: 18px;
+  justify-content: flex-start;
+}
+
+
+/* ——— Friendly empty / not-found ——— */
+.empty-hero {
+  display: flex;
+  justify-content: center;
+  padding-top: 36px;
+}
+.empty-hero-card {
+  max-width: 520px;
+  width: 100%;
+  padding: 28px 24px;
+  background: linear-gradient(180deg, var(--card) 0%, var(--sage-wash) 100%);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  border-top: 3px solid var(--clay);
+}
+.empty-hero-card .eyebrow {
+  color: var(--clay);
+  margin-bottom: 8px;
+}
+.empty-hero-card .page-title {
+  margin: 0 0 8px;
+  color: var(--sage-deep);
+}
+.empty-hero-card .sub {
+  margin-bottom: 20px;
+}
+.empty-hero-card .hero-actions {
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.empty-hero-help {
+  margin: 0;
+  padding-top: 4px;
+  border-top: 1px dashed var(--line);
+}

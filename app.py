@@ -174,9 +174,9 @@ def require_user(request: Request):
     return user
 
 
-def tpl(request: Request, name: str, **ctx):
+def tpl(request: Request, name: str, status_code: int = 200, **ctx):
     ctx.setdefault("user", current_user(request))
-    return templates.TemplateResponse(request, name, ctx)
+    return templates.TemplateResponse(request, name, ctx, status_code=status_code)
 
 
 def find_login_user(conn, identifier: str):
@@ -422,7 +422,7 @@ def booked_page(request: Request, appt_id: int):
     with db() as conn:
         a = conn.execute("SELECT * FROM appointments WHERE id=?", (appt_id,)).fetchone()
         if not a or a["status"] != "booked":
-            return tpl(request, "notfound.html", message="We could not find that visit.")
+            return tpl(request, "notfound.html", status_code=404, message="We could not find that visit.")
         provider = user_by_id(conn, a["provider_id"])
         client = conn.execute("SELECT * FROM clients WHERE id=?", (a["client_id"],)).fetchone() if a["client_id"] else None
         referred = user_by_id(conn, a["referred_from_provider_id"]) if a["referred_from_provider_id"] else None

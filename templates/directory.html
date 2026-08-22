@@ -21,9 +21,13 @@
   </div>
   {% else %}
   <section class="card empty-state">
-    <h2>No public calendars yet</h2>
+    <p class="eyebrow">Directory</p>
+    <p class="empty-title">No public calendars yet</p>
     <p class="muted">When a provider finishes setup, their booking link appears here.</p>
-    <a class="btn btn-sage" href="/signup">Get your booking link</a>
+    <div class="notfound-actions">
+      <a class="btn btn-primary" href="/">Back to home</a>
+      <a class="btn btn-sage" href="/signup">Get your booking link</a>
+    </div>
   </section>
   {% endif %}
 </main>

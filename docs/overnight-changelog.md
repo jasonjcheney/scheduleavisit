@@ -23,6 +23,30 @@ Plain-language snapshot of what ScheduleAVisit does **now**. Detail entries belo
 Local overnight commits after waitlist/OG deploy are **not pushed** until Jason is awake. Smoke path: `SMOKE.md`. Suites: `tests/test_public_paths.py`, `test_live_paths.py`, `test_setup_calendar.py`, `test_multihop_referral.py`.
 
 
+## 2026-08-22 ~1:45 AM MT — Branded friendly not-found (local-only)
+
+Jason asleep. **Local only — not pushed; pending morning deploy.** No GitHub / Render API calls. No secrets printed.
+
+### Not-found page
+- Rewrote `templates/notfound.html` as a cream card with forest title + terracotta top accent (`.empty-hero` / `.empty-hero-card`)
+- Title uses `{{ message }}`; CTAs: **Book a visit** (`/book`), **Home** (`/`), **Provider login** (`/login`)
+- Tiny help line for providers setting up a public booking link
+- Minimal CSS in `static/styles.css`
+
+### Behavior
+- `GET /p/{slug}` for unknown slugs returns **200** HTML with friendly calendar-missing copy (not a hard 404)
+- Missing booked visits still 404 via the same template
+
+### Tests
+- `tests/test_public_paths.py` asserts `/p/does-not-exist` → 200 HTML + message + CTAs + `empty-hero`
+- `python3 tests/test_public_paths.py` — green
+- `python3 tests/test_live_paths.py` — green
+- `python3 tests/test_setup_calendar.py` — green
+- `python3 tests/test_multihop_referral.py` — green
+
+### Deploy
+- Local commit only (Jason asleep)
+
 ## 2026-08-22 ~1:41 AM MT — Docs refresh: SMOKE + product summary (local-only)
 
 Jason asleep. **Local only — not pushed; pending morning deploy.** No GitHub / Render API calls. No secrets printed.
@@ -451,3 +475,30 @@ Third overnight wave. Closed remaining items **6–12** from `docs/competitive-r
 - Commit `bd03e49` + push + Render deploy `dep-da4k29mk1f9s73ejdbu0` → **live** on `srv-da463sou01pc73erg9l0`
 
 Live note: Render deploy `dep-da4k1mmk1f9s73ejbsi0` → **live** (finished ~12:26 AM MT / 06:26 UTC) for commit `161ee6b`. Curl smoke `/`, `/p/elena-vasquez-lpc`, `/login` HTTP 200 with footer-inner / visit-chips / slot-loading present.
+
+## 2026-08-22 ~1:45 AM PT — Friendly not-found / empty error states
+
+Local-only polish (no push / no Render).
+
+### Not found
+- `templates/notfound.html` rebuilt as branded **empty-hero** card (cream card → sage wash, terracotta top edge, clay eyebrow)
+- Clear CTAs: **Book a visit** (primary), **Home** (sage), **Provider login** (ghost)
+- Helper line for mistyped / retired / not-yet-public links
+- `/p/{slug}` unknown calendars keep a **friendly 200 HTML** page (not a bare 404)
+- Missing booked visits still return **404** with the same branded template
+
+### Other empty states
+- Directory empty: eyebrow + empty-title + Home / Get your booking link CTAs
+- Invite invalid: Home + Book a visit button row (`.notfound-actions`)
+- Light CSS for `.empty-hero*` and shared `.notfound-actions`
+
+### Tests
+- `tests/test_public_paths.py`: `/p/does-not-exist`, `/p/missing-slug` friendly HTML; `/booked/999999` 404
+- `python3 tests/test_public_paths.py` — green
+- `python3 tests/test_setup_calendar.py` — green
+- `python3 tests/test_multihop_referral.py` — green
+- `python3 tests/test_live_paths.py` — green
+
+### Deploy
+- Commit locally only (no push, no Render)
+

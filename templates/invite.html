@@ -7,7 +7,10 @@
     <section class="card confirm">
       <h1 class="page-title">This invite is not valid.</h1>
       <p class="muted">It may have expired or already been replaced. Ask your colleague to send a fresh invite from their dashboard.</p>
-      <p><a class="btn btn-ghost" href="/">Back to ScheduleAVisit</a></p>
+      <div class="notfound-actions">
+        <a class="btn btn-primary" href="/">Back to home</a>
+        <a class="btn btn-ghost" href="/book">Book a visit</a>
+      </div>
     </section>
   {% elif state == "already" %}
     <section class="card confirm">
