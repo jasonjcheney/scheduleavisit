@@ -9,14 +9,15 @@
 
   {% if not editing %}
   <div class="setup-progress-wrap">
-    <div class="setup-progress-bar" aria-hidden="true"><span id="setup-progress-fill" style="width:25%"></span></div>
-    <nav class="setup-progress" id="setup-progress" aria-label="Setup progress">
-      <a class="setup-step is-active" href="#who-you-are" data-step="1"><span>1</span> Who you are</a>
-      <a class="setup-step" href="#your-hours" data-step="2"><span>2</span> Hours</a>
-      <a class="setup-step" href="#client-portal" data-step="3"><span>3</span> Portal</a>
-      <a class="setup-step" href="#calendar-ical" data-step="4"><span>4</span> Calendar</a>
+    <p class="setup-progress-status" id="setup-progress-status" aria-live="polite">Step 1 of 4 — Who you are</p>
+    <div class="setup-progress-bar" role="progressbar" aria-valuemin="1" aria-valuemax="4" aria-valuenow="1" aria-labelledby="setup-progress-status"><span id="setup-progress-fill" style="width:25%"></span></div>
+    <nav class="setup-progress" id="setup-progress" aria-label="Setup steps">
+      <a class="setup-step is-active" href="#who-you-are" data-step="1" data-label="Who you are" aria-current="step"><span>1</span> Who you are</a>
+      <a class="setup-step" href="#your-hours" data-step="2" data-label="Your hours"><span>2</span> Your hours</a>
+      <a class="setup-step" href="#client-portal" data-step="3" data-label="Intake portal"><span>3</span> Intake portal</a>
+      <a class="setup-step" href="#calendar-ical" data-step="4" data-label="Busy calendar"><span>4</span> Busy calendar</a>
     </nav>
-    <p class="help-tip">Four short sections. The bar and highlight move as you scroll. Finish all four, then you land on your dashboard with a public booking link.</p>
+    <p class="help-tip">Four short sections. Scroll or tap a step. When all four are done, you go to your dashboard with a public booking link.</p>
   </div>
   {% endif %}
 
@@ -59,11 +60,11 @@
       <div class="fields two">
         <label class="field">Weekly hour cap
           <input type="number" name="weekly_target_hours" min="4" max="60" step="1" value="{{ me.weekly_target_hours }}">
-          <span class="field-help">Clinical hours this week (sessions + consults), not empty calendar squares.</span>
+          <span class="field-help">How many clinical hours you want this week — real sessions and consults, not blank time on the calendar.</span>
         </label>
         <label class="field">Buffer hours
           <input type="number" name="buffer_hours" min="0" max="20" step="0.5" value="{{ me.buffer_hours }}">
-          <span class="field-help">Notes, crises, and admin — counted before anyone can book.</span>
+          <span class="field-help">Held back for notes, crises, and admin so clients cannot book into that time.</span>
         </label>
         <label class="field">Day starts (hour)
           <input type="number" name="slot_start" min="6" max="16" value="{{ me.slot_start }}">
@@ -115,9 +116,10 @@
     <section class="card setup-section" id="calendar-ical">
       <p class="eyebrow">4</p>
       <h2>Calendar</h2>
-      <p class="muted">Optional. Paste a secret iCal / ICS address so existing busy time counts toward your week. We do not use Google sign-in.</p>
+      <p class="muted">Optional. Paste a private calendar feed so meetings you already have count toward your week. We never ask you to sign in with Google.</p>
       <label class="field">iCal / ICS secret URL
         <input type="url" name="ical_url" value="{{ me.ical_url }}" placeholder="https://calendar.google.com/calendar/ical/…">
+        <span class="field-help">A private web link that ends in <code>.ics</code> (or looks like one). Only people with the link can see it — treat it like a password. Leave blank if you are not ready.</span>
       </label>
       <div class="howto">
         <p><strong>Google Calendar</strong> — Settings → click your calendar → “Secret address in iCal format.”</p>
@@ -146,10 +148,11 @@
         </label>
         <label class="field">New password
           <input type="password" name="new_password" required minlength="6" autocomplete="new-password">
-          <span class="field-help">At least 6 characters.</span>
+          <span class="field-help">At least 6 characters. Something you can remember — no special rules beyond that.</span>
         </label>
         <label class="field">Confirm new password
           <input type="password" name="confirm_password" required minlength="6" autocomplete="new-password">
+          <span class="field-help">Type the new password again so we know it matches.</span>
         </label>
       </div>
       <div class="hero-actions" style="margin-top:8px">

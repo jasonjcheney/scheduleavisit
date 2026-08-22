@@ -1253,6 +1253,13 @@ h3 { font-size: var(--text-xl); }
 }
 
 /* Setup progress clarity */
+.setup-progress-status {
+  margin: 0 0 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--sage-deep);
+  letter-spacing: 0.01em;
+}
 .setup-progress-wrap {
   margin: 0 0 18px;
 }

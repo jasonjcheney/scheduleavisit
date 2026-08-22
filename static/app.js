@@ -1124,6 +1124,8 @@
         return document.querySelector(id);
       });
       var fill = $("#setup-progress-fill");
+      var status = $("#setup-progress-status");
+      var bar = document.querySelector(".setup-progress-bar");
       function markActive() {
         var idx = 0;
         sections.forEach(function (sec, i) {
@@ -1132,13 +1134,21 @@
           if (top < 160) idx = i;
         });
         steps.forEach(function (el, i) {
-          el.classList.toggle("is-active", i === idx);
+          var on = i === idx;
+          el.classList.toggle("is-active", on);
           el.classList.toggle("is-done", i < idx);
+          if (on) el.setAttribute("aria-current", "step");
+          else el.removeAttribute("aria-current");
         });
         sections.forEach(function (sec, i) {
           if (sec) sec.classList.toggle("is-current", i === idx);
         });
         if (fill) fill.style.width = (((idx + 1) / steps.length) * 100) + "%";
+        if (bar) bar.setAttribute("aria-valuenow", String(idx + 1));
+        if (status) {
+          var label = steps[idx] && steps[idx].getAttribute("data-label");
+          status.textContent = "Step " + (idx + 1) + " of " + steps.length + (label ? " — " + label : "");
+        }
       }
       window.addEventListener("scroll", markActive, { passive: true });
       markActive();
@@ -1158,12 +1168,12 @@
       var neu = passwordForm.new_password.value;
       var confirm = passwordForm.confirm_password.value;
       if (neu.length < 6) {
-        err.textContent = "New password needs at least 6 characters.";
+        err.textContent = "Please use at least 6 characters for the new password.";
         err.classList.remove("hidden");
         return;
       }
       if (neu !== confirm) {
-        err.textContent = "New password and confirmation do not match.";
+        err.textContent = "Those two new passwords don’t match yet. Try typing them again.";
         err.classList.remove("hidden");
         return;
       }
@@ -1181,7 +1191,7 @@
         return;
       }
       passwordForm.reset();
-      ok.textContent = data.message || "Password updated.";
+      ok.textContent = data.message || "Your password is updated.";
       ok.classList.remove("hidden");
     });
   }

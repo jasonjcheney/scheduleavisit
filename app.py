@@ -1052,18 +1052,18 @@ async def api_me_password(request: Request):
     new = data.get("new_password") or data.get("new") or ""
     confirm = data.get("confirm_password") or data.get("confirm") or ""
     if len(new) < 6:
-        return json_err("New password needs at least 6 characters.")
+        return json_err("Please use at least 6 characters for the new password.")
     if new != confirm:
-        return json_err("New password and confirmation do not match.")
+        return json_err("Those two new passwords don’t match yet. Try typing them again.")
     with db() as conn:
         u = user_by_id(conn, user["id"])
         if not u or not verify_password(current, u["password_hash"]):
-            return json_err("Current password is incorrect.", 401)
+            return json_err("That doesn’t match your current password.", 401)
         conn.execute(
             "UPDATE users SET password_hash=? WHERE id=?",
             (hash_password(new), user["id"]),
         )
-    return {"ok": True, "message": "Password updated."}
+    return {"ok": True, "message": "Your password is updated."}
 
 
 @app.get("/api/me/clients")

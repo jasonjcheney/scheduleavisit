@@ -655,3 +655,24 @@ Jason asleep. **Local only — not pushed; pending morning deploy.** No GitHub /
 
 ### Deploy
 - Commit locally only (no push, no Render)
+
+## 2026-08-22 ~1:58 AM MT — Setup wizard polish (wave 25, local-only)
+
+Jason asleep. **Local only — not pushed; pending morning deploy.** No GitHub / Render API calls. No secrets printed.
+
+### Setup (`/setup`)
+- Clearer progress: **Step N of 4** status line, progressbar ARIA, labels **Who you are / Your hours / Intake portal / Busy calendar**
+- Plain-language help for **weekly hour cap**, **buffer hours**, and **iCal / ICS secret URL** (treat feed like a password; leave blank if not ready)
+- Change-password validation copy calmed (client + API): length, mismatch, wrong current, success
+
+### Palette
+- Still cream / forest / terracotta (`--paper`, `--sage*`, `--clay*`)
+
+### Tests
+- `tests/test_setup_calendar.py` — green
+- `tests/test_multihop_referral.py` — green
+- `tests/test_public_paths.py` — green
+- `tests/test_live_paths.py` — green
+
+### Deploy
+- Commit locally only (no push, no Render)
