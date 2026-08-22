@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from collections import deque
 from datetime import date, datetime, timedelta
 from typing import Any
 from urllib.parse import quote
@@ -341,29 +342,92 @@ def peers_of(conn, user_id: int) -> list:
     ).fetchall()
 
 
-def referral_candidates(conn, from_user, when: date, prefer_time: str | None, minutes: int) -> list[dict]:
-    peers = peers_of(conn, from_user["id"])
-    # Prefer James (individual counseling), then closer, then more remaining hours.
-    rank = {"james-okonkwo-lcsw": 3, "maya-chen-lmft": 1}
-    out = []
-    for p in peers:
-        slot = next_open_slot(conn, p, when, prefer_time, minutes)
-        if not slot:
+def network_reachable(conn, origin_id: int, target_id: int, max_hops: int = 8) -> bool:
+    """True if target is reachable through trusted peer links (BFS)."""
+    if origin_id == target_id:
+        return False
+    seen = {origin_id}
+    q = deque([(origin_id, 0)])
+    while q:
+        uid, hops = q.popleft()
+        if hops >= max_hops:
             continue
-        rem = remaining_hours(conn, p, start_of_week(when))
-        miles = miles_between(from_user["slug"], p["slug"])
-        pub = public_provider(p, from_user["slug"])
-        out.append({
-            **pub,
-            "date": slot["date"],
-            "time": slot["time"],
-            "remaining": round(rem * 10) / 10,
-            "miles": miles,
-            "recommendedBy": first_name(from_user["name"]),
-            "rideUrl": f"/ride?address={quote(p['address'] or "")}",
-        })
-    out.sort(key=lambda x: (-rank.get(x["slug"], 0), x["miles"], -x["remaining"]))
-    return out
+        for p in peers_of(conn, uid):
+            pid = p["id"]
+            if pid in seen:
+                continue
+            if pid == target_id:
+                return True
+            seen.add(pid)
+            q.append((pid, hops + 1))
+    return False
+
+
+def referral_candidates(
+    conn,
+    from_user,
+    when: date,
+    prefer_time: str | None,
+    minutes: int,
+    max_hops: int = 8,
+    limit: int = 8,
+) -> list[dict]:
+    """Walk the trust network until someone has room.
+
+    Direct peers first. If they are full, keep going to people *they* trust,
+    and so on, until an open match is found (or the network is exhausted).
+    """
+    origin_id = from_user["id"]
+    origin_first = first_name(from_user["name"])
+    # Prefer demo individual counseling slightly among equal-hop ties.
+    rank = {"james-okonkwo-lcsw": 3, "maya-chen-lmft": 1, "jason-cheney": 2}
+
+    seen = {origin_id}
+    # (provider_row, hops, via_first_name) — via is the immediate linker on the path
+    q = deque()
+    for p in peers_of(conn, origin_id):
+        if p["id"] not in seen:
+            q.append((p, 1, origin_first))
+
+    out: list[dict] = []
+    while q:
+        p, hops, via_name = q.popleft()
+        if p["id"] in seen:
+            continue
+        seen.add(p["id"])
+
+        slot = next_open_slot(conn, p, when, prefer_time, minutes)
+        if slot:
+            rem = remaining_hours(conn, p, start_of_week(when))
+            miles = miles_between(from_user["slug"], p["slug"])
+            pub = public_provider(p, from_user["slug"])
+            out.append({
+                **pub,
+                "date": slot["date"],
+                "time": slot["time"],
+                "remaining": round(rem * 10) / 10,
+                "miles": miles,
+                "hops": hops,
+                "viaName": via_name if hops > 1 else origin_first,
+                "recommendedBy": origin_first,
+                "rideUrl": f"/ride?address={quote(p['address'] or '')}",
+            })
+
+        if hops < max_hops:
+            peer_first = first_name(p["name"])
+            for nxt in peers_of(conn, p["id"]):
+                if nxt["id"] not in seen:
+                    q.append((nxt, hops + 1, peer_first))
+
+    out.sort(
+        key=lambda x: (
+            x["hops"],
+            -rank.get(x["slug"], 0),
+            x["miles"],
+            -x["remaining"],
+        )
+    )
+    return out[:limit]
 
 
 def format_time(hhmm: str) -> str:

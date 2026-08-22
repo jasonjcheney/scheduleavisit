@@ -49,6 +49,7 @@ from capacity import (
     initials,
     is_taken,
     miles_between,
+    network_reachable,
     peers_of,
     projected_hours,
     public_provider,
@@ -312,6 +313,8 @@ def rec_payload(item: dict, minutes: int) -> dict:
         "displayWhen": f"{format_long(d)} · {format_time(item['time'])}",
         "minutes": minutes,
         "recommendedBy": item["recommendedBy"],
+        "hops": item.get("hops", 1),
+        "viaName": item.get("viaName") or item["recommendedBy"],
         "rideUrl": item["rideUrl"],
         "initials": item["initials"],
         "avatar": item["avatar"],
@@ -802,11 +805,7 @@ async def api_book_referral(slug: str, request: Request):
         peer = user_by_slug(conn, peer_slug)
         if not origin or not peer:
             return json_err("Calendar not found", 404)
-        linked = conn.execute(
-            "SELECT 1 FROM network_links WHERE user_id=? AND peer_id=?",
-            (origin["id"], peer["id"]),
-        ).fetchone()
-        if not linked:
+        if not network_reachable(conn, origin["id"], peer["id"]):
             return json_err("That professional is not in this referral network.")
         minutes = int(peer["session_minutes"] or 50)
         start = at_local(day, hhmm)

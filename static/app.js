@@ -228,7 +228,19 @@
             '<div class="avatar ' + escapeHtml(r.avatar) + '" aria-hidden="true">' + escapeHtml(r.initials) + "</div>" +
             "<div><strong>" + escapeHtml(r.name) + "</strong>" +
             '<div class="tiny">' +
-              (featured ? "Recommended by " + escapeHtml(r.recommendedBy) : "Also in " + escapeHtml(r.recommendedBy) + "’s network") +
+              (function () {
+                var hops = r.hops || 1;
+                if (featured) {
+                  if (hops > 1) {
+                    return "In " + escapeHtml(r.recommendedBy) + "’s wider network · via " + escapeHtml(r.viaName || r.recommendedBy);
+                  }
+                  return "Recommended by " + escapeHtml(r.recommendedBy);
+                }
+                if (hops > 1) {
+                  return "Also via " + escapeHtml(r.viaName || r.recommendedBy);
+                }
+                return "Also in " + escapeHtml(r.recommendedBy) + "’s network";
+              })() +
               " · " + r.miles + " miles · " + escapeHtml(r.clinic) +
             "</div></div></div>" +
           "<p style=\"margin:0\"><strong>" + escapeHtml(r.displayWhen) + "</strong> · " + r.minutes + " minutes</p>" +

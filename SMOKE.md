@@ -52,6 +52,8 @@ POST /api/p/elena-vasquez-lpc/book
 
 UI: one referral card (James, time, “Recommended by Elena”, 4 miles, Get a ride). “See more options” reveals Maya.
 
+If James and Maya were also full, the server keeps walking *their* trusted peers (multi-hop) until someone has room. The card then says “In Elena’s wider network · via …”. Booking that referral is allowed even when the peer is not a direct link.
+
 ```
 POST /api/p/elena-vasquez-lpc/book-referral
   {peerSlug:"james-okonkwo-lcsw", date:"2026-08-21", time:"15:00",
