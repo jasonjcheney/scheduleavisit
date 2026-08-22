@@ -119,7 +119,8 @@ CREATE TABLE IF NOT EXISTS waitlist_requests (
   name TEXT NOT NULL,
   email TEXT NOT NULL,
   requested_minutes INTEGER NOT NULL DEFAULT 50,
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL,
+  dismissed_at TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_appt_provider ON appointments(provider_id, start_iso);
@@ -228,13 +229,16 @@ def migrate(conn: sqlite3.Connection) -> None:
              name TEXT NOT NULL,
              email TEXT NOT NULL,
              requested_minutes INTEGER NOT NULL DEFAULT 50,
-             created_at TEXT NOT NULL
+             created_at TEXT NOT NULL,
+             dismissed_at TEXT
            )"""
     )
     conn.execute(
         """CREATE INDEX IF NOT EXISTS idx_waitlist_provider
            ON waitlist_requests(provider_id, created_at)"""
     )
+    if not _has_column(conn, "waitlist_requests", "dismissed_at"):
+        conn.execute("ALTER TABLE waitlist_requests ADD COLUMN dismissed_at TEXT")
     ensure_demo_usernames(conn)
     ensure_jason(conn)
     conn.commit()

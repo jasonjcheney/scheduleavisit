@@ -198,7 +198,10 @@
           <strong>{{ w.name }}</strong>
           <div class="meta">{{ w.email }}{% if w.asked_label %} · {{ w.asked_label }}{% endif %}</div>
         </div>
-        <span class="waitlist-mins" title="Requested visit length">{{ w.requested_minutes }} min</span>
+        <div class="appt-actions">
+          <span class="waitlist-mins" title="Requested visit length">{{ w.requested_minutes }} min</span>
+          <button type="button" class="btn btn-text btn-sm" data-waitlist-dismiss="{{ w.id }}" data-name="{{ w.name }}" aria-label="Dismiss waitlist request from {{ w.name }}">Dismiss</button>
+        </div>
       </div>
       {% endfor %}
     </div>
@@ -228,7 +231,7 @@
           </div>
           <div class="appt-actions">
             <span class="badge {{ c.pattern }}">{{ c.label }}</span>
-            <button type="button" class="btn btn-text btn-sm" data-dismiss="{{ c.id }}" data-name="{{ c.name }}">Dismiss</button>
+            <button type="button" class="btn btn-text btn-sm" data-dismiss="{{ c.id }}" data-name="{{ c.name }}" aria-label="Dismiss client {{ c.name }}">Dismiss</button>
           </div>
         </div>
         {% else %}

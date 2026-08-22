@@ -570,7 +570,8 @@ def dashboard(request: Request):
         ).fetchall()
         waitlist = conn.execute(
             """SELECT id, name, email, requested_minutes, created_at FROM waitlist_requests
-               WHERE provider_id=? ORDER BY created_at DESC LIMIT 30""",
+               WHERE provider_id=? AND dismissed_at IS NULL
+               ORDER BY created_at DESC LIMIT 30""",
             (u["id"],),
         ).fetchall()
         waitlist_rows = []
@@ -1021,6 +1022,27 @@ def api_dismiss(request: Request, client_id: int):
         )
         notify(conn, user["id"], "client", f"{c['name']} dismissed",
                "Their future visits were cancelled. Inferred weekly load no longer includes them.")
+        return {"ok": True}
+
+
+@app.post("/api/me/waitlist/{waitlist_id}/dismiss")
+def api_waitlist_dismiss(request: Request, waitlist_id: int):
+    user, err = _auth(request)
+    if err:
+        return err
+    with db() as conn:
+        w = conn.execute(
+            "SELECT * FROM waitlist_requests WHERE id=? AND provider_id=?",
+            (waitlist_id, user["id"]),
+        ).fetchone()
+        if not w:
+            return json_err("Waitlist request not found", 404)
+        if w["dismissed_at"]:
+            return {"ok": True}
+        conn.execute(
+            "UPDATE waitlist_requests SET dismissed_at=? WHERE id=?",
+            (now_iso(), waitlist_id),
+        )
         return {"ok": True}
 
 

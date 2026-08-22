@@ -1,5 +1,29 @@
 # Overnight changelog
 
+## 2026-08-22 ~1:15 AM MT — Waitlist dismiss (local-only)
+
+Jason asleep. **Local only — not pushed; pending morning deploy.** No GitHub / Render API calls. No secrets printed.
+
+### Schema
+- `waitlist_requests.dismissed_at` added in SCHEMA + migrate `CREATE IF NOT EXISTS`
+- `migrate()` `ALTER TABLE … ADD COLUMN dismissed_at` when missing (existing Render SQLite)
+
+### Dashboard + API
+- Waitlist list hides rows with `dismissed_at` set
+- Per-row Dismiss → `POST /api/me/waitlist/{id}/dismiss` (auth required, owns row)
+- Soft-dismiss only (no delete); idempotent if already dismissed
+
+### A11y
+- `aria-live="polite"` on booking `visit-err` and waitlist `waitlist-err`
+- Dismiss buttons: `type="button"` + `aria-label` (clients + waitlist)
+
+### Tests
+- `tests/test_multihop_referral.py`: 401 unauth, 404 wrong owner, owner dismiss + dashboard hides row
+- All suites green: public / live / setup_calendar / multihop_referral
+
+### Ship status
+- **Local commit only.** Morning: push `main` + Render deploy when Jason is awake.
+
 ## 2026-08-22 ~1:05 AM MT — Design pass #3 (local-only)
 
 Jason asleep. **Local only — not pushed; pending morning deploy.** No GitHub / Render API calls. No secrets printed.

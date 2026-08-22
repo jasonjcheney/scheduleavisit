@@ -173,6 +173,39 @@ def main() -> None:
     assert "Pat Waitlist" in note["title"]
     print("ok full-network waitlist")
 
+    wid = int(d4["waitlistId"])
+    # Auth required + ownership: unauthenticated dismiss fails
+    r5 = client.post(f"/api/me/waitlist/{wid}/dismiss")
+    assert r5.status_code == 401, r5.text
+
+    # Wrong provider cannot dismiss
+    login_b = client.post("/api/auth/login", json={"email": "b@ex.com", "password": "test1234"})
+    assert login_b.status_code == 200 and login_b.json().get("ok"), login_b.text
+    r6 = client.post(f"/api/me/waitlist/{wid}/dismiss")
+    assert r6.status_code == 404, r6.text
+
+    # Owner dismisses; row hidden from active list
+    login_a = client.post("/api/auth/login", json={"email": "a@ex.com", "password": "test1234"})
+    assert login_a.status_code == 200 and login_a.json().get("ok"), login_a.text
+    r7 = client.post(f"/api/me/waitlist/{wid}/dismiss")
+    assert r7.status_code == 200, r7.text
+    assert r7.json().get("ok") is True, r7.text
+    gone = conn.execute(
+        "SELECT dismissed_at FROM waitlist_requests WHERE id=?", (wid,)
+    ).fetchone()
+    assert gone is not None and gone["dismissed_at"], gone
+    active = conn.execute(
+        """SELECT id FROM waitlist_requests
+           WHERE provider_id=? AND dismissed_at IS NULL AND email=?""",
+        (a, "pat.waitlist@example.com"),
+    ).fetchall()
+    assert not active
+    dash = client.get("/dashboard")
+    assert dash.status_code == 200, dash.text
+    assert f'data-waitlist-dismiss="{wid}"' not in dash.text
+    assert "No waitlist requests yet." in dash.text
+    print("ok waitlist dismiss")
+
     conn.close()
     os.unlink(tmp.name)
 

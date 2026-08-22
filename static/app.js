@@ -257,7 +257,7 @@
           "<h2>Confirm with " + escapeHtml(first) + "</h2>" +
           "<p>" + formatLong(d) + " at " + formatTime(state.time) + " · " + currentMinutes() + " minutes · " + kindLabel + "</p>" +
           '<form id="visit-form" class="fields">' +
-            '<p class="err hidden" id="visit-err"></p>' +
+            '<p class="err hidden" id="visit-err" aria-live="polite"></p>' +
             '<label class="field">Your name<input type="text" name="name" required placeholder="Jordan Lee" autocomplete="name"></label>' +
             '<label class="field">Email so the office can reach you<input type="email" name="email" required placeholder="you@email.com" autocomplete="email"></label>' +
             '<label class="field">Phone <span class="tiny">(optional)</span><input type="tel" name="phone" autocomplete="tel"></label>' +
@@ -320,7 +320,7 @@
               "’s trusted colleagues is also at capacity this week. Leave your name and email — " +
               escapeHtml(first) + " will see it on their dashboard when room opens.</p>" +
             '<form id="waitlist-form" class="fields">' +
-              '<p class="err hidden" id="waitlist-err"></p>' +
+              '<p class="err hidden" id="waitlist-err" aria-live="polite"></p>' +
               '<label class="field">Your name<input type="text" name="name" required placeholder="Jordan Lee" autocomplete="name"></label>' +
               '<label class="field">Email<input type="email" name="email" required placeholder="you@email.com" autocomplete="email"></label>' +
               '<button type="submit" class="btn btn-primary">Join the waitlist</button>' +
@@ -414,7 +414,7 @@
           "<h2>Confirm this referred visit</h2>" +
           "<p>" + formatLong(d) + " at " + formatTime(time) + " · " + peerMinutes + " minutes</p>" +
           '<form id="ref-form" class="fields">' +
-            '<p class="err hidden" id="visit-err"></p>' +
+            '<p class="err hidden" id="visit-err" aria-live="polite"></p>' +
             '<label class="field">Your name<input type="text" name="name" required placeholder="Jordan Lee" autocomplete="name"></label>' +
             '<label class="field">Email<input type="email" name="email" required placeholder="you@email.com" autocomplete="email"></label>' +
             '<button type="submit" class="btn btn-primary">Confirm this visit</button>' +
@@ -548,6 +548,15 @@
         var data = await api("/api/me/clients/" + btn.getAttribute("data-dismiss") + "/dismiss", { method: "POST" });
         if (!data.ok) { toast(data.error || "Could not dismiss"); return; }
         toast("Client dismissed — slot story updated");
+        location.reload();
+      });
+    });
+    $$("[data-waitlist-dismiss]").forEach(function (btn) {
+      btn.addEventListener("click", async function () {
+        if (!confirm("Dismiss waitlist request from " + btn.getAttribute("data-name") + "?")) return;
+        var data = await api("/api/me/waitlist/" + btn.getAttribute("data-waitlist-dismiss") + "/dismiss", { method: "POST" });
+        if (!data.ok) { toast(data.error || "Could not dismiss"); return; }
+        toast("Waitlist request dismissed");
         location.reload();
       });
     });
