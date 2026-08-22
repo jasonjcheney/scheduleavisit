@@ -320,6 +320,22 @@ input:focus { outline: 3px solid rgba(45,90,74,0.25); border-color: var(--sage);
   display: grid; gap: 10px; background: #fff; border-radius: 16px;
   padding: 16px; border: 1px solid var(--line); margin: 12px 0;
 }
+.rec-card.featured {
+  border-color: #d7c0b0;
+  box-shadow: 0 1px 0 rgba(90, 58, 42, 0.04);
+}
+.rec-trust {
+  margin-top: 4px;
+  font-size: 0.92rem;
+  font-weight: 650;
+  color: var(--sage-deep);
+  line-height: 1.35;
+}
+.rec-hop {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
 .more-list { display: none; margin-top: 8px; }
 .more-list.open { display: grid; gap: 10px; }
 

@@ -93,3 +93,33 @@ Second overnight UX pass (distinct from the first polish / P0 wave). Palette unc
 ### Deploy
 - Commit + push + Render `srv-da463sou01pc73erg9l0`
 
+## 2026-08-22 ~12:40 AM PT — Competitive-research P1 / easy P2 (wave 3)
+
+Third overnight wave. Closed remaining items **6–12** from `docs/competitive-research.md` (P0s already live).
+
+### Booking referral card (6, 8)
+- Primary trust line: **“{{first}} recommends {{peer}}”** (full peer name)
+- Multi-hop as tiny secondary only: **“In {{first}}’s wider network.”**
+- CTA unchanged: **“Book this time with {{peerFirst}}”**
+- Toggle: **Show other trusted colleagues** / **Hide other colleagues**
+
+### Setup + login (7, 12)
+- Hour-cap helpers under weekly cap and buffer fields
+- Login sub: **“Hour cap, booking link, and the colleagues you trust.”**
+- Setup portal section: **“After they book → send them to intake.”**
+
+### Invite / booked / directory (9–11)
+- Invite accept mutual-benefit payoff copy
+- Booked page Consultation vs Session badge; bold **“so you were not turned away”** when referred
+- Directory demo caption: Elena near cap; James and Maya have room
+
+### Visual
+- Light CSS for featured rec-card trust line / hop secondary
+
+### Tests
+- `python3 tests/test_setup_calendar.py` — green
+- `python3 tests/test_multihop_referral.py` — green
+
+### Deploy
+- Commit + push + Render `srv-da463sou01pc73erg9l0`
+

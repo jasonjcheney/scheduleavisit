@@ -19,7 +19,7 @@
       <dt>With</dt><dd>{{ provider.name }}<div class="tiny">{{ provider.clinic }} · {{ provider.address }}</div></dd>
       <dt>For</dt><dd>{{ client_name }} · {{ appointment.duration_minutes }}-minute {% if visit_kind=='consult' %}consultation{% else %}visit{% endif %}</dd>
       {% if referred %}
-        <dt>Referred by</dt><dd>{{ referred.name }} recommended this time so you were <strong>not turned away</strong>.</dd>
+        <dt>Referred by</dt><dd>{{ referred.name }} recommended this time <strong>so you were not turned away</strong>.</dd>
       {% endif %}
     </dl>
     {% if show_portal and portal_url %}

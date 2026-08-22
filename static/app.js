@@ -269,33 +269,37 @@
     }
 
     function recCard(r, featured) {
+      var peerFirst = (r.name || "").split(" ")[0] || r.name || "them";
+      var hops = r.hops || 1;
+      var trustPrimary = featured
+        ? '<div class="rec-trust">' + escapeHtml(r.recommendedBy) + " recommends " + escapeHtml(r.name) + "</div>"
+        : "";
+      var hopSecondary = featured && hops > 1
+        ? '<div class="tiny rec-hop">In ' + escapeHtml(r.recommendedBy) + "’s wider network.</div>"
+        : "";
+      var metaTiny;
+      if (featured) {
+        metaTiny = r.miles + " miles · " + escapeHtml(r.clinic);
+      } else if (hops > 1) {
+        metaTiny = "Also via " + escapeHtml(r.viaName || r.recommendedBy) +
+          " · " + r.miles + " miles · " + escapeHtml(r.clinic);
+      } else {
+        metaTiny = "Also in " + escapeHtml(r.recommendedBy) + "’s network · " +
+          r.miles + " miles · " + escapeHtml(r.clinic);
+      }
       return (
-        '<div class="rec-card">' +
+        '<div class="rec-card' + (featured ? " featured" : "") + '">' +
           '<div class="person">' +
             '<div class="avatar ' + escapeHtml(r.avatar) + '" aria-hidden="true">' + escapeHtml(r.initials) + "</div>" +
             "<div><strong>" + escapeHtml(r.name) + "</strong>" +
-            '<div class="tiny">' +
-              (function () {
-                var hops = r.hops || 1;
-                if (featured) {
-                  if (hops > 1) {
-                    return escapeHtml(r.recommendedBy) + " recommends " + escapeHtml((r.name || "").split(" ")[0] || r.name) +
-                      " · In " + escapeHtml(r.recommendedBy) + "’s wider network";
-                  }
-                  return escapeHtml(r.recommendedBy) + " recommends " + escapeHtml((r.name || "").split(" ")[0] || r.name);
-                }
-                if (hops > 1) {
-                  return "Also via " + escapeHtml(r.viaName || r.recommendedBy);
-                }
-                return "Also in " + escapeHtml(r.recommendedBy) + "’s network";
-              })() +
-              " · " + r.miles + " miles · " + escapeHtml(r.clinic) +
-            "</div></div></div>" +
+            trustPrimary +
+            hopSecondary +
+            '<div class="tiny">' + metaTiny + "</div></div></div>" +
           "<p style=\"margin:0\"><strong>" + escapeHtml(r.displayWhen) + "</strong> · " + r.minutes + " minutes</p>" +
           '<div class="row">' +
             '<button type="button" class="btn btn-primary btn-sm" data-book-ref="' + escapeHtml(r.peerSlug) +
               '" data-ref-date="' + r.date + '" data-ref-time="' + r.time + '">Book this time with ' +
-              escapeHtml((r.name || "").split(" ")[0] || "them") + "</button>" +
+              escapeHtml(peerFirst) + "</button>" +
             '<a class="btn btn-ghost btn-sm" href="' + escapeHtml(r.rideUrl) + '">Get a ride</a>' +
           "</div>" +
         "</div>"
