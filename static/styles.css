@@ -158,6 +158,22 @@ p { margin: 0 0 0.8em; }
   box-shadow: var(--shadow-lg); padding: 22px; align-self: end;
 }
 .hero-card h3 { font-size: 1.15rem; }
+.hero-photo {
+  margin: 0;
+  border-radius: 24px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-lg);
+  background: var(--paper-2);
+}
+.hero-photo img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3 / 2;
+  object-fit: cover;
+  object-position: 50% 20%;
+}
 .mini-cal { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
 .slot-chip {
   border: 1px solid var(--line); border-radius: 12px; padding: 10px 8px;
