@@ -72,6 +72,28 @@ p { margin: 0 0 0.8em; }
   background: var(--sage); color: var(--paper);
   display: grid; place-items: center; flex-shrink: 0;
 }
+.wordmark-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  object-fit: contain;
+  flex-shrink: 0;
+  display: block;
+}
+.provider-link {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-decoration: none;
+  padding: 8px 4px;
+  white-space: nowrap;
+}
+.provider-link:hover { color: var(--sage-deep); }
+.provider-link:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: 8px;
+}
 .wordmark-name {
   font-family: var(--serif); font-weight: 600; font-size: 1.15rem;
   letter-spacing: -0.03em; color: var(--ink);
@@ -899,7 +921,7 @@ input[type="url"]:focus { outline: 3px solid rgba(45,90,74,0.25); border-color: 
 }
 
 @media (min-width: 720px) {
-  .trust-inner { grid-template-columns: repeat(4, 1fr); }
+  .trust-inner { grid-template-columns: repeat(3, 1fr); }
   .audience-grid { grid-template-columns: 1fr 1fr; }
 }
 
@@ -2684,4 +2706,64 @@ a:focus-visible,
 }
 @media (max-width: 480px) {
   .provider-door { padding: 14px 12px 12px; }
+}
+
+
+/* ——— Lighter landing: one CTA, quiet proof, more air ——— */
+.hero {
+  padding: 56px 20px 72px;
+  gap: 48px;
+}
+.hero-copy { max-width: 560px; }
+.hero .lede {
+  font-size: clamp(1.05rem, 2vw, 1.18rem);
+  line-height: 1.55;
+  max-width: 32em;
+  margin-bottom: 0;
+}
+.hero-actions { margin-top: 28px; }
+.hero-actions .btn-primary {
+  min-height: 50px;
+  padding: 0 26px;
+}
+.hero-card {
+  padding: 16px 16px 14px;
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  background: var(--card);
+  border: 1px solid var(--line);
+  align-self: center;
+}
+.hero-card h3 { display: none; }
+.hero-card-caption {
+  margin: 12px 2px 2px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.mini-cal { margin-top: 0; }
+
+.trust-strip { display: none; }
+
+@media (min-width: 720px) {
+  .hero { padding-top: 64px; padding-bottom: 80px; gap: 56px; }
+}
+
+@media (max-width: 719px) {
+  .hero { padding: 32px 16px 48px; gap: 28px; }
+  .hero-actions .btn {
+    flex: 1 1 100%;
+    min-width: 0;
+    min-height: 48px;
+  }
+  .hero-card { padding: 14px 12px 12px; }
+  .hero .mini-cal { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 480px) {
+  .hero { padding: 24px 16px 40px; gap: 24px; }
+  .hero-actions .btn {
+    flex: 1 1 100%;
+    min-height: 48px;
+  }
+  .wordmark-logo { width: 32px; height: 32px; }
 }

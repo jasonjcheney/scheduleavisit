@@ -45,9 +45,9 @@ def main() -> None:
             "Find a time — even when your clinician is full.",
             "No account needed",
             "I am a provider",
-            "Clinician login",
             "Get your booking link",
             "Provider login",
+            'src="/static/logo.png"',
             "Common questions",
             "What happens when I",
             "Do clients see my hour cap?",
@@ -89,9 +89,15 @@ def main() -> None:
     landing = c.get("/")
     expect("For counselors, therapists, and independent clinicians" not in landing.text,
            "landing still uses the old provider-first hero eyebrow")
-    expect('class="provider-door"' in landing.text, "landing missing provider-door box")
-    expect('href="/login"' in landing.text, "landing provider door missing /login")
-    print("OK / client-first hero + provider door")
+    expect('class="provider-door"' not in landing.text, "landing still has provider-door box in hero")
+    expect("Find a provider" not in landing.text, "landing still has duplicate Find a provider CTA")
+    expect("Clinician login" not in landing.text, "landing still has Clinician login in hero")
+    expect("I am a provider" in landing.text, "landing missing I am a provider header link")
+    expect('href="/login"' in landing.text, "landing missing provider /login")
+    expect('src="/static/logo.png"' in landing.text, "landing missing header logo")
+    hero_books = landing.text.count('class="btn btn-primary" href="/book">Book a visit</a>')
+    expect(hero_books >= 1, "landing missing primary Book a visit CTA")
+    print("OK / lighter client-first hero + one CTA")
 
     # Friendly not-found for unknown provider slugs (200 HTML, not a hard 404)
     missing = c.get("/p/does-not-exist")

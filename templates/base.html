@@ -26,9 +26,7 @@
   <a class="skip" href="#app">Skip to content</a>
   <header class="site-header">
     <a class="wordmark" href="/">
-      <span class="wordmark-mark" aria-hidden="true">
-        <svg width="20" height="20" viewBox="0 0 32 32" fill="none"><path d="M8 12h16v12H8z" stroke="currentColor" stroke-width="2"/><path d="M8 15h16M12 9v4M20 9v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="20" cy="20" r="2.2" fill="#C45C3E"/></svg>
-      </span>
+      <img class="wordmark-logo" src="/static/logo.png" width="36" height="36" alt="">
       <span class="wordmark-name">Schedule<span>A</span>Visit</span>
     </a>
     <nav class="nav-links" aria-label="Primary">
@@ -41,7 +39,7 @@
           <a class="btn btn-sage btn-sm" href="/dashboard">Dashboard</a>
           <button type="button" class="btn btn-ghost btn-sm" data-logout>Log out</button>
         {% else %}
-          <a class="btn btn-ghost btn-sm" href="/login">Provider login</a>
+          <a class="provider-link" href="/login">I am a provider</a>
         {% endif %}
       {% endif %}
     </nav>

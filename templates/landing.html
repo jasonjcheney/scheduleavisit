@@ -2,9 +2,9 @@
 {% block title %}ScheduleAVisit — Find a time, even when your clinician is full{% endblock %}
 {% block meta_description %}Find a time. No account needed. If your clinician is full, you still leave with a trusted colleague.{% endblock %}
 {% block og_title %}ScheduleAVisit — Find a time, even when your clinician is full{% endblock %}
-{% block og_description %}Pick a day. You don’t need an account. If your clinician is already booked, you still leave with a trusted colleague.{% endblock %}
+{% block og_description %}Pick a day — if your clinician is full, you still leave with a trusted colleague.{% endblock %}
 {% block twitter_title %}ScheduleAVisit — Find a time, even when your clinician is full{% endblock %}
-{% block twitter_description %}Pick a day. You don’t need an account. If your clinician is already booked, you still leave with a trusted colleague.{% endblock %}
+{% block twitter_description %}Pick a day — if your clinician is full, you still leave with a trusted colleague.{% endblock %}
 {% block og_url %}https://scheduleavisit.onrender.com/{% endblock %}
 {% block canonical %}https://scheduleavisit.onrender.com/{% endblock %}
 {% block content %}
@@ -13,45 +13,19 @@
     <div class="hero-copy">
       <p class="eyebrow">No account needed</p>
       <h1>Find a time — even when your clinician is full.</h1>
-      <p class="lede">Pick a day. You don’t need an account. If your clinician is already booked, you still leave with a trusted colleague — someone they actually know.</p>
+      <p class="lede">Pick a day — if your clinician is full, you still leave with a trusted colleague.</p>
       <div class="hero-actions">
         <a class="btn btn-primary" href="/book">Book a visit</a>
-        <a class="btn btn-ghost" href="/book">Find a provider</a>
       </div>
-      <aside class="provider-door" aria-label="Provider access">
-        <p class="eyebrow">Clinicians</p>
-        <p class="provider-door-title">I am a provider</p>
-        <p class="tiny">Hour caps, your public booking link, and the colleagues you trust.</p>
-        <div class="provider-door-actions">
-          {% if user %}
-            <a class="btn btn-ghost btn-sm" href="/dashboard">Open dashboard</a>
-          {% else %}
-            <a class="btn btn-ghost btn-sm" href="/login">Clinician login</a>
-            <a href="/signup">Get your booking link</a>
-          {% endif %}
-        </div>
-      </aside>
     </div>
     <aside class="hero-card" aria-label="Example of a full week that still finds a time">
-      <p class="eyebrow">What you’ll see</p>
-      <h3>Your clinician is full this week.</h3>
-      <p class="muted">Tuesday at 4&nbsp;pm still works — with James, a colleague they trust, four miles away.</p>
       <div class="mini-cal" role="list">
         <div class="slot-chip taken" role="listitem">Tue 2&nbsp;pm<small>Elena · booked</small></div>
         <div class="slot-chip taken" role="listitem">Tue 3&nbsp;pm<small>Elena · booked</small></div>
         <div class="slot-chip rec" role="listitem">Tue 4&nbsp;pm<small>James · 4&nbsp;mi</small></div>
       </div>
-      <p class="tiny" style="margin:12px 0 0">If James is full too, you still see the next trusted colleague. Never a dead end.</p>
+      <p class="tiny hero-card-caption">Elena is full. Tuesday 4&nbsp;pm still works — with James, four miles away.</p>
     </aside>
-  </section>
-
-  <section class="trust-strip" aria-label="What booking feels like">
-    <div class="trust-inner">
-      <div class="trust-item"><strong>No account needed</strong><span>Open a link and pick a time</span></div>
-      <div class="trust-item"><strong>A time that works</strong><span>Even when your clinician is full</span></div>
-      <div class="trust-item"><strong>Trusted colleagues</strong><span>Someone they actually know</span></div>
-      <div class="trust-item"><strong>Optional consult</strong><span>A short first visit if they offer it</span></div>
-    </div>
   </section>
 
   <hr class="section-rule" />
