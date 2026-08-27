@@ -10,7 +10,9 @@ from urllib.parse import quote
 from db import (
     TZ,
     at_local,
+    category_label,
     date_on_weekday,
+    normalize_category,
     parse_iso,
     start_of_week,
     today,
@@ -334,12 +336,27 @@ def next_open_slot(conn, user, from_date: date, prefer_time: str | None, minutes
 
 def peers_of(conn, user_id: int) -> list:
     return conn.execute(
-        """SELECT u.* FROM users u
+        """SELECT u.*, COALESCE(n.category, 'general') AS referral_category
+           FROM users u
            JOIN network_links n ON n.peer_id = u.id
            WHERE n.user_id=?
            ORDER BY u.name""",
         (user_id,),
     ).fetchall()
+
+
+def link_category(conn, user_id: int, peer_id: int) -> str | None:
+    row = conn.execute(
+        "SELECT category FROM network_links WHERE user_id=? AND peer_id=?",
+        (user_id, peer_id),
+    ).fetchone()
+    if not row:
+        return None
+    try:
+        raw = row["category"]
+    except (KeyError, IndexError, TypeError):
+        raw = None
+    return normalize_category(raw)
 
 
 def network_reachable(conn, origin_id: int, target_id: int, max_hops: int = 8) -> bool:
@@ -371,14 +388,17 @@ def referral_candidates(
     minutes: int,
     max_hops: int = 8,
     limit: int = 8,
+    category: str | None = None,
 ) -> list[dict]:
     """Walk the trust network until someone has room.
 
-    Direct peers first. If they are full, keep going to people *they* trust,
-    and so on, until an open match is found (or the network is exhausted).
+    Prefer a direct peer tagged with the client category. If none have room,
+    fall back to that therapist's General slot, then multi-hop among remaining
+    peers with room.
     """
     origin_id = from_user["id"]
     origin_first = first_name(from_user["name"])
+    wanted = normalize_category(category)
     # Prefer demo individual counseling slightly among equal-hop ties.
     rank = {"james-okonkwo-lcsw": 3, "maya-chen-lmft": 1, "jason-cheney": 2}
 
@@ -401,6 +421,14 @@ def referral_candidates(
             rem = remaining_hours(conn, p, start_of_week(when))
             miles = miles_between(from_user["slug"], p["slug"])
             pub = public_provider(p, from_user["slug"])
+            link_cat = link_category(conn, origin_id, p["id"]) if hops == 1 else None
+            if hops == 1 and link_cat == wanted:
+                phase = 0
+            elif hops == 1 and link_cat == "general":
+                phase = 0 if wanted == "general" else 1
+            else:
+                phase = 2
+            shown_cat = link_cat or wanted
             out.append({
                 **pub,
                 "date": slot["date"],
@@ -411,6 +439,11 @@ def referral_candidates(
                 "viaName": via_name if hops > 1 else origin_first,
                 "recommendedBy": origin_first,
                 "rideUrl": f"/ride?address={quote(p['address'] or '')}",
+                "category": shown_cat,
+                "categoryLabel": category_label(shown_cat),
+                "linkCategory": link_cat,
+                "matchPhase": phase,
+                "wantedCategory": wanted,
             })
 
         if hops < max_hops:
@@ -421,6 +454,7 @@ def referral_candidates(
 
     out.sort(
         key=lambda x: (
+            x.get("matchPhase", 2),
             x["hops"],
             -rank.get(x["slug"], 0),
             x["miles"],

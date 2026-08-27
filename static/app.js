@@ -125,11 +125,23 @@
     var minutes = consultEnabled ? consultMinutes : sessionMinutes;
     var visitKind = consultEnabled ? "consult" : "session";
     var first = bookPage.getAttribute("data-first") || "Your clinician";
+    var needCategory = "general";
     var state = { date: null, time: null, phase: "pick", recs: null, weekHasRoom: true };
 
     function currentMinutes() {
       return visitKind === "consult" ? consultMinutes : sessionMinutes;
     }
+
+    $$("#need-kind [data-need]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        needCategory = btn.getAttribute("data-need") || "general";
+        $$("#need-kind [data-need]").forEach(function (b) {
+          var on = b === btn;
+          b.classList.toggle("active", on);
+          b.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+      });
+    });
 
     $$("#visit-kind [data-kind]").forEach(function (btn) {
       btn.addEventListener("click", function () {
@@ -277,6 +289,13 @@
       var hopSecondary = featured && hops > 1
         ? '<div class="tiny rec-hop">In ' + escapeHtml(r.recommendedBy) + "’s wider network.</div>"
         : "";
+      var needLine = r.categoryLabel
+        ? '<div class="tiny rec-need">' + (r.matchPhase === 0
+            ? "Fits what you asked for: "
+            : r.matchPhase === 1
+              ? "General fallback: "
+              : "Also available: ") + escapeHtml(r.categoryLabel) + "</div>"
+        : "";
       var metaTiny;
       if (featured) {
         metaTiny = r.miles + " miles · " + escapeHtml(r.clinic);
@@ -294,6 +313,7 @@
             "<div><strong>" + escapeHtml(r.name) + "</strong>" +
             trustPrimary +
             hopSecondary +
+            needLine +
             '<div class="tiny">' + metaTiny + "</div></div></div>" +
           "<p style=\"margin:0\"><strong>" + escapeHtml(r.displayWhen) + "</strong> · " + r.minutes + " minutes</p>" +
           '<div class="row">' +
@@ -456,7 +476,8 @@
           name: form.name.value.trim(),
           email: form.email.value.trim(),
           phone: form.phone.value.trim(),
-          visitKind: visitKind
+          visitKind: visitKind,
+          category: needCategory
         }
       });
       if (data.full) {
@@ -780,6 +801,25 @@
       });
     });
 
+    $$("[data-peer-cat]").forEach(function (sel) {
+      sel.addEventListener("change", async function () {
+        var peerId = Number(sel.getAttribute("data-peer-cat"));
+        var data = await api("/api/me/network/recommend", {
+          method: "POST",
+          body: { peerId: peerId, category: sel.value }
+        });
+        if (!data.ok) {
+          toast(data.error || "Could not save that category");
+          return;
+        }
+        toast("Saved — " + (data.categoryLabel || sel.value));
+        var meta = sel.closest(".peer") && sel.closest(".peer").querySelector(".person .tiny");
+        if (meta && data.categoryLabel) {
+          meta.textContent = meta.textContent.replace(/ · [^·]+$/, " · " + data.categoryLabel);
+        }
+      });
+    });
+
     var invite = $("#invite-form");
     if (invite) {
       invite.addEventListener("submit", async function (e) {
@@ -793,7 +833,8 @@
         }
         var btn = invite.querySelector('button[type="submit"]');
         if (btn) btn.disabled = true;
-        var data = await api("/api/me/network/invite", { method: "POST", body: { email: email } });
+        var cat = (invite.category && invite.category.value) || "general";
+        var data = await api("/api/me/network/invite", { method: "POST", body: { email: email, category: cat } });
         if (btn) btn.disabled = false;
         if (!data.ok) {
           out.className = "tiny invite-err";

@@ -23,6 +23,51 @@ def db_path() -> Path:
 DB_PATH = db_path()
 TZ = ZoneInfo("America/Denver")
 
+MAX_RECOMMENDATIONS = 5
+CATEGORY_CHOICES = (
+    ("general", "General"),
+    ("anxiety", "Anxiety"),
+    ("depression", "Depression"),
+    ("couples", "Couples"),
+    ("trauma", "Trauma"),
+    ("addiction", "Addiction"),
+    ("kids", "Kids / teens"),
+    ("grief", "Grief"),
+)
+CATEGORY_KEYS = {key for key, _label in CATEGORY_CHOICES}
+CATEGORY_LABELS = {key: label for key, label in CATEGORY_CHOICES}
+
+
+def normalize_category(raw) -> str:
+    if raw is None:
+        return "general"
+    s = str(raw).strip().lower()
+    s = s.replace(" / ", "_").replace("/", "_").replace(" ", "_").replace("-", "_")
+    aliases = {
+        "kids_teens": "kids",
+        "kids__teens": "kids",
+        "kid": "kids",
+        "teens": "kids",
+        "teen": "kids",
+        "couple": "couples",
+        "relationship": "couples",
+        "relationships": "couples",
+        "substance": "addiction",
+        "substances": "addiction",
+        "alcohol": "addiction",
+        "loss": "grief",
+        "not_sure": "general",
+        "unsure": "general",
+        "none": "general",
+        "": "general",
+    }
+    s = aliases.get(s, s)
+    return s if s in CATEGORY_KEYS else "general"
+
+
+def category_label(key: str) -> str:
+    return CATEGORY_LABELS.get(normalize_category(key), "General")
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -93,13 +138,15 @@ CREATE TABLE IF NOT EXISTS network_invites (
   to_user_id INTEGER REFERENCES users(id),
   status TEXT NOT NULL DEFAULT 'pending',
   token TEXT UNIQUE NOT NULL,
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL,
+  category TEXT NOT NULL DEFAULT 'general'
 );
 
 CREATE TABLE IF NOT EXISTS network_links (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   peer_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  category TEXT NOT NULL DEFAULT 'general',
   UNIQUE(user_id, peer_id)
 );
 
@@ -239,8 +286,13 @@ def migrate(conn: sqlite3.Connection) -> None:
     )
     if not _has_column(conn, "waitlist_requests", "dismissed_at"):
         conn.execute("ALTER TABLE waitlist_requests ADD COLUMN dismissed_at TEXT")
+    if not _has_column(conn, "network_links", "category"):
+        conn.execute("ALTER TABLE network_links ADD COLUMN category TEXT NOT NULL DEFAULT 'general'")
+    if not _has_column(conn, "network_invites", "category"):
+        conn.execute("ALTER TABLE network_invites ADD COLUMN category TEXT NOT NULL DEFAULT 'general'")
     ensure_demo_usernames(conn)
     ensure_jason(conn)
+    ensure_elena_referral_categories(conn)
     conn.commit()
 
 
@@ -344,9 +396,60 @@ def notify(conn: sqlite3.Connection, user_id: int, kind: str, title: str, body: 
     print(f"[notify] user_id={user_id} kind={kind} | {title} — {body}", flush=True)
 
 
-def add_link(conn: sqlite3.Connection, a: int, b: int) -> None:
-    conn.execute("INSERT OR IGNORE INTO network_links (user_id, peer_id) VALUES (?,?)", (a, b))
-    conn.execute("INSERT OR IGNORE INTO network_links (user_id, peer_id) VALUES (?,?)", (b, a))
+def add_link(conn: sqlite3.Connection, a: int, b: int, category: str = "general") -> None:
+    cat = normalize_category(category)
+    conn.execute(
+        "INSERT OR IGNORE INTO network_links (user_id, peer_id, category) VALUES (?,?,?)",
+        (a, b, cat),
+    )
+    conn.execute(
+        "INSERT OR IGNORE INTO network_links (user_id, peer_id, category) VALUES (?,?,?)",
+        (b, a, "general"),
+    )
+
+
+def outgoing_recommend_count(conn: sqlite3.Connection, user_id: int) -> int:
+    row = conn.execute(
+        "SELECT COUNT(*) AS c FROM network_links WHERE user_id=?",
+        (user_id,),
+    ).fetchone()
+    return int(row["c"]) if row else 0
+
+
+def set_link_category(conn: sqlite3.Connection, user_id: int, peer_id: int, category: str) -> None:
+    conn.execute(
+        "UPDATE network_links SET category=? WHERE user_id=? AND peer_id=?",
+        (normalize_category(category), user_id, peer_id),
+    )
+
+
+def add_recommendation(conn: sqlite3.Connection, user_id: int, peer_id: int, category: str = "general") -> str | None:
+    if user_id == peer_id:
+        return "You cannot recommend yourself."
+    existing = conn.execute(
+        "SELECT id FROM network_links WHERE user_id=? AND peer_id=?",
+        (user_id, peer_id),
+    ).fetchone()
+    if existing:
+        set_link_category(conn, user_id, peer_id, category)
+        return None
+    if outgoing_recommend_count(conn, user_id) >= MAX_RECOMMENDATIONS:
+        return f"You can recommend up to {MAX_RECOMMENDATIONS} colleagues."
+    add_link(conn, user_id, peer_id, category=category)
+    set_link_category(conn, user_id, peer_id, category)
+    return None
+
+
+def ensure_elena_referral_categories(conn: sqlite3.Connection) -> None:
+    elena = conn.execute("SELECT id FROM users WHERE slug=?", ("elena-vasquez-lpc",)).fetchone()
+    if not elena:
+        return
+    for slug, cat in (("james-okonkwo-lcsw", "general"), ("maya-chen-lmft", "couples")):
+        peer = conn.execute("SELECT id FROM users WHERE slug=?", (slug,)).fetchone()
+        if peer:
+            add_link(conn, elena["id"], peer["id"], category=cat)
+            set_link_category(conn, elena["id"], peer["id"], cat)
+
 
 
 def add_client(conn, provider_id: int, name: str, email: str = "", dismissed_at: str | None = None) -> int:
@@ -456,8 +559,10 @@ def seed(conn: sqlite3.Connection) -> None:
         ids[p["slug"]] = int(cur.lastrowid)
 
     elena, james, maya = ids["elena-vasquez-lpc"], ids["james-okonkwo-lcsw"], ids["maya-chen-lmft"]
-    add_link(conn, elena, james)
-    add_link(conn, elena, maya)
+    add_link(conn, elena, james, category="general")
+    add_link(conn, elena, maya, category="couples")
+    set_link_category(conn, elena, james, "general")
+    set_link_category(conn, elena, maya, "couples")
 
     # Elena caseload: mix of weekly / biweekly / occasional + one dismissed client.
     # Slot map packs the week without collisions. History is real appointments so

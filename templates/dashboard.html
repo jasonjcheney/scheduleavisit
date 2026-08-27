@@ -308,20 +308,28 @@
 
     <section class="card" id="referral-network">
       <h2>Referral network</h2>
-      <p class="muted">When you are full, the booking page offers the best match first — and can walk further through peers of peers if needed. Invite a colleague by email; they accept, and their open hours feed your overflow.</p>
+      <p class="muted">Assign up to {{ recommend_max }} colleagues and tag each with a category. When you are full, the booking page offers the tagged match first, then your General slot, then peers of peers with room.</p>
+      <p class="tiny recommend-count">{{ recommend_count }} of {{ recommend_max }} colleagues assigned. General is always available as a tag.</p>
       {% for p in peers %}
-      <div class="peer">
+      <div class="peer" data-peer-id="{{ p.id }}">
         <div class="row">
           <div class="person">
             <div class="avatar sm {{ p.avatar }}" aria-hidden="true">{{ p.initials }}</div>
             <div>
               <strong>{{ p.name }}</strong>
-              <div class="tiny">{{ p.specialty.split('—')[0].strip() }}{% if p.miles %} · {{ p.miles }} mi{% endif %}</div>
+              <div class="tiny">{{ p.specialty.split('—')[0].strip() }}{% if p.miles %} · {{ p.miles }} mi{% endif %} · {{ p.category_label }}</div>
             </div>
           </div>
           <span class="badge {{ p.status }}">{{ p.remaining_label }}</span>
         </div>
         <div class="bar {{ p.status }}"><span style="width:{{ p.fill }}%"></span></div>
+        <label class="field peer-cat">When I refer, this colleague is for
+          <select data-peer-cat="{{ p.id }}" aria-label="Referral category for {{ p.name }}">
+            {% for key, label in categories %}
+            <option value="{{ key }}"{% if p.category == key %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </label>
       </div>
       {% else %}
       <div class="empty-state compact">
@@ -351,8 +359,15 @@
         <label class="field">Invite a colleague
           <input type="email" name="email" required placeholder="colleague@clinic.com" autocomplete="email">
         </label>
-        <button type="submit" class="btn btn-sage btn-sm">Send invite link</button>
-        <p class="tiny" id="invite-result" role="status" aria-live="polite"></p>
+        <label class="field">They are a fit for
+          <select name="category" aria-label="Category for this invite">
+            {% for key, label in categories %}
+            <option value="{{ key }}"{% if key == 'general' %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <button type="submit" class="btn btn-sage btn-sm"{% if recommend_count >= recommend_max %} disabled{% endif %}>Send invite link</button>
+        <p class="tiny" id="invite-result" role="status" aria-live="polite">{% if recommend_count >= recommend_max %}You already have {{ recommend_max }} recommended colleagues.{% endif %}</p>
       </form>
     </section>
   </div>

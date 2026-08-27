@@ -7,6 +7,7 @@ Today is Saturday 22 Aug 2026. Elena’s week is Mon 17 – Sun 23 Aug. Friday 2
 ## What the product does now
 
 - **Weekly hour cap** — clinical hours + buffer; capacity is server-side
+- **Specialty referral** — client picks one plain-language category; overflow prefers that tagged colleague, then General, then multi-hop
 - **Multi-hop referral** — when full, walk trusted peers (and peers of peers) until someone has room
 - **Waitlist** — if the whole reachable network is full, client leaves name + email; provider sees it and can dismiss
 - **Consult vs session** — free first consult (default 15 min) or full session (default 50 min)
@@ -58,15 +59,18 @@ GET  /api/p/elena-vasquez-lpc/availability?date=2026-08-21
   → 15:00 and 16:00 open (calendar holes)
 
 POST /api/p/elena-vasquez-lpc/book
-  {date:"2026-08-21", time:"15:00", name:"Sam Overflow", email:"sam.overflow@example.com"}
+  {date:"2026-08-21", time:"15:00", name:"Sam Overflow", email:"sam.overflow@example.com",
+   category:"general"}
   → 200 {
-      ok:false, full:true,
+      ok:false, full:true, category:"general",
       recommendation: {peerSlug:"james-okonkwo-lcsw", name:"James Okonkwo, LCSW",
                        recommendedBy:"Elena", miles:4, date:"2026-08-21", time:"15:00",
                        rideUrl:"/ride?address=…"},
       alternatives: [{peerSlug:"maya-chen-lmft", miles:2, …}]
     }
 ```
+
+Booking page asks one category question (General, Anxiety, Depression, Couples, Trauma, Addiction, Kids / teens, Grief). Elena’s list seeds James as General and Maya as Couples, so a General (or omitted) category still offers James first. Couples prefers Maya when she has room.
 
 UI: one referral card (James, time, “Elena recommends …”, Get a ride). “Show other trusted colleagues” reveals Maya.
 
@@ -147,7 +151,9 @@ GET  /invite/{token}   (Priya cookie)
   → “You’re in Elena’s network.”
 
 GET  /api/me/network   (Elena cookie)
-  → peers include James, Maya, and Priya Shah, MD
+  → peers include James, Maya, and Priya Shah, MD (each with a category tag)
+
+Dashboard network: assign up to 5 peers and a category on each link (General is always in the list).
 ```
 
 Pending invites show on the dashboard with Copy link.
@@ -206,4 +212,4 @@ Existing Elena / James / Maya first-name login (`demo1234`) is unchanged and ski
 - Later weeks on Elena can have room — that is the engine, not a bug.
 - Recurring labels (Weekly / Biweekly / Occasional) are inferred from visit history.
 - Delete `data/app.db` and restart to re-seed the three demo providers (+ Jason).
-- Automated suites: `tests/test_public_paths.py`, `test_live_paths.py`, `test_setup_calendar.py`, `test_multihop_referral.py`.
+- Automated suites: `tests/test_public_paths.py`, `test_live_paths.py`, `test_setup_calendar.py`, `test_multihop_referral.py`, `test_specialty_referral.py`.

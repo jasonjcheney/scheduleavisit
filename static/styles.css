@@ -2534,3 +2534,66 @@ a:focus-visible,
     max-width: none;
   }
 }
+
+
+/* Specialty / category matching */
+.need-chips {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.need-chip {
+  min-height: 48px;
+  padding: 10px 12px;
+  justify-content: center;
+}
+.need-chip strong {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.need-chip.active {
+  border-color: var(--sage);
+  background: var(--sage-wash);
+  color: var(--sage-deep);
+  box-shadow: inset 3px 0 0 var(--clay);
+}
+.rec-need {
+  color: var(--sage-deep);
+  font-weight: 600;
+  margin-top: 2px;
+}
+.recommend-count {
+  margin: -4px 0 10px;
+}
+.peer-cat {
+  margin-top: 8px;
+}
+.peer-cat select {
+  min-height: 44px;
+  border-radius: 12px;
+  border: 1.5px solid var(--line-strong);
+  background: #fff;
+  padding: 0 12px;
+  color: var(--ink);
+  width: 100%;
+}
+.peer-cat select:focus {
+  outline: 3px solid rgba(45,90,74,0.25);
+  border-color: var(--sage);
+}
+#invite-form select {
+  min-height: 44px;
+  border-radius: 12px;
+  border: 1.5px solid var(--line-strong);
+  background: #fff;
+  padding: 0 12px;
+  width: 100%;
+}
+@media (min-width: 720px) {
+  .need-chips { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (max-width: 480px) {
+  .need-chips { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .need-chip { min-height: 50px; padding: 10px 8px; }
+  .need-chip strong { font-size: 0.9rem; overflow-wrap: anywhere; }
+  .peer-cat { margin-top: 10px; }
+}

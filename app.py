@@ -17,14 +17,21 @@ from fastapi.templating import Jinja2Templates
 
 from db import (
     TZ,
+    CATEGORY_CHOICES,
+    MAX_RECOMMENDATIONS,
     add_link,
+    add_recommendation,
     at_local,
+    category_label,
     connect,
     hash_password,
     init_db,
+    normalize_category,
     now_iso,
     notify,
+    outgoing_recommend_count,
     parse_iso,
+    set_link_category,
     start_of_week,
     today,
     verify_password,
@@ -319,6 +326,9 @@ def rec_payload(item: dict, minutes: int) -> dict:
         "initials": item["initials"],
         "avatar": item["avatar"],
         "specialty": item["specialty"],
+        "category": item.get("category") or item.get("wantedCategory") or "general",
+        "categoryLabel": item.get("categoryLabel") or category_label(item.get("category") or "general"),
+        "matchPhase": item.get("matchPhase", 2),
     }
 
 
@@ -372,7 +382,7 @@ def booking_page(request: Request, slug: str):
         if not u:
             return tpl(request, "notfound.html", message="We could not find that calendar.")
         provider = public_provider(u)
-    resp = tpl(request, "booking.html", provider=provider)
+    resp = tpl(request, "booking.html", provider=provider, categories=CATEGORY_CHOICES)
     return resp
 
 
@@ -481,7 +491,9 @@ def invite_page(request: Request, token: str):
                 request, "invite.html", state="wrong_email",
                 invite=row(inv), from_name=from_user["name"], expected=inv["to_email"],
             )
-        add_link(conn, inv["from_user_id"], user["id"])
+        inv_cat = normalize_category(inv["category"] if "category" in inv.keys() else "general")
+        add_link(conn, inv["from_user_id"], user["id"], category=inv_cat)
+        set_link_category(conn, inv["from_user_id"], user["id"], inv_cat)
         conn.execute(
             "UPDATE network_invites SET status='accepted', to_user_id=? WHERE id=?",
             (user["id"], inv["id"]),
@@ -598,11 +610,14 @@ def dashboard(request: Request):
             pinfo = projected_hours(conn, p, week, 0)
             pst = status_for(pinfo["projected"], pinfo["target"])
             fill = min(100, max(0, (pinfo["projected"] / pinfo["target"]) * 100 if pinfo["target"] else 100))
+            pcat = normalize_category(uget(p, "referral_category", "general"))
             peer_rows.append({
                 **public_provider(p, u["slug"]),
                 "remaining_label": hours_label(rem) + " left",
                 "status": pst,
                 "fill": round(fill, 1),
+                "category": pcat,
+                "category_label": category_label(pcat),
             })
 
         notes = conn.execute(
@@ -683,6 +698,9 @@ def dashboard(request: Request):
             "cal_month": today().month,
             "consult_minutes": int(uget(u, "consult_minutes", 15) or 15),
             "consult_enabled": int(uget(u, "consult_enabled", 1) or 0),
+            "categories": CATEGORY_CHOICES,
+            "recommend_max": MAX_RECOMMENDATIONS,
+            "recommend_count": outgoing_recommend_count(conn, u["id"]),
         }
     return tpl(request, "dashboard.html", **ctx)
 
@@ -835,7 +853,8 @@ async def api_book(slug: str, request: Request):
         if is_taken(conn, u["id"], start, minutes):
             return json_err("That time was just taken. Please pick another.")
         if not can_accept_visit(conn, u, day, minutes):
-            recs = referral_candidates(conn, u, day, hhmm, minutes)
+            wanted = normalize_category(data.get("category") or data.get("need") or "general")
+            recs = referral_candidates(conn, u, day, hhmm, minutes, category=wanted)
             recommendation = rec_payload(recs[0], minutes) if recs else None
             alternatives = [rec_payload(r, minutes) for r in recs[1:]]
             return JSONResponse({
@@ -845,6 +864,8 @@ async def api_book(slug: str, request: Request):
                 "alternatives": alternatives,
                 "waitlist": recommendation is None,
                 "minutes": minutes,
+                "category": wanted,
+                "categoryLabel": category_label(wanted),
                 "message": f"{first_name(u['name'])} does not have room for another {minutes}-minute visit this week.",
             })
         cid = get_or_create_client(conn, u["id"], name, email, phone)
@@ -1241,6 +1262,7 @@ async def api_invite(request: Request):
         return json_err("Enter a colleague’s email address.")
     if email == user["email"].lower():
         return json_err("That’s your own email — invite a colleague instead.")
+    category = normalize_category(data.get("category") or "general")
     with db() as conn:
         existing = conn.execute(
             "SELECT * FROM network_invites WHERE from_user_id=? AND lower(to_email)=? AND status='pending'",
@@ -1249,12 +1271,26 @@ async def api_invite(request: Request):
         already = bool(existing)
         if existing:
             token = existing["token"]
+            if "category" in existing.keys():
+                conn.execute(
+                    "UPDATE network_invites SET category=? WHERE id=?",
+                    (category, existing["id"]),
+                )
         else:
+            target = user_by_email(conn, email)
+            already_linked = False
+            if target:
+                already_linked = bool(conn.execute(
+                    "SELECT 1 FROM network_links WHERE user_id=? AND peer_id=?",
+                    (user["id"], target["id"]),
+                ).fetchone())
+            if (not already_linked) and outgoing_recommend_count(conn, user["id"]) >= MAX_RECOMMENDATIONS:
+                return json_err(f"You can recommend up to {MAX_RECOMMENDATIONS} colleagues.")
             token = secrets.token_urlsafe(24)
             conn.execute(
-                """INSERT INTO network_invites (from_user_id, to_email, status, token, created_at)
-                   VALUES (?,?, 'pending', ?, ?)""",
-                (user["id"], email, token, now_iso()),
+                """INSERT INTO network_invites (from_user_id, to_email, status, token, created_at, category)
+                   VALUES (?,?, 'pending', ?, ?, ?)""",
+                (user["id"], email, token, now_iso(), category),
             )
         invite_url = str(request.base_url).rstrip("/") + f"/invite/{token}"
         print(f"[invite] {user['email']} → {email}  {invite_url}", flush=True)
@@ -1283,12 +1319,57 @@ def api_network(request: Request):
         peers = []
         for p in peers_of(conn, user["id"]):
             rem = remaining_hours(conn, p, week)
-            peers.append({**public_provider(p, user["slug"]), "remainingHours": rem})
+            pcat = normalize_category(uget(p, "referral_category", "general"))
+            peers.append({
+                **public_provider(p, user["slug"]),
+                "remainingHours": rem,
+                "category": pcat,
+                "categoryLabel": category_label(pcat),
+            })
         invites = conn.execute(
             "SELECT id, to_email, status, token, created_at FROM network_invites WHERE from_user_id=? ORDER BY id DESC",
             (user["id"],),
         ).fetchall()
         return {"ok": True, "peers": peers, "invites": [row(i) for i in invites]}
+
+
+@app.post("/api/me/network/recommend")
+async def api_recommend(request: Request):
+    user, err = _auth(request)
+    if err:
+        return err
+    data = await _body(request)
+    category = normalize_category(data.get("category") or "general")
+    peer = None
+    with db() as conn:
+        peer_id = data.get("peerId") or data.get("peer_id")
+        slug = (data.get("peerSlug") or data.get("slug") or "").strip()
+        email = (data.get("email") or "").strip().lower()
+        if peer_id:
+            try:
+                peer = user_by_id(conn, int(peer_id))
+            except (TypeError, ValueError):
+                peer = None
+        if peer is None and slug:
+            peer = user_by_slug(conn, slug)
+        if peer is None and email and "@" in email:
+            peer = user_by_email(conn, email)
+        if not peer:
+            return json_err("Choose a colleague already on ScheduleAVisit, or send an invite.")
+        msg = add_recommendation(conn, user["id"], peer["id"], category)
+        if msg:
+            return json_err(msg)
+        count = outgoing_recommend_count(conn, user["id"])
+        return {
+            "ok": True,
+            "peerId": peer["id"],
+            "peerSlug": peer["slug"],
+            "name": peer["name"],
+            "category": category,
+            "categoryLabel": category_label(category),
+            "count": count,
+            "max": MAX_RECOMMENDATIONS,
+        }
 
 
 @app.get("/api/me/notifications")

@@ -22,6 +22,17 @@
     <p>{{ provider.about }}</p>
     <p class="tiny">{{ provider.address }}</p>
   </section>
+  <section class="card" id="need-card">
+    <h2>What are you hoping to work on?</h2>
+    <p class="muted">One question so we can match you if {{ provider.first }}’s week is full. Pick the closest fit — no need to get it perfect.</p>
+    <div class="choice-grid need-chips" id="need-kind" role="group" aria-label="What you want help with">
+      {% for key, label in categories %}
+      <button type="button" class="choice-card need-chip{% if key == 'general' %} active{% endif %}" data-need="{{ key }}" aria-pressed="{{ 'true' if key == 'general' else 'false' }}">
+        <strong>{{ label }}</strong>
+      </button>
+      {% endfor %}
+    </div>
+  </section>
   {% if provider.consult_enabled %}
   <section class="card" id="visit-kind-card">
     <h2>What kind of visit?</h2>
