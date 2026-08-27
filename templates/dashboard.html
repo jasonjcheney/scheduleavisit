@@ -106,7 +106,7 @@
     <div class="row">
       <div>
         <h2>Month calendar</h2>
-        <p class="tiny" style="margin:0"><strong>Click any empty day</strong> to add a client by name — that time counts toward your weekly cap.</p>
+        <p class="tiny" style="margin:0">A connected personal calendar fills this grid automatically. Click an imported box to mark it as a counseling session — a name is optional. Click any empty day to add a client by name; that time counts toward your weekly cap.</p>
       </div>
       <div class="cal-nav">
         <button type="button" class="btn btn-ghost btn-sm" id="cal-prev">Previous</button>
@@ -118,10 +118,11 @@
       <span><i class="lg-booked" aria-hidden="true"></i>Booked on your link</span>
       <span><i class="lg-manual" aria-hidden="true"></i>You added</span>
       <span><i class="lg-ical" aria-hidden="true"></i>Imported busy</span>
+      <span><i class="lg-ical-session" aria-hidden="true"></i>Marked as a session</span>
       <span><i class="lg-today" aria-hidden="true"></i>Today</span>
     </div>
     <div class="month-cal" id="month-cal" style="margin-top:12px" aria-live="polite"></div>
-    <p class="help-tip" id="cal-help">Empty days show a + on hover or tap — click to add a client by name. Use Previous / Next to plan ahead. Manual blocks keep capacity honest when someone is already on your caseload.</p>
+    <p class="help-tip" id="cal-help">Imported boxes show the name from your personal calendar. Click one to mark it as a counseling session if it should count toward this week’s max. Empty days show a + on hover or tap — click to add a client by name.</p>
   </section>
 
 
@@ -139,6 +140,29 @@
         <button type="button" class="btn btn-primary btn-sm" id="reschedule-save" disabled>Save new time</button>
         <button type="button" class="btn btn-ghost btn-sm" id="reschedule-close">Close</button>
       </div>
+    </div>
+  </div>
+
+  <div id="mark-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="mark-modal-title">
+    <div class="modal">
+      <h2 id="mark-modal-title">Imported appointment</h2>
+      <form id="mark-form" class="fields">
+        <p class="err hidden" id="mark-err"></p>
+        <input type="hidden" name="id" value="">
+        <p class="muted" id="mark-title" style="margin:0 0 4px"></p>
+        <p class="tiny" id="mark-when" style="margin:0 0 12px"></p>
+        <label class="field check-line">
+          <input type="checkbox" name="counts" id="mark-counts">
+          This is a counseling session (counts toward this week’s max)
+        </label>
+        <label class="field">Name <span class="tiny">(optional)</span>
+          <input type="text" name="name" placeholder="Only if you want a name here" autocomplete="off">
+        </label>
+        <div class="hero-actions">
+          <button type="submit" class="btn btn-primary btn-sm">Save</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="mark-close">Close</button>
+        </div>
+      </form>
     </div>
   </div>
 

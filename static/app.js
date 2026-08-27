@@ -1008,6 +1008,26 @@
         $("#block-modal").classList.add("hidden");
       }
 
+      function openMarkModal(b) {
+        var modal = $("#mark-modal");
+        var form = $("#mark-form");
+        if (!modal || !form) return;
+        $("#mark-err").classList.add("hidden");
+        form.id.value = b.id || "";
+        form.name.value = b.clientName || "";
+        form.counts.checked = !!b.countsTowardCap;
+        $("#mark-title").textContent = b.calendarTitle || b.name || "Busy";
+        var when = formatLong(parseISODate(b.date)) + " · " + formatTime(b.time);
+        if (b.minutes) when += " · " + b.minutes + " min";
+        $("#mark-when").textContent = when;
+        modal.classList.remove("hidden");
+      }
+
+      function closeMarkModal() {
+        var modal = $("#mark-modal");
+        if (modal) modal.classList.add("hidden");
+      }
+
       async function loadMonth() {
         var grid = $("#month-cal");
         $("#cal-title").textContent = MONTHS[calMonth - 1] + " " + calYear;
@@ -1036,7 +1056,8 @@
           html += '<div class="' + classes + '" data-date="' + iso + '">';
           html += '<button type="button" class="cal-day-num" data-add-date="' + iso + '" aria-label="Add client on ' + iso + '">' + d.getDate() + "</button>";
           blocks.forEach(function (b) {
-            html += '<button type="button" class="cal-block ' + escapeHtml(b.source) + '" data-block="' +
+            var extra = (b.source === "ical" && b.countsTowardCap) ? " session" : "";
+            html += '<button type="button" class="cal-block ' + escapeHtml(b.source) + extra + '" data-block="' +
               encodeURIComponent(JSON.stringify(b)) + '" title="' + escapeHtml(formatTime(b.time) + " " + b.name) + '">' +
               escapeHtml(formatTime(b.time)) + " " + escapeHtml(b.name) + "</button>";
           });
@@ -1060,6 +1081,10 @@
             e.stopPropagation();
             var b;
             try { b = JSON.parse(decodeURIComponent(btn.getAttribute("data-block"))); } catch (err) { return; }
+            if (b.markable) {
+              openMarkModal(b);
+              return;
+            }
             openBlockModal({
               id: b.id,
               name: b.name,
@@ -1128,6 +1153,38 @@
       if (backdrop) {
         backdrop.addEventListener("click", function (e) {
           if (e.target === backdrop) closeBlockModal();
+        });
+      }
+      var markForm = $("#mark-form");
+      if (markForm) {
+        markForm.addEventListener("submit", async function (e) {
+          e.preventDefault();
+          var err = $("#mark-err");
+          err.classList.add("hidden");
+          var id = markForm.id.value;
+          var data = await api("/api/calendar/block/" + id + "/mark", {
+            method: "POST",
+            body: {
+              counts: markForm.counts.checked,
+              name: markForm.name.value.trim()
+            }
+          });
+          if (!data.ok) {
+            err.textContent = data.error || "Could not save.";
+            err.classList.remove("hidden");
+            return;
+          }
+          closeMarkModal();
+          toast(markForm.counts.checked ? "Marked as a counseling session" : "Saved as imported busy");
+          location.reload();
+        });
+      }
+      var markClose = $("#mark-close");
+      if (markClose) markClose.addEventListener("click", closeMarkModal);
+      var markBackdrop = $("#mark-modal");
+      if (markBackdrop) {
+        markBackdrop.addEventListener("click", function (e) {
+          if (e.target === markBackdrop) closeMarkModal();
         });
       }
       loadMonth();

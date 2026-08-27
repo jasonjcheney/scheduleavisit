@@ -125,11 +125,12 @@
     <section class="card setup-section" id="calendar-ical">
       <p class="eyebrow">4</p>
       <h2>Calendar</h2>
-      <p class="muted">Optional. Paste a private calendar feed so meetings you already have count toward your week. We never ask you to sign in with Google.</p>
+      <p class="muted">Optional. Paste a private calendar feed so meetings you already have show on your month calendar. We never ask you to sign in with Google.</p>
       <label class="field">iCal / ICS secret URL
         <input type="url" name="ical_url" value="{{ me.ical_url }}" placeholder="https://calendar.google.com/calendar/ical/…">
         <span class="field-help">A private web link that ends in <code>.ics</code> (or looks like one). Only people with the link can see it — treat it like a password. Leave blank if you are not ready.</span>
       </label>
+      <p class="tiny">After you paste the URL, those appointments appear on the month calendar automatically — you do not retype names.</p>
       <div class="howto">
         <p><strong>Google Calendar</strong> — Settings → click your calendar → “Secret address in iCal format.”</p>
         <p><strong>Outlook</strong> — Share → publish an ICS link.</p>

@@ -1853,6 +1853,12 @@ def _month_span(year: int, month: int):
     return grid_start, grid_end
 
 
+def _is_ical_sourced(a) -> bool:
+    via = a["booked_via"] or ""
+    kind = uget(a, "visit_kind", "") or ""
+    return via == "ical" or kind == "external"
+
+
 def _calendar_block(a) -> dict:
     start = parse_iso(a["start_iso"])
     via = a["booked_via"] or "direct"
@@ -1863,16 +1869,22 @@ def _calendar_block(a) -> dict:
         source = "manual"
     else:
         source = "booked"
+    client_name = uget(a, "client_name", "") or ""
+    calendar_title = note_summary(uget(a, "note", "") or "") if source == "ical" else ""
     return {
         "id": a["id"],
         "date": start.date().isoformat(),
         "time": start.strftime("%H:%M"),
         "minutes": a["duration_minutes"],
         "name": block_label(a),
+        "clientName": client_name,
+        "calendarTitle": calendar_title or "",
         "visit_kind": kind,
         "booked_via": via,
         "source": source,
         "editable": source == "manual",
+        "markable": source == "ical",
+        "countsTowardCap": kind != "external",
     }
 
 
@@ -2021,6 +2033,51 @@ def api_calendar_delete(request: Request, appt_id: int):
         )
         cancel_pending(conn, appt_id)
         return {"ok": True}
+
+
+@app.post("/api/calendar/block/{appt_id}/mark")
+async def api_calendar_mark(request: Request, appt_id: int):
+    user, err = _auth(request)
+    if err:
+        return err
+    data = await _body(request)
+    raw = data.get("counts")
+    if isinstance(raw, str):
+        counts = raw.strip().lower() in ("1", "true", "yes", "on")
+    else:
+        counts = bool(raw)
+    name = (data.get("name") or "").strip()
+    with db() as conn:
+        a = conn.execute(
+            "SELECT * FROM appointments WHERE id=? AND provider_id=?",
+            (appt_id, user["id"]),
+        ).fetchone()
+        if not a:
+            return json_err("Block not found", 404)
+        if (a["status"] or "") != "booked":
+            return json_err("That appointment is not on the calendar.")
+        if not _is_ical_sourced(a):
+            return json_err("Only imported calendar appointments can be marked here.")
+        if counts:
+            kind = "session"
+            cid = a["client_id"]
+            if len(name) >= 2:
+                cid = get_or_create_client(conn, user["id"], name)
+        else:
+            kind = "external"
+            cid = None
+        conn.execute(
+            "UPDATE appointments SET visit_kind=?, client_id=? WHERE id=?",
+            (kind, cid, appt_id),
+        )
+        row = conn.execute(
+            """SELECT a.*, c.name AS client_name
+               FROM appointments a
+               LEFT JOIN clients c ON c.id = a.client_id
+               WHERE a.id=?""",
+            (appt_id,),
+        ).fetchone()
+        return {"ok": True, **_calendar_block(row)}
 
 
 def _tick_secret_ok(request: Request) -> bool:

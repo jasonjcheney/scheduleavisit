@@ -266,7 +266,7 @@ def _sync_ical(conn, user, url: str, timeout: float) -> None:
         if isinstance(start, datetime):
             start_dt = start.astimezone(TZ)
         else:
-            # All-day: occupy the clinic workday so it blocks slots and counts hours.
+            # All-day: occupy the clinic workday so it blocks slots.
             start_dt = at_local(start, f"{slot_start:02d}:00")
             minutes = workday_minutes
         day = start_dt.date()
@@ -280,7 +280,7 @@ def _sync_ical(conn, user, url: str, timeout: float) -> None:
         if row is not None:
             conn.execute(
                 """UPDATE appointments
-                   SET start_iso=?, duration_minutes=?, note=?, visit_kind='external'
+                   SET start_iso=?, duration_minutes=?, note=?
                    WHERE id=?""",
                 (start_iso, int(minutes), note, row["id"]),
             )

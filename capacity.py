@@ -165,8 +165,17 @@ def bookings_for_week(conn, provider_id: int, week_start: date) -> list:
     ).fetchall()
 
 
+def counts_toward_cap(row) -> bool:
+    """Imported busy (visit_kind=external) occupies the slot but does not use the weekly cap."""
+    return (uget(row, "visit_kind", "session") or "session") != "external"
+
+
 def booked_hours(conn, provider_id: int, week_start: date) -> float:
-    return sum(r["duration_minutes"] / 60.0 for r in bookings_for_week(conn, provider_id, week_start))
+    return sum(
+        r["duration_minutes"] / 60.0
+        for r in bookings_for_week(conn, provider_id, week_start)
+        if counts_toward_cap(r)
+    )
 
 
 def inferred_hours_for_week(conn, client_id: int, week_start: date) -> float:
@@ -193,8 +202,8 @@ def inferred_hours_for_week(conn, client_id: int, week_start: date) -> float:
 def projected_hours(conn, user, week_start: date, extra_minutes: float = 0) -> dict[str, float]:
     provider_id = user["id"]
     booked = bookings_for_week(conn, provider_id, week_start)
-    scheduled = sum(r["duration_minutes"] / 60.0 for r in booked)
-    covered = {r["client_id"] for r in booked if r["client_id"]}
+    scheduled = sum(r["duration_minutes"] / 60.0 for r in booked if counts_toward_cap(r))
+    covered = {r["client_id"] for r in booked if r["client_id"] and counts_toward_cap(r)}
     inferred = 0.0
     clients = conn.execute(
         "SELECT id FROM clients WHERE provider_id=? AND dismissed_at IS NULL",

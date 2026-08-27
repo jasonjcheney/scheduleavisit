@@ -707,6 +707,7 @@ footer.site-footer a { color: inherit; }
 .cal-block.booked { background: var(--sage-soft); color: var(--sage-deep); }
 .cal-block.manual { background: var(--clay-soft); color: var(--clay-deep); }
 .cal-block.ical { background: var(--sky-soft); color: var(--sky); }
+.cal-block.ical.session { background: var(--sage); color: #fffdf8; }
 
 input[type="url"], input[type="checkbox"] { font: inherit; }
 input[type="url"] {
@@ -1214,6 +1215,7 @@ h3 { font-size: var(--text-xl); }
 .cal-legend .lg-booked { background: var(--sage-mid); }
 .cal-legend .lg-manual { background: var(--clay); }
 .cal-legend .lg-ical { background: var(--sky); }
+.cal-legend .lg-ical-session { background: var(--sage); }
 .cal-legend .lg-today { background: transparent; border: 2px solid var(--sage); box-sizing: border-box; }
 
 .month-cal { gap: 5px; }
