@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% set compact_nav = true %}
+{% block title %}Terms — ScheduleAVisit{% endblock %}
+{% block meta_description %}ScheduleAVisit is a scheduling tool for independent counselors. Not a clinical record. Not a payments product.{% endblock %}
+{% block og_title %}Terms — ScheduleAVisit{% endblock %}
+{% block og_description %}Scheduling only. Use your own judgment. Contact jasonjcheney@gmail.com.{% endblock %}
+{% block og_url %}https://scheduleavisit.onrender.com/terms{% endblock %}
+{% block canonical %}https://scheduleavisit.onrender.com/terms{% endblock %}
+{% block content %}
+<main class="app-wrap legal-page">
+  <section class="card legal-card">
+    <p class="eyebrow">Terms</p>
+    <h1 class="page-title">A scheduling tool. That is the deal.</h1>
+    <p class="sub">Use it to book a time. It is not a clinic, a chart, or a payment desk.</p>
+
+    <h2>What you get</h2>
+    <p>Providers get a public booking link, a weekly hour cap, and a way to send overflow to colleagues they trust. Clients get a time on a calendar and a confirmation page they can save.</p>
+
+    <h2>What this is not</h2>
+    <ul>
+      <li>Not a substitute for clinical judgment</li>
+      <li>Not a place for clinical notes</li>
+      <li>Not a HIPAA-covered service, and we do not have a BAA</li>
+      <li>Not a payments product — we do not take cards, copays, or insurance billing</li>
+    </ul>
+
+    <h2>Your side</h2>
+    <p>Providers are responsible for the hours they set, the people they invite, and what they tell clients. Clients are responsible for showing up, or reaching the office if they need to change a time. We store name, email, phone if given, the visit time, and which counselor — see <a href="/privacy">Privacy</a>.</p>
+
+    <h2>Where it runs</h2>
+    <p>The site is hosted on Render. If Render is down, booking is down. Confirmation links use a private token so a stranger cannot walk integer IDs and read someone else’s visit.</p>
+
+    <h2>Questions</h2>
+    <p>Email <a href="mailto:jasonjcheney@gmail.com">jasonjcheney@gmail.com</a>. If you want a record deleted, that address is the right one.</p>
+  </section>
+</main>
+{% endblock %}

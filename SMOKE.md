@@ -38,12 +38,14 @@ GET  /api/p/alex-rivera-lpc/availability?date=2026-08-21
 
 POST /api/p/alex-rivera-lpc/book
   {date:"2026-08-21", time:"09:00", name:"Pat Client", email:"pat.client@example.com"}
-  → 200 {ok:true, appointmentId:…, redirect:"/booked/…"}
+  → 200 {ok:true, appointmentId:…, redirect:"/booked/{token}"}
 
-GET  /booked/{id}
+GET  /booked/{token}
   → 200 “You’re on the calendar.” + “Add to calendar” (.ics)
-GET  /booked/{id}.ics
+GET  /booked/{token}.ics
   → 200 text/calendar with BEGIN:VEVENT
+GET  /booked/1  (and /booked/1.ics)
+  → 404 generic “We could not find that visit.” Integer ids do not reveal a visit.
 ```
 
 Also works in the browser: `/signup` → `/setup` → dashboard → open `/p/{slug}` → pick a time → confirm.
@@ -188,7 +190,7 @@ POST /api/p/jason-cheney/book
   {date, time:"10:00", name:"Pat First", email:"pat.first@example.com", visitKind:"consult"}
   → {ok:true, visitKind:"consult", minutes:15, firstVisit:true, portalUrl:"https://…"}
 
-GET  /booked/{id}
+GET  /booked/{token}
   → Consultation badge · portal CTA when set · “Add to calendar”
 
 POST /api/p/jason-cheney/book  (same email, later time, visitKind consult)
@@ -209,6 +211,7 @@ Existing Elena / James / Maya first-name login (`demo1234`) is unchanged and ski
 
 ## Notes
 
+- This week: `/login` no longer prints demo passwords; `/privacy` and `/terms` are live in the footer; confirmation and `.ics` use `/booked/{token}` (unguessable). Sequential `/booked/1` stays dark. Elena / `demo1234` and jasoncheney / `123456` still log in if you type them.
 - Capacity is server-side. Friday 3 pm is open on Elena’s grid and still rejected by the cap (24.8 + 0.83 > 25).
 - Later weeks on Elena can have room — that is the engine, not a bug.
 - Recurring labels (Weekly / Biweekly / Occasional) are inferred from visit history.

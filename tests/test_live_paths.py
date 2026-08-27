@@ -47,7 +47,7 @@ def main() -> None:
         ("/book", 200, ["Book a visit", "Elena Vasquez", "Choose a professional"]),
         ("/p/jason-cheney", 200, ["Jason Cheney", "Pick a day", "Pick a time", 'property="og:title"', "Book with Jason Cheney"]),
         ("/p/elena-vasquez-lpc", 200, ["Elena Vasquez", "Free consultation", "Full session"]),
-        ("/login", 200, ["Welcome back", "jasoncheney", "demo1234"]),
+        ("/login", 200, ["Welcome back", "jasoncheney", 'href="/privacy"', 'href="/terms"']),
         ("/signup", 200, ["Set your name", "Create account", 'data-next="/setup"']),
     ]
     for path, status, needles in cases:
@@ -197,9 +197,15 @@ def main() -> None:
     expect("overflow-x: hidden" in css, "missing body overflow-x hidden")
     print("OK mobile CSS guards")
 
-    # —— Booked confirmation .ics download ——
-    from db import at_local, today as db_today
+    login_html = c.get("/login")
+    expect("demo1234" not in login_html.text, "/login must not advertise demo1234")
+    expect("123456" not in login_html.text, "/login must not advertise 123456")
+    print("OK /login hides demo passwords")
+
+    # —— Booked confirmation .ics download (token, not integer id) ——
+    from db import at_local, today as db_today, new_public_token
     from datetime import timedelta
+    token = new_public_token()
     with connect() as conn:
         prov = conn.execute("SELECT id, address FROM users WHERE slug=?", ("elena-vasquez-lpc",)).fetchone()
         expect(prov is not None, "elena seed missing for ics test")
@@ -212,15 +218,15 @@ def main() -> None:
         cur = conn.execute(
             """INSERT INTO appointments
                (provider_id, client_id, start_iso, duration_minutes, status, booked_via,
-                created_at, visit_kind, note)
-               VALUES (?,?,?,?, 'booked', 'direct', ?, 'session', ?)""",
+                created_at, visit_kind, note, public_token)
+               VALUES (?,?,?,?, 'booked', 'direct', ?, 'session', ?, ?)""",
             (prov["id"], client_id, start.isoformat(timespec="seconds"), 50,
-             "2026-08-22T01:00:00-06:00", ""),
+             "2026-08-22T01:00:00-06:00", "", token),
         )
         appt_id = int(cur.lastrowid)
         conn.commit()
 
-    for ics_path in (f"/booked/{appt_id}.ics", f"/api/booked/{appt_id}/ics"):
+    for ics_path in (f"/booked/{token}.ics", f"/api/booked/{token}/ics"):
         r = c.get(ics_path)
         expect(r.status_code == 200, f"{ics_path} expected 200, got {r.status_code}")
         ctype = (r.headers.get("content-type") or "").lower()
@@ -229,18 +235,30 @@ def main() -> None:
         expect("SUMMARY:" in r.text, f"{ics_path} missing SUMMARY")
         expect("DTSTART" in r.text and "DTEND" in r.text, f"{ics_path} missing DTSTART/DTEND")
         expect("LOCATION:" in r.text, f"{ics_path} missing LOCATION")
-        print(f"OK {ics_path} 200 + VEVENT")
+        print("OK token .ics 200 + VEVENT")
 
-    booked_html = c.get(f"/booked/{appt_id}")
-    expect(booked_html.status_code == 200, f"/booked/{appt_id} got {booked_html.status_code}")
+    for leak_path in (f"/booked/{appt_id}.ics", f"/api/booked/{appt_id}/ics", "/booked/1.ics"):
+        r = c.get(leak_path)
+        expect(r.status_code == 404, f"{leak_path} should 404, got {r.status_code}")
+        expect("ICS Test Client" not in r.text, f"{leak_path} leaked client name")
+        expect("BEGIN:VEVENT" not in r.text, f"{leak_path} leaked calendar")
+    print("OK integer .ics paths stay dark")
+
+    booked_html = c.get(f"/booked/{token}")
+    expect(booked_html.status_code == 200, f"/booked/{{token}} got {booked_html.status_code}")
+    expect("ICS Test Client" in booked_html.text, "token page missing client name")
     expect("Add to calendar" in booked_html.text, "booked.html missing Add to calendar")
-    expect(f"/booked/{appt_id}.ics" in booked_html.text, "booked.html missing .ics href")
+    expect(f"/booked/{token}.ics" in booked_html.text, "booked.html missing token .ics href")
+    expect(f"/booked/{appt_id}.ics" not in booked_html.text, "booked.html still links integer .ics")
     expect("What to do next" in booked_html.text, "booked.html missing next-steps heading")
     expect("Save the time" in booked_html.text, "booked.html missing Save the time step")
     expect("scheduling reminder" in booked_html.text.lower(),
            "booked.html missing scheduling-reminder copy")
     expect("confirm-next" in booked_html.text, "booked.html missing confirm-next chrome")
-    print("OK booked.html Add to calendar link")
+    leak_html = c.get(f"/booked/{appt_id}")
+    expect(leak_html.status_code == 404, f"/booked/{{id}} should 404, got {leak_html.status_code}")
+    expect("ICS Test Client" not in leak_html.text, "integer booked URL leaked client")
+    print("OK booked.html token confirmation")
 
     # —— Portal CTA on first-visit booked page when portal is set ——
     with connect() as conn:
@@ -249,7 +267,7 @@ def main() -> None:
             ("headway", "https://headway.co/example-booked", "elena-vasquez-lpc"),
         )
         conn.commit()
-    portal_html = c.get(f"/booked/{appt_id}")
+    portal_html = c.get(f"/booked/{token}")
     expect(portal_html.status_code == 200, f"portal booked page got {portal_html.status_code}")
     expect("Continue on Headway" in portal_html.text, "booked.html missing Headway portal CTA")
     expect("https://headway.co/example-booked" in portal_html.text, "booked.html missing portal_url href")

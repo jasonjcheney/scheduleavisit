@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% set compact_nav = true %}
+{% block title %}Privacy — ScheduleAVisit{% endblock %}
+{% block meta_description %}What ScheduleAVisit stores: name, email, phone if you give it, visit time, and which counselor. Scheduling only.{% endblock %}
+{% block og_title %}Privacy — ScheduleAVisit{% endblock %}
+{% block og_description %}Scheduling only. We do not keep clinical notes. We do not sell your data.{% endblock %}
+{% block og_url %}https://scheduleavisit.onrender.com/privacy{% endblock %}
+{% block canonical %}https://scheduleavisit.onrender.com/privacy{% endblock %}
+{% block content %}
+<main class="app-wrap legal-page">
+  <section class="card legal-card">
+    <p class="eyebrow">Privacy</p>
+    <h1 class="page-title">We only keep what we need to put a visit on a calendar.</h1>
+    <p class="sub">Plain language. This is a scheduling tool, not a clinical record.</p>
+
+    <h2>What this site is</h2>
+    <p>ScheduleAVisit helps a client pick a time with a counselor, or with a trusted colleague if that counselor is full. That is the whole job. We do not store session notes, diagnoses, treatment plans, or anything you would write after a visit.</p>
+
+    <h2>What we store</h2>
+    <ul>
+      <li>Your name</li>
+      <li>Your email</li>
+      <li>Your phone number, if you type one in</li>
+      <li>The appointment time</li>
+      <li>Which counselor the visit is with</li>
+    </ul>
+    <p>Providers also have an account (name, email, username, password, office address, weekly hour cap, and the colleagues they trust). Login uses a cookie so they stay signed in.</p>
+
+    <h2>What we do not claim</h2>
+    <p>We are not a HIPAA product. We have no Business Associate Agreement (BAA). Do not put clinical notes here. If you need a HIPAA-covered system, use one that signs a BAA.</p>
+
+    <h2>Where it lives</h2>
+    <p>The app is hosted on Render. Data sits in the database that service keeps for this site.</p>
+
+    <h2>Cookies</h2>
+    <p>We use a login cookie so a provider can open the dashboard without typing a password every time. Clients booking a visit do not need an account.</p>
+
+    <h2>We do not sell your data</h2>
+    <p>We do not sell names, emails, phone numbers, or visit times. We do not run ads against this list.</p>
+
+    <h2>Ask us to delete it</h2>
+    <p>Email <a href="mailto:jasonjcheney@gmail.com">jasonjcheney@gmail.com</a> and we will take your scheduling record off this site. Say which email or visit you mean so we can find it.</p>
+  </section>
+</main>
+{% endblock %}

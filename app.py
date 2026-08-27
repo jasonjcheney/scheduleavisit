@@ -30,6 +30,7 @@ from db import (
     normalize_category,
     now_iso,
     notify,
+    new_public_token,
     outgoing_recommend_count,
     parse_iso,
     set_link_category,
@@ -307,15 +308,32 @@ def get_or_create_client(conn, provider_id: int, name: str, email: str = "", pho
 
 def create_appointment(conn, provider_id, client_id, start, minutes, via="direct",
                        referred_from=None, visit_kind="session", note=""):
+    token = new_public_token()
     cur = conn.execute(
         """INSERT INTO appointments
            (provider_id, client_id, start_iso, duration_minutes, status, booked_via,
-            referred_from_provider_id, created_at, visit_kind, note)
-           VALUES (?,?,?,?, 'booked', ?, ?, ?, ?, ?)""",
+            referred_from_provider_id, created_at, visit_kind, note, public_token)
+           VALUES (?,?,?,?, 'booked', ?, ?, ?, ?, ?, ?)""",
         (provider_id, client_id, start.isoformat(timespec="seconds"), minutes, via,
-         referred_from, now_iso(), visit_kind or "session", note or ""),
+         referred_from, now_iso(), visit_kind or "session", note or "", token),
     )
     return int(cur.lastrowid)
+
+
+def confirm_url(conn, appt_id: int) -> str:
+    row = conn.execute("SELECT public_token FROM appointments WHERE id=?", (appt_id,)).fetchone()
+    token = (row["public_token"] if row else None) or ""
+    if not token:
+        token = new_public_token()
+        conn.execute("UPDATE appointments SET public_token=? WHERE id=?", (token, appt_id))
+    return f"/booked/{token}"
+
+
+def appointment_by_public_token(conn, token: str):
+    token = (token or "").strip()
+    if not token or token.isdigit():
+        return None
+    return conn.execute("SELECT * FROM appointments WHERE public_token=?", (token,)).fetchone()
 
 
 def rec_payload(item: dict, minutes: int) -> dict:
@@ -398,12 +416,22 @@ def booking_page(request: Request, slug: str):
     return resp
 
 
-@app.get("/booked/{appt_id}.ics")
-@app.get("/api/booked/{appt_id}/ics")
-def booked_ics(appt_id: int):
+@app.get("/privacy", response_class=HTMLResponse)
+def privacy_page(request: Request):
+    return tpl(request, "privacy.html")
+
+
+@app.get("/terms", response_class=HTMLResponse)
+def terms_page(request: Request):
+    return tpl(request, "terms.html")
+
+
+@app.get("/booked/{token}.ics")
+@app.get("/api/booked/{token}/ics")
+def booked_ics(token: str):
     """Download a minimal .ics so clients can add the visit to Apple/Google/Outlook."""
     with db() as conn:
-        a = conn.execute("SELECT * FROM appointments WHERE id=?", (appt_id,)).fetchone()
+        a = appointment_by_public_token(conn, token)
         if not a or a["status"] != "booked":
             return Response("Visit not found", status_code=404, media_type="text/plain")
         provider = user_by_id(conn, a["provider_id"])
@@ -434,15 +462,15 @@ def booked_ics(appt_id: int):
             location=location,
         )
     headers = {
-        "Content-Disposition": f'attachment; filename="visit-{appt_id}.ics"',
+        "Content-Disposition": f'attachment; filename="visit-{token}.ics"',
     }
     return Response(content=body, media_type="text/calendar; charset=utf-8", headers=headers)
 
 
-@app.get("/booked/{appt_id}", response_class=HTMLResponse)
-def booked_page(request: Request, appt_id: int):
+@app.get("/booked/{token}", response_class=HTMLResponse)
+def booked_page(request: Request, token: str):
     with db() as conn:
-        a = conn.execute("SELECT * FROM appointments WHERE id=?", (appt_id,)).fetchone()
+        a = appointment_by_public_token(conn, token)
         if not a or a["status"] != "booked":
             return tpl(request, "notfound.html", status_code=404, message="We could not find that visit.")
         provider = user_by_id(conn, a["provider_id"])
@@ -461,6 +489,7 @@ def booked_page(request: Request, appt_id: int):
         visit_kind = uget(a, "visit_kind", "session") or "session"
         ctx = {
             "appointment": row(a),
+            "confirm_token": a["public_token"],
             "provider": public_provider(provider),
             "client_name": client["name"] if client else "Guest",
             "client_email": client["email"] if client else "",
@@ -893,7 +922,7 @@ async def api_book(slug: str, request: Request):
         return {
             "ok": True,
             "appointmentId": appt_id,
-            "redirect": f"/booked/{appt_id}",
+            "redirect": confirm_url(conn, appt_id),
             "portalUrl": portal or None,
             "visitKind": visit_kind,
             "firstVisit": not returning,
@@ -941,7 +970,7 @@ async def api_book_referral(slug: str, request: Request):
         )
         after_book(conn, appt_id)
         print(f"[book-referral] {name} {origin['slug']} → {peer['slug']} {day} {hhmm}", flush=True)
-        return {"ok": True, "appointmentId": appt_id, "redirect": f"/booked/{appt_id}"}
+        return {"ok": True, "appointmentId": appt_id, "redirect": confirm_url(conn, appt_id)}
 
 
 @app.post("/api/p/{slug}/waitlist")

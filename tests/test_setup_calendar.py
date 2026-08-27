@@ -125,6 +125,12 @@ def main():
         ("elena@sageandstone.example", hash_password("demo1234"), "Elena Vasquez, LPC",
          "elena-vasquez-lpc", now_iso()),
     )
+    old.execute(
+        """INSERT INTO appointments
+           (provider_id, client_id, start_iso, duration_minutes, status, booked_via, created_at)
+           VALUES (1, NULL, '2026-08-21T10:00:00-06:00', 50, 'booked', 'direct', ?)""",
+        (now_iso(),),
+    )
     old.commit()
     old.close()
 
@@ -135,7 +141,10 @@ def main():
     cols = {r["name"] for r in conn.execute("PRAGMA table_info(users)").fetchall()}
     expect("username" in cols and "setup_complete" in cols and "ical_url" in cols, "migrate missing users columns")
     acols = {r["name"] for r in conn.execute("PRAGMA table_info(appointments)").fetchall()}
-    expect("visit_kind" in acols and "note" in acols, "migrate missing appointment columns")
+    expect("visit_kind" in acols and "note" in acols and "public_token" in acols, "migrate missing appointment columns")
+    migrated = conn.execute("SELECT public_token FROM appointments WHERE id=1").fetchone()
+    expect(migrated is not None and migrated["public_token"], "migrate did not backfill public_token")
+    expect(not migrated["public_token"].isdigit(), "backfilled token should not be a raw integer")
     jason = conn.execute("SELECT * FROM users WHERE username='jasoncheney'").fetchone()
     expect(jason is not None, "ensure_jason did not insert on existing Elena DB")
     expect(jason["setup_complete"] == 0, "new Jason should not skip setup")

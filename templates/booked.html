@@ -34,7 +34,7 @@
       <div class="confirm-step">
         <div class="confirm-step-label">1 · Save the time</div>
         <p class="confirm-step-help">Download a calendar file for Apple, Google, or Outlook. Scheduling reminders (if email or text is set up) are not clinical messages.</p>
-        <a class="btn btn-sage" href="/booked/{{ appointment.id }}.ics">Add to calendar</a>
+        <a class="btn btn-sage" href="/booked/{{ confirm_token }}.ics">Add to calendar</a>
       </div>
 
       {% if show_portal and portal_url %}

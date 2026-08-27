@@ -130,7 +130,8 @@ CREATE TABLE IF NOT EXISTS appointments (
   created_at TEXT NOT NULL,
   cancelled_at TEXT,
   visit_kind TEXT DEFAULT 'session',
-  note TEXT DEFAULT ''
+  note TEXT DEFAULT '',
+  public_token TEXT
 );
 
 CREATE TABLE IF NOT EXISTS network_invites (
@@ -279,10 +280,17 @@ def migrate(conn: sqlite3.Connection) -> None:
     appt_cols = [
         ("visit_kind", "TEXT DEFAULT 'session'"),
         ("note", "TEXT DEFAULT ''"),
+        ("public_token", "TEXT"),
     ]
     for name, decl in appt_cols:
         if not _has_column(conn, "appointments", name):
             conn.execute(f"ALTER TABLE appointments ADD COLUMN {name} {decl}")
+    backfill_appointment_tokens(conn)
+    conn.execute(
+        """CREATE UNIQUE INDEX IF NOT EXISTS idx_appt_public_token
+           ON appointments(public_token)
+           WHERE public_token IS NOT NULL AND public_token != ''"""
+    )
     conn.execute(
         """CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username
            ON users(username) WHERE username IS NOT NULL AND username != ''"""
@@ -493,13 +501,35 @@ def add_client(conn, provider_id: int, name: str, email: str = "", dismissed_at:
     return int(cur.lastrowid)
 
 
+def new_public_token() -> str:
+    """Unguessable confirmation token. Never a raw integer, so /booked/1 stays dark."""
+    while True:
+        token = secrets.token_urlsafe(24)
+        if token and not token.isdigit():
+            return token
+
+
+def backfill_appointment_tokens(conn: sqlite3.Connection) -> None:
+    """Give existing rows a secret token. Small ALTER + UPDATE; does not wipe users."""
+    if not _has_column(conn, "appointments", "public_token"):
+        return
+    rows = conn.execute(
+        "SELECT id FROM appointments WHERE public_token IS NULL OR public_token = ''"
+    ).fetchall()
+    for r in rows:
+        conn.execute(
+            "UPDATE appointments SET public_token=? WHERE id=?",
+            (new_public_token(), r["id"]),
+        )
+
+
 def add_appt(conn, provider_id: int, client_id: int | None, d: date, hhmm: str, minutes: int, via: str = "direct") -> int:
     start = at_local(d, hhmm)
     cur = conn.execute(
         """INSERT INTO appointments
-           (provider_id, client_id, start_iso, duration_minutes, status, booked_via, created_at)
-           VALUES (?,?,?,?, 'booked', ?, ?)""",
-        (provider_id, client_id, start.isoformat(timespec="seconds"), minutes, via, now_iso()),
+           (provider_id, client_id, start_iso, duration_minutes, status, booked_via, created_at, public_token)
+           VALUES (?,?,?,?, 'booked', ?, ?, ?)""",
+        (provider_id, client_id, start.isoformat(timespec="seconds"), minutes, via, now_iso(), new_public_token()),
     )
     return int(cur.lastrowid)
 

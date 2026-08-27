@@ -2600,3 +2600,26 @@ a:focus-visible,
 
 #reminders-card .check-line { margin-top: 4px; }
 #reminders-card .fields { max-width: 420px; }
+
+
+/* Privacy / Terms — cream page, forest type, terracotta accent */
+.legal-page { max-width: 760px; }
+.legal-page .legal-card {
+  padding: 32px 28px 36px;
+  border-top: 4px solid var(--clay);
+  background: var(--card);
+}
+.legal-page .eyebrow { color: var(--sage); }
+.legal-page h2 {
+  font-family: var(--serif);
+  color: var(--sage-deep);
+  font-size: 1.22rem;
+  margin: 28px 0 8px;
+}
+.legal-page p, .legal-page li { color: var(--ink-soft); max-width: 42em; }
+.legal-page ul { margin: 0 0 12px; padding-left: 1.2em; display: grid; gap: 6px; }
+.legal-page a { color: var(--sage); font-weight: 600; }
+.legal-page a:hover { color: var(--clay-deep); }
+@media (max-width: 480px) {
+  .legal-page .legal-card { padding: 22px 16px 28px; }
+}

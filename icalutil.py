@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta, timezone
 from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
 
-from db import TZ, at_local, now_iso, parse_iso, today
+from db import TZ, at_local, now_iso, new_public_token, parse_iso, today
 
 SYNC_EVERY = timedelta(minutes=15)
 MAX_BYTES = 1_500_000
@@ -289,9 +289,9 @@ def _sync_ical(conn, user, url: str, timeout: float) -> None:
             cur = conn.execute(
                 """INSERT INTO appointments
                    (provider_id, client_id, start_iso, duration_minutes, status, booked_via,
-                    created_at, visit_kind, note)
-                   VALUES (?,?,?,?, 'booked', 'ical', ?, 'external', ?)""",
-                (provider_id, None, start_iso, int(minutes), now_iso(), note),
+                    created_at, visit_kind, note, public_token)
+                   VALUES (?,?,?,?, 'booked', 'ical', ?, 'external', ?, ?)""",
+                (provider_id, None, start_iso, int(minutes), now_iso(), note, new_public_token()),
             )
             keep_ids.add(int(cur.lastrowid))
     for row in existing:
