@@ -3,19 +3,19 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}ScheduleAVisit — Book a visit in seconds{% endblock %}</title>
-  <meta name="description" content="{% block meta_description %}Book a visit in seconds — even when your therapist is full. One link. A weekly hour cap. A trusted peer when you’re at capacity.{% endblock %}">
+  <title>{% block title %}ScheduleAVisit — Find a time, even when your clinician is full{% endblock %}</title>
+  <meta name="description" content="{% block meta_description %}Find a time. No account needed. If your clinician is full, you still leave with a trusted colleague.{% endblock %}">
   <meta name="theme-color" content="#2D5A4A">
   <link rel="canonical" href="{% block canonical %}https://scheduleavisit.onrender.com/{% endblock %}">
   <meta property="og:site_name" content="ScheduleAVisit">
   <meta property="og:type" content="{% block og_type %}website{% endblock %}">
-  <meta property="og:title" content="{% block og_title %}ScheduleAVisit — Book a visit in seconds{% endblock %}">
-  <meta property="og:description" content="{% block og_description %}Book a visit in seconds — even when your therapist is full. One link. A weekly hour cap. A trusted peer when you’re at capacity.{% endblock %}">
+  <meta property="og:title" content="{% block og_title %}ScheduleAVisit — Find a time, even when your clinician is full{% endblock %}">
+  <meta property="og:description" content="{% block og_description %}Pick a day. You don’t need an account. If your clinician is already booked, you still leave with a trusted colleague.{% endblock %}">
   <meta property="og:url" content="{% block og_url %}https://scheduleavisit.onrender.com/{% endblock %}">
   <meta property="og:locale" content="en_US">
   <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="{% block twitter_title %}ScheduleAVisit — Book a visit in seconds{% endblock %}">
-  <meta name="twitter:description" content="{% block twitter_description %}Book a visit in seconds — even when your therapist is full. One link. A weekly hour cap. A trusted peer when you’re at capacity.{% endblock %}">
+  <meta name="twitter:title" content="{% block twitter_title %}ScheduleAVisit — Find a time, even when your clinician is full{% endblock %}">
+  <meta name="twitter:description" content="{% block twitter_description %}Pick a day. You don’t need an account. If your clinician is already booked, you still leave with a trusted colleague.{% endblock %}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -42,7 +42,6 @@
           <button type="button" class="btn btn-ghost btn-sm" data-logout>Log out</button>
         {% else %}
           <a class="btn btn-ghost btn-sm" href="/login">Provider login</a>
-          <a class="btn btn-sage btn-sm" href="/signup">Get your booking link</a>
         {% endif %}
       {% endif %}
     </nav>

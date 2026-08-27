@@ -2623,3 +2623,65 @@ a:focus-visible,
 @media (max-width: 480px) {
   .legal-page .legal-card { padding: 22px 16px 28px; }
 }
+
+
+/* ——— Client-first landing: calm provider door ——— */
+.provider-door {
+  margin-top: 28px;
+  max-width: 360px;
+  padding: 16px 18px 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+}
+.provider-door .eyebrow {
+  margin-bottom: 4px;
+  color: var(--muted);
+  letter-spacing: 0.07em;
+}
+.provider-door-title {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 1.08rem;
+  color: var(--ink);
+  margin: 0 0 4px;
+  letter-spacing: -0.02em;
+}
+.provider-door .tiny { margin: 0 0 10px; }
+.provider-door-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+}
+.provider-door-actions .btn {
+  min-height: 38px;
+  padding: 0 14px;
+  font-size: 0.88rem;
+}
+.provider-door-actions a:not(.btn) {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--sage);
+}
+.provider-door-actions a:not(.btn):hover { color: var(--sage-deep); }
+.audience-card-clinician {
+  background: var(--sage-wash);
+  border-color: #c9d8cf;
+  box-shadow: none;
+}
+.audience-card-clinician .hero-actions { margin-top: 8px; }
+.audience-card-clinician .btn-text { padding-left: 4px; }
+
+@media (max-width: 719px) {
+  .provider-door {
+    max-width: none;
+    margin-top: 22px;
+    padding: 14px 14px 12px;
+  }
+  .provider-door-actions .btn { flex: 0 1 auto; min-width: 0; }
+}
+@media (max-width: 480px) {
+  .provider-door { padding: 14px 12px 12px; }
+}

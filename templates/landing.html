@@ -1,48 +1,75 @@
 {% extends "base.html" %}
-{% block title %}ScheduleAVisit — Book a visit in seconds{% endblock %}
-{% block meta_description %}Book a visit in seconds — even when your therapist is full. One link. A weekly hour cap. A trusted peer when you’re at capacity.{% endblock %}
-{% block og_title %}ScheduleAVisit — Book a visit in seconds{% endblock %}
-{% block og_description %}One booking link for counselors and therapists. Weekly hour caps, multi-hop trusted referrals when full, and a calm waitlist when the whole network is booked.{% endblock %}
-{% block twitter_title %}ScheduleAVisit — Book a visit in seconds{% endblock %}
-{% block twitter_description %}One booking link for counselors and therapists. Weekly hour caps, multi-hop trusted referrals when full, and a calm waitlist when the whole network is booked.{% endblock %}
+{% block title %}ScheduleAVisit — Find a time, even when your clinician is full{% endblock %}
+{% block meta_description %}Find a time. No account needed. If your clinician is full, you still leave with a trusted colleague.{% endblock %}
+{% block og_title %}ScheduleAVisit — Find a time, even when your clinician is full{% endblock %}
+{% block og_description %}Pick a day. You don’t need an account. If your clinician is already booked, you still leave with a trusted colleague.{% endblock %}
+{% block twitter_title %}ScheduleAVisit — Find a time, even when your clinician is full{% endblock %}
+{% block twitter_description %}Pick a day. You don’t need an account. If your clinician is already booked, you still leave with a trusted colleague.{% endblock %}
 {% block og_url %}https://scheduleavisit.onrender.com/{% endblock %}
 {% block canonical %}https://scheduleavisit.onrender.com/{% endblock %}
 {% block content %}
 <main>
   <section class="hero">
     <div class="hero-copy">
-      <p class="eyebrow">For counselors, therapists, and independent clinicians</p>
-      <h1>Book a visit in seconds — even when your therapist is full.</h1>
-      <p class="lede">One link. A weekly hour cap. A trusted peer when you’re at capacity. Clients still leave with a time — with someone you vouch for, even a hop or two away.</p>
+      <p class="eyebrow">No account needed</p>
+      <h1>Find a time — even when your clinician is full.</h1>
+      <p class="lede">Pick a day. You don’t need an account. If your clinician is already booked, you still leave with a trusted colleague — someone they actually know.</p>
       <div class="hero-actions">
         <a class="btn btn-primary" href="/book">Book a visit</a>
-        {% if user %}
-          <a class="btn btn-sage" href="/dashboard">Open dashboard</a>
-        {% else %}
-          <a class="btn btn-sage" href="/login">Provider login</a>
-          <a class="btn btn-ghost" href="/signup">Get your booking link</a>
-        {% endif %}
+        <a class="btn btn-ghost" href="/book">Find a provider</a>
       </div>
+      <aside class="provider-door" aria-label="Provider access">
+        <p class="eyebrow">Clinicians</p>
+        <p class="provider-door-title">I am a provider</p>
+        <p class="tiny">Hour caps, your public booking link, and the colleagues you trust.</p>
+        <div class="provider-door-actions">
+          {% if user %}
+            <a class="btn btn-ghost btn-sm" href="/dashboard">Open dashboard</a>
+          {% else %}
+            <a class="btn btn-ghost btn-sm" href="/login">Clinician login</a>
+            <a href="/signup">Get your booking link</a>
+          {% endif %}
+        </div>
+      </aside>
     </div>
     <aside class="hero-card" aria-label="Example of a full week that still finds a time">
-      <p class="eyebrow">Inside the booking link</p>
-      <h3>Elena is at her weekly cap.</h3>
-      <p class="muted">Tuesday still has a hole at 4&nbsp;pm — but taking it would push her over 25 clinical hours. The client is not sent away.</p>
+      <p class="eyebrow">What you’ll see</p>
+      <h3>Your clinician is full this week.</h3>
+      <p class="muted">Tuesday at 4&nbsp;pm still works — with James, a colleague they trust, four miles away.</p>
       <div class="mini-cal" role="list">
         <div class="slot-chip taken" role="listitem">Tue 2&nbsp;pm<small>Elena · booked</small></div>
         <div class="slot-chip taken" role="listitem">Tue 3&nbsp;pm<small>Elena · booked</small></div>
         <div class="slot-chip rec" role="listitem">Tue 4&nbsp;pm<small>James · 4&nbsp;mi</small></div>
       </div>
-      <p class="tiny" style="margin:12px 0 0">If James were full too, the page would walk Elena’s network until someone has room.</p>
+      <p class="tiny" style="margin:12px 0 0">If James is full too, you still see the next trusted colleague. Never a dead end.</p>
     </aside>
   </section>
 
-  <section class="trust-strip" aria-label="What ScheduleAVisit is">
+  <section class="trust-strip" aria-label="What booking feels like">
     <div class="trust-inner">
-      <div class="trust-item"><strong>Weekly hour caps</strong><span>Real load, not empty calendar squares</span></div>
-      <div class="trust-item"><strong>Trusted referrals</strong><span>Multi-hop peers you actually know</span></div>
-      <div class="trust-item"><strong>First-visit consult</strong><span>Optional short intro before a full session</span></div>
-      <div class="trust-item"><strong>No portal maze</strong><span>One public link clients can open</span></div>
+      <div class="trust-item"><strong>No account needed</strong><span>Open a link and pick a time</span></div>
+      <div class="trust-item"><strong>A time that works</strong><span>Even when your clinician is full</span></div>
+      <div class="trust-item"><strong>Trusted colleagues</strong><span>Someone they actually know</span></div>
+      <div class="trust-item"><strong>Optional consult</strong><span>A short first visit if they offer it</span></div>
+    </div>
+  </section>
+
+  <hr class="section-rule" />
+
+  <section class="steps" id="how">
+    <div class="steps-head">
+      <p class="eyebrow">How it works</p>
+      <h2>Three steps — and you still leave with a time.</h2>
+    </div>
+    <div class="step-grid">
+      <article class="step"><div class="step-num">1</div><h3>Open one link</h3><p>No portal login. No phone tree. Just the booking page for the person you came to see — or the directory if you are still choosing.</p></article>
+      <article class="step"><div class="step-num">2</div><h3>Pick a day and a time</h3><p>Choose a free consult or a full session when they offer it. Leave your name. That is the whole form.</p></article>
+      <article class="step"><div class="step-num">3</div><h3>If they are full, you still get a time</h3><p>You stay on the page and see a colleague they trust. If that person is full too, the next trusted colleague is offered. Never “we are not taking new patients.”</p></article>
+    </div>
+    <div class="referral-story card">
+      <p class="eyebrow">The referral story</p>
+      <h3>Elena → James → Maya</h3>
+      <p class="muted" style="margin:0">When Elena is at her weekly cap, the booking page offers James. If James is also full, it keeps walking trusted peers — Maya, or whoever is next — so you are never left without a name and a time.</p>
     </div>
   </section>
 
@@ -50,24 +77,6 @@
 
   <section class="audience" id="for-whom">
     <div class="audience-grid">
-      <article class="audience-card">
-        <p class="eyebrow">For therapists</p>
-        <h2>Protect your week. Keep overflow warm.</h2>
-        <ul class="check-list">
-          <li>Set a weekly clinical hour target and a buffer for notes</li>
-          <li>See 8 weeks ahead before you take a new weekly client</li>
-          <li>Invite peers so overflow lands with people you trust</li>
-          <li>Add existing clients on a month calendar in one click</li>
-        </ul>
-        <div class="hero-actions">
-          {% if user %}
-            <a class="btn btn-sage" href="/dashboard">Go to dashboard</a>
-          {% else %}
-            <a class="btn btn-sage" href="/signup">Get your booking link</a>
-            <a class="btn btn-ghost" href="/login">Provider login</a>
-          {% endif %}
-        </div>
-      </article>
       <article class="audience-card">
         <p class="eyebrow">For clients</p>
         <h2>Book in seconds. Never a dead end.</h2>
@@ -82,32 +91,32 @@
           <a class="btn btn-ghost" href="/p/elena-vasquez-lpc">Try Elena’s demo</a>
         </div>
       </article>
+      <article class="audience-card audience-card-clinician">
+        <p class="eyebrow">For clinicians</p>
+        <h2>Protect your week. Keep overflow warm.</h2>
+        <ul class="check-list">
+          <li>Set a weekly clinical hour target and a buffer for notes</li>
+          <li>See 8 weeks ahead before you take a new weekly client</li>
+          <li>Invite peers so overflow lands with people you trust</li>
+          <li>Add existing clients on a month calendar in one click</li>
+        </ul>
+        <div class="hero-actions">
+          {% if user %}
+            <a class="btn btn-ghost" href="/dashboard">Go to dashboard</a>
+          {% else %}
+            <a class="btn btn-ghost" href="/login">Provider login</a>
+            <a class="btn btn-text" href="/signup">Get your booking link</a>
+          {% endif %}
+        </div>
+      </article>
     </div>
   </section>
 
   <hr class="section-rule" />
 
-  <section class="steps" id="how">
-    <div class="steps-head">
-      <p class="eyebrow">How it works</p>
-      <h2>Three steps — and a referral story that keeps going.</h2>
-    </div>
-    <div class="step-grid">
-      <article class="step"><div class="step-num">1</div><h3>Share one link</h3><p>Clients open scheduleavisit.com/p/your-name — not a portal login and not a phone tree.</p></article>
-      <article class="step"><div class="step-num">2</div><h3>They book themselves</h3><p>They pick a day and a time. The calendar does the hour math, including paperwork and weekly clients.</p></article>
-      <article class="step"><div class="step-num">3</div><h3>If you are full, they still get a time</h3><p>They stay on your page and see someone you trust. If that peer is full, we walk the network until someone has room.</p></article>
-    </div>
-    <div class="referral-story card">
-      <p class="eyebrow">The referral story</p>
-      <h3>Elena → James → Maya</h3>
-      <p class="muted" style="margin:0">When Elena hits her weekly cap, the booking page offers James. If James is also full, it keeps walking trusted peers — Maya, or whoever is next in the network — so the client is never left with “we are not taking new patients.”</p>
-    </div>
-  </section>
-
-  <hr class="section-rule" />
-
-  <section class="band">
+  <section class="band" id="for-clinicians">
     <div class="band-inner">
+      <p class="eyebrow" style="color:#d5e6dc">For clinicians</p>
       <h2>Built for people who cannot keep adding one more client.</h2>
       <p>Most calendars show empty squares. They do not know you are already at 25 clinical hours, or that eight weekly clients will still be there in October. ScheduleAVisit watches the real load — then keeps the next person from falling through the cracks.</p>
       <div class="stat-row">
@@ -117,12 +126,10 @@
       </div>
       <div class="band-cta">
         {% if not user %}
-          <a class="btn btn-on-sage" href="/signup">Get your booking link</a>
-          <a class="btn btn-ghost-on-sage" href="/login">Provider login</a>
-          <a class="btn btn-ghost-on-sage" href="/book">Book a visit</a>
+          <a class="btn btn-on-sage" href="/login">Provider login</a>
+          <a class="btn btn-ghost-on-sage" href="/signup">Get your booking link</a>
         {% else %}
           <a class="btn btn-on-sage" href="/dashboard">Open dashboard</a>
-          <a class="btn btn-ghost-on-sage" href="/book">Book a visit</a>
         {% endif %}
       </div>
     </div>
@@ -130,8 +137,12 @@
 
   <section class="who">
     <p class="eyebrow">Who it is for</p>
-    <h2>Independent first. Clinics later.</h2>
+    <h2>The person booking, then the clinician.</h2>
     <div class="who-grid">
+      <div class="who-card">
+        <div class="avatar av-maya" aria-hidden="true">MC</div>
+        <div><strong>The person booking the visit</strong><p class="muted" style="margin:4px 0 0">No “we are not taking new patients” dead end. A time, a name, and a way to get there.</p></div>
+      </div>
       <div class="who-card">
         <div class="avatar av-elena" aria-hidden="true">EV</div>
         <div><strong>Counselors &amp; therapists</strong><p class="muted" style="margin:4px 0 0">See when a new weekly client would tip the next two months — without tagging every person by hand.</p></div>
@@ -144,10 +155,6 @@
         <div class="avatar av-james" aria-hidden="true">JO</div>
         <div><strong>Small peer networks</strong><p class="muted" style="margin:4px 0 0">Three calendars, one referral lane. When you are full, they get the hours — and the path can hop further if needed.</p></div>
       </div>
-      <div class="who-card">
-        <div class="avatar av-maya" aria-hidden="true">MC</div>
-        <div><strong>The person booking the visit</strong><p class="muted" style="margin:4px 0 0">No “we are not taking new patients” dead end. A time, a name, and a way to get there.</p></div>
-      </div>
     </div>
   </section>
 
@@ -158,9 +165,15 @@
     <div class="faq-head">
       <p class="eyebrow">FAQ</p>
       <h2 id="faq-heading">Common questions</h2>
-      <p class="muted">Plain answers for clinicians getting started.</p>
+      <p class="muted">Plain answers for people booking a visit — and for clinicians who want a booking link.</p>
     </div>
     <div class="faq-list">
+      <details class="faq-item">
+        <summary>Do I need an account to book?</summary>
+        <div class="faq-body">
+          <p>No. Open a booking link, pick a time, and leave your name. If your clinician is full, you still see a trusted colleague.</p>
+        </div>
+      </details>
       <details class="faq-item">
         <summary>What happens when I&rsquo;m full?</summary>
         <div class="faq-body">
@@ -198,17 +211,15 @@
     <div class="final-cta-inner">
       <div>
         <p class="eyebrow">Ready when you are</p>
-        <h2>Get a booking link, or try a visit as a client.</h2>
-        <p>Providers set a weekly hour cap and invite trusted peers. Clients open one link and still leave with a time — even when the first clinician is full.</p>
+        <h2>Find a time that works.</h2>
+        <p>No account needed. If your clinician is full, you still leave with a trusted colleague.</p>
       </div>
       <div class="hero-actions">
+        <a class="btn btn-primary" href="/book">Book a visit</a>
         {% if user %}
-          <a class="btn btn-sage" href="/dashboard">Open dashboard</a>
-          <a class="btn btn-ghost" href="/book">Book a visit</a>
+          <a class="btn btn-ghost" href="/dashboard">Open dashboard</a>
         {% else %}
-          <a class="btn btn-primary" href="/signup">Get your booking link</a>
-          <a class="btn btn-sage" href="/login">Provider login</a>
-          <a class="btn btn-ghost" href="/book">Book a visit</a>
+          <a class="btn btn-ghost" href="/login">Provider login</a>
         {% endif %}
       </div>
     </div>

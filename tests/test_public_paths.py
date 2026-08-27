@@ -42,7 +42,10 @@ def main() -> None:
 
     cases = [
         ("/", 200, [
-            "Book a visit in seconds",
+            "Find a time — even when your clinician is full.",
+            "No account needed",
+            "I am a provider",
+            "Clinician login",
             "Get your booking link",
             "Provider login",
             "Common questions",
@@ -82,6 +85,13 @@ def main() -> None:
         for n in needles:
             expect(n in r.text, f"{path} missing {n!r}")
         print(f"OK {path} {r.status_code}")
+
+    landing = c.get("/")
+    expect("For counselors, therapists, and independent clinicians" not in landing.text,
+           "landing still uses the old provider-first hero eyebrow")
+    expect('class="provider-door"' in landing.text, "landing missing provider-door box")
+    expect('href="/login"' in landing.text, "landing provider door missing /login")
+    print("OK / client-first hero + provider door")
 
     # Friendly not-found for unknown provider slugs (200 HTML, not a hard 404)
     missing = c.get("/p/does-not-exist")
