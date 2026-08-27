@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% set public_chrome = true %}
 {% block title %}ScheduleAVisit — Find a time, even when your clinician is full{% endblock %}
 {% block meta_description %}Find a time. No account needed. If your clinician is full, you still leave with a trusted colleague.{% endblock %}
 {% block og_title %}ScheduleAVisit — Find a time, even when your clinician is full{% endblock %}
@@ -35,7 +36,7 @@
       <article class="step"><div class="step-num">2</div><h3>Pick a day and a time</h3><p>Choose a free consult or a full session when they offer it. Leave your name. That is the whole form.</p></article>
       <article class="step"><div class="step-num">3</div><h3>If they are full, you still get a time</h3><p>You stay on the page and see a colleague they trust. If that person is full too, the next trusted colleague is offered. Never “we are not taking new patients.”</p></article>
     </div>
-    <div class="referral-story card">
+    <div class="referral-story">
       <p class="eyebrow">The referral story</p>
       <h3>Elena → James → Maya</h3>
       <p class="muted" style="margin:0">When Elena is at her weekly cap, the booking page offers James. If James is also full, it keeps walking trusted peers — Maya, or whoever is next — so you are never left without a name and a time.</p>
@@ -83,9 +84,9 @@
 
   <hr class="section-rule" />
 
-  <section class="band" id="for-clinicians">
-    <div class="band-inner">
-      <p class="eyebrow" style="color:#d5e6dc">For clinicians</p>
+  <section class="quiet-band" id="for-clinicians">
+    <div class="quiet-band-inner">
+      <p class="eyebrow">For clinicians</p>
       <h2>Built for people who cannot keep adding one more client.</h2>
       <p>Most calendars show empty squares. They do not know you are already at 25 clinical hours, or that eight weekly clients will still be there in October. ScheduleAVisit watches the real load — then keeps the next person from falling through the cracks.</p>
       <div class="stat-row">
@@ -95,10 +96,10 @@
       </div>
       <div class="band-cta">
         {% if not user %}
-          <a class="btn btn-on-sage" href="/login">Provider login</a>
-          <a class="btn btn-ghost-on-sage" href="/signup">Get your booking link</a>
+          <a class="btn btn-ghost" href="/login">Provider login</a>
+          <a class="btn btn-text" href="/signup">Get your booking link</a>
         {% else %}
-          <a class="btn btn-on-sage" href="/dashboard">Open dashboard</a>
+          <a class="btn btn-ghost" href="/dashboard">Open dashboard</a>
         {% endif %}
       </div>
     </div>

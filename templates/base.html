@@ -22,7 +22,7 @@
   <link rel="stylesheet" href="/static/styles.css">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232D5A4A'/%3E%3Cpath d='M8 12h16v12H8z' fill='none' stroke='%23F7F3EC' stroke-width='1.8'/%3E%3Cpath d='M8 15h16M12 9v4M20 9v4' stroke='%23F7F3EC' stroke-width='1.8' stroke-linecap='round'/%3E%3Ccircle cx='20' cy='20' r='2.2' fill='%23C45C3E'/%3E%3C/svg%3E">
 </head>
-<body>
+<body class="{% if public_chrome %}public-chrome{% endif %}">
   <a class="skip" href="#app">Skip to content</a>
   <header class="site-header">
     <a class="wordmark" href="/">
@@ -34,7 +34,7 @@
         <a class="btn btn-ghost btn-sm" href="/">Home</a>
         {% if user %}<a class="btn btn-sage btn-sm" href="/dashboard">Dashboard</a>{% endif %}
       {% else %}
-        <a class="btn btn-ghost btn-sm" href="/book">Book a visit</a>
+        <a class="nav-client" href="/book">Book a visit</a>
         {% if user %}
           <a class="btn btn-sage btn-sm" href="/dashboard">Dashboard</a>
           <button type="button" class="btn btn-ghost btn-sm" data-logout>Log out</button>

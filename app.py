@@ -567,6 +567,45 @@ def rec_payload(item: dict, minutes: int) -> dict:
     }
 
 
+DIRECTORY_SEARCH_FIELDS = ("name", "credentials", "slug", "clinic", "address", "title", "specialty")
+
+
+def _norm_search(s) -> str:
+    return (s or "").strip().lower()
+
+
+def provider_matches_query(user, q: str) -> bool:
+    """Case-insensitive substring match on public provider fields. No geocoding."""
+    needle = _norm_search(q)
+    if not needle:
+        return True
+    for field in DIRECTORY_SEARCH_FIELDS:
+        try:
+            val = user[field]
+        except (KeyError, IndexError, TypeError):
+            val = ""
+        if needle in _norm_search(str(val) if val is not None else ""):
+            return True
+    return False
+
+
+def place_line(clinic, address) -> str:
+    clinic = (clinic or "").strip()
+    parts = [p.strip() for p in (address or "").split(",") if p.strip()]
+    city = ", ".join(parts[-2:]) if len(parts) >= 2 else (address or "").strip()
+    return " · ".join(b for b in (clinic, city) if b)
+
+
+def directory_card(u) -> dict:
+    p = public_provider(u)
+    p["place"] = place_line(p.get("clinic"), p.get("address"))
+    p["search_text"] = " ".join(
+        str(p.get(k) or "")
+        for k in ("name", "credentials", "slug", "clinic", "address", "title", "specialty", "place")
+    )
+    return p
+
+
 # ───────── Public pages ─────────
 
 @app.get("/", response_class=HTMLResponse)
@@ -677,17 +716,12 @@ async def google_callback(request: Request):
 
 
 @app.get("/book", response_class=HTMLResponse)
-def directory(request: Request):
+def directory(request: Request, q: str = ""):
+    q = (q or "").strip()
     with db() as conn:
         users = conn.execute("SELECT * FROM users ORDER BY name").fetchall()
-        cards = []
-        week = start_of_week(today())
-        for u in users:
-            rem = remaining_hours(conn, u, week)
-            proj = projected_hours(conn, u, week, 0)
-            st = status_for(proj["projected"], proj["target"])
-            cards.append({**public_provider(u), "status": st, "status_label": status_label(st), "remaining": rem})
-    return tpl(request, "directory.html", cards=cards)
+        cards = [directory_card(u) for u in users if provider_matches_query(u, q)]
+    return tpl(request, "directory.html", cards=cards, q=q, searched=bool(q))
 
 
 @app.get("/p/{slug}", response_class=HTMLResponse)

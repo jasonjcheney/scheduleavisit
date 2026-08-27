@@ -64,7 +64,8 @@ def main() -> None:
             'href="/privacy"',
             'href="/terms"',
         ]),
-        ("/book", 200, ["Book a visit", "Elena Vasquez", "Choose a professional",
+        ("/book", 200, ["Book a visit", "Elena Vasquez", 'name="q"',
+                         "Find someone to see",
                          "Scheduling tool for independent counselors", "clinical judgment", "no BAA"]),
         ("/login", 200, ["Welcome back", "jasoncheney", "Continue with Google",
                          "Scheduling tool for independent counselors", "Not HIPAA-compliant yet",
@@ -86,6 +87,36 @@ def main() -> None:
         for n in needles:
             expect(n in r.text, f"{path} missing {n!r}")
         print(f"OK {path} {r.status_code}")
+
+
+    book = c.get("/book")
+    expect('name="q"' in book.text, "/book missing search name=q")
+    expect('type="search"' in book.text, "/book missing search input")
+    expect("Elena is near her weekly cap" not in book.text, "/book still has tester copy")
+    print("OK /book search input")
+
+    jason = c.get("/book?q=jason")
+    expect(jason.status_code == 200, f"/book?q=jason got {jason.status_code}")
+    expect("Jason Cheney" in jason.text, "/book?q=jason missing Jason Cheney")
+    expect("/p/jason-cheney" in jason.text, "/book?q=jason missing /p/jason-cheney")
+    print("OK /book?q=jason")
+
+    boulder = c.get("/book?q=Boulder")
+    expect(boulder.status_code == 200, f"/book?q=Boulder got {boulder.status_code}")
+    expect("Elena Vasquez" in boulder.text, "/book?q=Boulder missing Elena")
+    expect("Maya Chen" in boulder.text, "/book?q=Boulder missing Maya")
+    expect("Boulder" in boulder.text, "/book?q=Boulder missing Boulder")
+    expect("James Okonkwo" not in boulder.text, "/book?q=Boulder included Superior provider")
+    print("OK /book?q=Boulder")
+
+    miss = c.get("/book?q=zzzzzz")
+    expect(miss.status_code == 200, f"/book?q=zzzzzz got {miss.status_code}")
+    expect("No one matched that search" in miss.text, "/book?q=zzzzzz missing empty state")
+    expect("different name or city" in miss.text, "/book?q=zzzzzz missing invite to try again")
+    expect('href="/p/jason-cheney"' not in miss.text, "/book?q=zzzzzz listed Jason")
+    expect('href="/p/elena-vasquez-lpc"' not in miss.text, "/book?q=zzzzzz listed Elena")
+    expect("person-card" not in miss.text, "/book?q=zzzzzz still rendered result cards")
+    print("OK /book?q=zzzzzz empty state")
 
     landing = c.get("/")
     expect("For counselors, therapists, and independent clinicians" not in landing.text,

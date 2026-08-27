@@ -1,34 +1,84 @@
 {% extends "base.html" %}
-{% set compact_nav = true %}
-{% block title %}Choose a professional — ScheduleAVisit{% endblock %}
+{% set public_chrome = true %}
+{% block title %}Book a visit — ScheduleAVisit{% endblock %}
 {% block content %}
-<main class="app-wrap">
-  <p class="eyebrow">Choose a professional</p>
-  <h1 class="page-title">Book a visit</h1>
-  <p class="sub">Elena is near her weekly cap — book her to see the referral path. James, Maya, and Jason have room.</p>
-  {% if cards %}
-  <div class="directory">
-    {% for c in cards %}
-    <a class="card who-card dir-link" href="/p/{{ c.slug }}">
-      <div class="avatar {{ c.avatar }}" aria-hidden="true">{{ c.initials }}</div>
-      <div>
-        <strong>{{ c.name }}</strong>
-        <div class="tiny">{{ c.specialty }}</div>
-        <div style="margin-top:8px"><span class="badge {{ c.status }}">{{ c.status_label }}</span></div>
-      </div>
-    </a>
-    {% endfor %}
-  </div>
-  {% else %}
-  <section class="card empty-state">
-    <p class="eyebrow">Directory</p>
-    <p class="empty-title">No public calendars yet</p>
-    <p class="muted">When a provider finishes setup, their booking link appears here.</p>
-    <div class="notfound-actions">
-      <a class="btn btn-primary" href="/">Back to home</a>
-      <a class="btn btn-sage" href="/signup">Get your booking link</a>
-    </div>
+<main class="find-page">
+  <section class="find-hero">
+    <p class="eyebrow">Book a visit</p>
+    <h1 class="page-title">Find someone to see</h1>
+    <p class="sub find-lede">Search by the name you already have, or a city you can get to.</p>
+    <form class="find-form" method="get" action="/book" role="search">
+      <label class="sr-only" for="book-q">Name or city</label>
+      <input id="book-q" class="find-input" type="search" name="q" value="{{ q }}"
+             placeholder="Name or city — Jason Cheney, Grand Junction, Boulder…"
+             autocomplete="off">
+      <button class="btn btn-primary" type="submit">Search</button>
+    </form>
   </section>
+
+  {% if searched and not cards %}
+  <section class="find-empty" id="find-empty">
+    <p class="empty-title">No one matched that search.</p>
+    <p class="muted">Try a different name or city — a first name, a clinic, or a place like Boulder or Grand Junction.</p>
+  </section>
+  {% else %}
+    {% if not searched %}
+    <p class="find-hint muted">You can look up a specific person, or a town you can get to.</p>
+    {% if cards %}
+    <h2 class="find-browse-title">Or browse everyone</h2>
+    {% endif %}
+    {% endif %}
+    {% if searched %}
+    <p class="find-count muted" id="find-count">{{ cards|length }} {{ "person" if cards|length == 1 else "people" }}</p>
+    {% endif %}
+    <div class="directory" id="directory-results">
+      {% for c in cards %}
+      <a class="person-card" href="/p/{{ c.slug }}" data-search="{{ c.search_text }}">
+        <div class="avatar {{ c.avatar }}" aria-hidden="true">{{ c.initials }}</div>
+        <div class="person-card-copy">
+          <strong>{{ c.name }}</strong>
+          {% if c.credentials %}<div class="person-cred">{{ c.credentials }}</div>{% endif %}
+          {% if c.place %}<div class="person-place">{{ c.place }}</div>{% endif %}
+          {% if c.specialty %}<div class="person-line">{{ c.specialty }}</div>{% endif %}
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+    <p class="find-empty find-live-empty" id="find-live-empty" hidden>
+      No one matched that search. Try a different name or city.
+    </p>
   {% endif %}
 </main>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function () {
+  var input = document.getElementById("book-q");
+  var grid = document.getElementById("directory-results");
+  var liveEmpty = document.getElementById("find-live-empty");
+  if (!input || !grid) return;
+  var cards = Array.prototype.slice.call(grid.querySelectorAll("[data-search]"));
+  function apply() {
+    var q = (input.value || "").trim().toLowerCase();
+    var n = 0;
+    cards.forEach(function (el) {
+      var hay = (el.getAttribute("data-search") || "").toLowerCase();
+      var ok = !q || hay.indexOf(q) !== -1;
+      el.hidden = !ok;
+      if (ok) n += 1;
+    });
+    if (liveEmpty) liveEmpty.hidden = n > 0 || !q;
+    var browse = document.querySelector(".find-browse-title");
+    if (browse) browse.hidden = !!q;
+    var hint = document.querySelector(".find-hint");
+    if (hint) hint.hidden = !!q;
+    var count = document.getElementById("find-count");
+    if (count && q) {
+      count.textContent = n + (n === 1 ? " person" : " people");
+      count.hidden = n === 0;
+    }
+  }
+  input.addEventListener("input", apply);
+})();
+</script>
 {% endblock %}

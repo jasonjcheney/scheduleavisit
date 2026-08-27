@@ -2802,3 +2802,274 @@ a:focus-visible,
   }
   .wordmark-logo { width: 32px; height: 32px; }
 }
+
+/* ——— Public family: Open Path quiet, ScheduleAVisit materials ——— */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.nav-client {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--ink);
+  text-decoration: none;
+  padding: 8px 2px;
+  white-space: nowrap;
+}
+.nav-client:hover { color: var(--sage-deep); }
+.nav-client:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: 8px;
+}
+
+body.public-chrome {
+  background: var(--paper);
+}
+.public-chrome .site-header {
+  padding: 22px 28px 18px;
+  max-width: 1080px;
+}
+.public-chrome .wordmark-name { font-size: 1.22rem; }
+.public-chrome .nav-links { gap: 16px; }
+.public-chrome .provider-link {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+.public-chrome .site-footer .footer-inner {
+  padding: 40px 28px 56px;
+}
+.public-chrome .hero {
+  padding: 56px 28px 80px;
+  gap: 48px;
+  max-width: 1080px;
+}
+.public-chrome .hero h1 {
+  font-size: clamp(2.4rem, 5.6vw, 3.8rem);
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+}
+.public-chrome .hero-photo {
+  border-radius: 20px;
+  box-shadow: none;
+  border-color: #e4d9c8;
+}
+.public-chrome .step,
+.public-chrome .audience-card,
+.public-chrome .who-card {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 8px 4px 20px;
+}
+.public-chrome .step:hover,
+.public-chrome .audience-card:hover,
+.public-chrome .who-card:hover {
+  box-shadow: none;
+  border-color: transparent;
+}
+.public-chrome .step-num {
+  background: var(--sage-soft);
+  color: var(--sage-deep);
+}
+.public-chrome .audience {
+  padding: 48px 28px 24px;
+}
+.public-chrome .audience-card-clinician {
+  background: transparent;
+  border: 0;
+}
+.public-chrome .steps,
+.public-chrome .who,
+.public-chrome .faq {
+  padding-left: 28px;
+  padding-right: 28px;
+}
+.public-chrome .referral-story {
+  margin-top: 12px;
+  padding: 8px 0 0;
+  border-top: 1px solid var(--line);
+  background: none;
+  box-shadow: none;
+}
+.public-chrome .section-rule {
+  opacity: 0.55;
+}
+
+.quiet-band {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 28px 28px 56px;
+}
+.quiet-band-inner {
+  padding: 8px 0 0;
+  display: grid;
+  gap: 16px;
+}
+.quiet-band h2 {
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  color: var(--ink);
+  max-width: 18ch;
+}
+.quiet-band p { color: var(--ink-soft); max-width: 46em; margin: 0; }
+.quiet-band .stat {
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  padding: 16px 0;
+}
+.quiet-band .stat strong {
+  color: var(--sage);
+  font-size: 1.45rem;
+}
+.quiet-band .stat span { color: var(--muted); }
+.quiet-band .band-cta { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 10px; }
+
+.public-chrome .final-cta {
+  padding: 8px 28px 64px;
+}
+.public-chrome .final-cta-inner {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 8px 0;
+}
+
+/* Find / book search */
+.find-page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 36px 24px 96px;
+}
+.find-hero { padding-bottom: 12px; }
+.find-hero .page-title {
+  font-size: clamp(2.2rem, 5vw, 3.15rem);
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+  margin-bottom: 12px;
+}
+.find-lede {
+  font-size: 1.12rem;
+  color: var(--ink-soft);
+  max-width: 34em;
+  margin-bottom: 28px;
+}
+.find-form {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+  flex-wrap: wrap;
+}
+.find-input,
+input[type="search"].find-input {
+  flex: 1 1 240px;
+  min-height: 56px;
+  border-radius: 14px;
+  border: 1.5px solid var(--line-strong);
+  background: #fff;
+  padding: 0 18px;
+  color: var(--ink);
+  font-size: 1.05rem;
+  width: 100%;
+}
+.find-input:focus,
+input[type="search"].find-input:focus {
+  outline: 3px solid rgba(45, 90, 74, 0.22);
+  border-color: var(--sage);
+}
+.find-form .btn-primary {
+  min-height: 56px;
+  padding: 0 26px;
+  font-size: 1rem;
+}
+.find-hint { margin: 22px 0 0; }
+.find-browse-title {
+  margin: 72px 0 18px;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.find-count { margin: 20px 0 8px; font-size: 0.92rem; }
+.find-page .directory {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 1fr;
+}
+.person-card {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 18px 20px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: none;
+  text-decoration: none;
+  color: inherit;
+}
+.person-card:hover {
+  color: inherit;
+  border-color: #c9bba8;
+  box-shadow: 0 2px 10px rgba(28, 43, 36, 0.05);
+}
+.person-card-copy { min-width: 0; }
+.person-card strong {
+  font-family: var(--serif);
+  font-size: 1.22rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  display: block;
+}
+.person-cred {
+  font-size: 0.86rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.person-place {
+  font-size: 0.95rem;
+  color: var(--ink-soft);
+  margin-top: 6px;
+}
+.person-line {
+  font-size: 0.92rem;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.find-empty {
+  margin-top: 36px;
+  padding: 8px 0;
+}
+.find-empty .empty-title {
+  font-family: var(--serif);
+  font-size: 1.45rem;
+  margin: 0 0 8px;
+}
+.find-live-empty { margin-top: 20px; color: var(--muted); }
+
+@media (min-width: 720px) {
+  .public-chrome .hero { padding-top: 72px; padding-bottom: 88px; }
+  .quiet-band .stat-row { grid-template-columns: repeat(3, 1fr); gap: 20px; }
+}
+@media (max-width: 719px) {
+  .public-chrome .site-header { padding: 16px 16px 14px; }
+  .public-chrome .hero,
+  .public-chrome .steps,
+  .public-chrome .who,
+  .public-chrome .faq,
+  .public-chrome .audience,
+  .quiet-band,
+  .public-chrome .final-cta { padding-left: 16px; padding-right: 16px; }
+  .find-page { padding: 24px 16px 72px; }
+  .find-form .btn-primary { flex: 1 1 100%; }
+  .find-browse-title { margin-top: 48px; }
+}
