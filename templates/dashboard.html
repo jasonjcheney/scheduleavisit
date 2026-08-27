@@ -86,6 +86,22 @@
     </section>
   </div>
 
+  <section class="card" id="reminders-card">
+    <h2>Visit reminders</h2>
+    <p class="muted">Clients get a scheduling reminder when they book, the day before, and the morning of — by email, and by text if they leave a phone. You can get the same notes. Off by default so demo accounts stay quiet.</p>
+    <form id="reminders-form" class="fields">
+      <label class="field check-line">
+        <input type="checkbox" name="reminders_opt_in" value="1" {% if me.reminders_opt_in %}checked{% endif %}>
+        Email me when clients book and before visits
+      </label>
+      <label class="field">Your phone <span class="tiny">(optional, for text reminders)</span>
+        <input type="tel" name="phone" value="{{ me.phone or '' }}" placeholder="303-555-0100" autocomplete="tel">
+      </label>
+      <div><button type="submit" class="btn btn-sage btn-sm">Save reminder settings</button></div>
+    </form>
+    <p class="help-tip">Scheduling only — first name, therapist, date, time, and clinic address if you added one. No clinical notes.</p>
+  </section>
+
   <section class="card" id="month-cal-card" data-year="{{ cal_year }}" data-month="{{ cal_month }}" data-session-minutes="{{ session_minutes }}">
     <div class="row">
       <div>
@@ -209,7 +225,7 @@
       <div class="row notes-head">
         <div>
           <h2>Notifications{% if unread_count %}<span class="badge nearly notes-unread-badge" id="notes-unread-badge" aria-live="polite">{{ unread_count }} new</span>{% endif %}</h2>
-          <p class="tiny">We do not send email. New bookings, waitlist requests, and invites land here, and a line is printed in the server log.</p>
+          <p class="tiny">Dashboard notes for bookings, waitlist, and invites. Visit reminders can also go out by email or text when those are configured.</p>
         </div>
         <button type="button" class="btn btn-ghost btn-sm" id="mark-all-read"{% if not unread_count %} hidden{% endif %}>Mark all as read</button>
       </div>
@@ -228,7 +244,7 @@
         {% else %}
         <div class="empty-state compact">
           <p class="muted" style="margin:0">Nothing yet.</p>
-          <p class="help-tip" style="margin:8px 0 0">New bookings, waitlist requests, referrals, and network invites show up here. We do not send email.</p>
+          <p class="help-tip" style="margin:8px 0 0">New bookings, waitlist requests, referrals, and network invites show up here.</p>
         </div>
         {% endfor %}
       </div>

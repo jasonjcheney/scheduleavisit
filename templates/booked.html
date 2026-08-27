@@ -14,9 +14,9 @@
     {% endif %}
     <h1>You’re on the calendar.</h1>
     {% if first_visit %}
-    <p class="lede confirm-lede">Welcome — this is your first visit with {{ provider.first }}. Write the time down and save it below. We do not send email yet. The office will see this on their dashboard.</p>
+    <p class="lede confirm-lede">Welcome — this is your first visit with {{ provider.first }}. Write the time down and save it below. If you left an email or phone, we try to send a scheduling reminder. This is a scheduling reminder only.</p>
     {% else %}
-    <p class="lede confirm-lede">This visit is booked. Write the time down — we do not send email yet. The office will see it on their dashboard.</p>
+    <p class="lede confirm-lede">This visit is booked. Write the time down. If you left an email or phone, we try to send a scheduling reminder. This is a scheduling reminder only.</p>
     {% endif %}
     <dl>
       <dt>When</dt><dd>{{ when_long }} · {{ when_time }}</dd>
@@ -33,7 +33,7 @@
 
       <div class="confirm-step">
         <div class="confirm-step-label">1 · Save the time</div>
-        <p class="confirm-step-help">Download a calendar file for Apple, Google, or Outlook. We do not email reminders yet.</p>
+        <p class="confirm-step-help">Download a calendar file for Apple, Google, or Outlook. Scheduling reminders (if email or text is set up) are not clinical messages.</p>
         <a class="btn btn-sage" href="/booked/{{ appointment.id }}.ics">Add to calendar</a>
       </div>
 

@@ -97,6 +97,8 @@ CREATE TABLE IF NOT EXISTS users (
   setup_complete INTEGER DEFAULT 0,
   ical_url TEXT DEFAULT '',
   ical_synced_at TEXT,
+  phone TEXT DEFAULT '',
+  reminders_opt_in INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL
 );
 
@@ -175,6 +177,20 @@ CREATE INDEX IF NOT EXISTS idx_waitlist_provider ON waitlist_requests(provider_i
 CREATE INDEX IF NOT EXISTS idx_appt_client ON appointments(client_id);
 CREATE INDEX IF NOT EXISTS idx_clients_provider ON clients(provider_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+
+CREATE TABLE IF NOT EXISTS reminders (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  appointment_id INTEGER NOT NULL REFERENCES appointments(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL,
+  audience TEXT NOT NULL,
+  send_at TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  sent_at TEXT,
+  last_error TEXT DEFAULT '',
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_reminders_due ON reminders(status, send_at);
+CREATE INDEX IF NOT EXISTS idx_reminders_appt ON reminders(appointment_id);
 """
 
 
@@ -254,6 +270,8 @@ def migrate(conn: sqlite3.Connection) -> None:
         ("setup_complete", "INTEGER DEFAULT 0"),
         ("ical_url", "TEXT DEFAULT ''"),
         ("ical_synced_at", "TEXT"),
+        ("phone", "TEXT DEFAULT ''"),
+        ("reminders_opt_in", "INTEGER NOT NULL DEFAULT 0"),
     ]
     for name, decl in user_cols:
         if not _has_column(conn, "users", name):
@@ -293,6 +311,21 @@ def migrate(conn: sqlite3.Connection) -> None:
     ensure_demo_usernames(conn)
     ensure_jason(conn)
     ensure_elena_referral_categories(conn)
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS reminders (
+             id INTEGER PRIMARY KEY AUTOINCREMENT,
+             appointment_id INTEGER NOT NULL REFERENCES appointments(id) ON DELETE CASCADE,
+             kind TEXT NOT NULL,
+             audience TEXT NOT NULL,
+             send_at TEXT NOT NULL,
+             status TEXT NOT NULL DEFAULT 'pending',
+             sent_at TEXT,
+             last_error TEXT DEFAULT '',
+             created_at TEXT NOT NULL
+           )"""
+    )
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_reminders_due ON reminders(status, send_at)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_reminders_appt ON reminders(appointment_id)")
     conn.commit()
 
 
@@ -452,10 +485,10 @@ def ensure_elena_referral_categories(conn: sqlite3.Connection) -> None:
 
 
 
-def add_client(conn, provider_id: int, name: str, email: str = "", dismissed_at: str | None = None) -> int:
+def add_client(conn, provider_id: int, name: str, email: str = "", dismissed_at: str | None = None, phone: str = "") -> int:
     cur = conn.execute(
         "INSERT INTO clients (provider_id, name, email, phone, created_at, dismissed_at) VALUES (?,?,?,?,?,?)",
-        (provider_id, name, email, "", now_iso(), dismissed_at),
+        (provider_id, name, email, phone or "", now_iso(), dismissed_at),
     )
     return int(cur.lastrowid)
 

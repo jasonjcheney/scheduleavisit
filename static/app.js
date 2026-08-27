@@ -437,6 +437,7 @@
             '<p class="err hidden" id="visit-err" aria-live="polite"></p>' +
             '<label class="field">Your name<input type="text" name="name" required placeholder="Jordan Lee" autocomplete="name"></label>' +
             '<label class="field">Email<input type="email" name="email" required placeholder="you@email.com" autocomplete="email"></label>' +
+            '<label class="field">Phone <span class="tiny">(optional)</span><input type="tel" name="phone" autocomplete="tel"></label>' +
             '<button type="submit" class="btn btn-primary">Confirm this visit</button>' +
           "</form>" +
         "</section>";
@@ -451,7 +452,8 @@
             date: date,
             time: time,
             name: this.name.value.trim(),
-            email: this.email.value.trim()
+            email: this.email.value.trim(),
+            phone: (this.phone && this.phone.value ? this.phone.value.trim() : "")
           }
         });
         if (!data.ok) {
@@ -913,6 +915,21 @@
         location.reload();
       });
     }
+    var remForm = $("#reminders-form");
+    if (remForm) {
+      remForm.addEventListener("submit", async function (e) {
+        e.preventDefault();
+        var data = await api("/api/me", {
+          method: "PATCH",
+          body: {
+            reminders_opt_in: remForm.reminders_opt_in && remForm.reminders_opt_in.checked ? 1 : 0,
+            phone: remForm.phone ? remForm.phone.value.trim() : ""
+          }
+        });
+        if (!data.ok) { toast(data.error || "Could not save"); return; }
+        toast("Reminder settings saved");
+      });
+    }
 
     (function wireNotifications() {
       var card = $("#notifications-card");
@@ -1147,7 +1164,9 @@
           workdays: days,
           portal_kind: kindEl ? kindEl.value : "none",
           portal_url: setupForm.portal_url.value.trim(),
-          ical_url: setupForm.ical_url.value.trim()
+          ical_url: setupForm.ical_url.value.trim(),
+          phone: setupForm.phone ? setupForm.phone.value.trim() : "",
+          reminders_opt_in: setupForm.reminders_opt_in && setupForm.reminders_opt_in.checked ? 1 : 0
         }
       });
       if (!data.ok) {

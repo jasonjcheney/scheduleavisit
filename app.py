@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import secrets
 from contextlib import contextmanager
@@ -37,6 +38,15 @@ from db import (
     verify_password,
 )
 from icalutil import build_appointment_ics, maybe_sync_ical, note_summary
+from reminders import (
+    TICK_ENV,
+    TICK_HEADER,
+    after_book,
+    after_reschedule,
+    cancel_pending,
+    cancel_pending_for_client,
+    send_due,
+)
 from capacity import (
     WEEKLY_HORIZON,
     availability_for,
@@ -272,23 +282,25 @@ def block_label(a) -> str:
 def get_or_create_client(conn, provider_id: int, name: str, email: str = "", phone: str = "") -> int:
     email = (email or "").strip()
     name = (name or "").strip()
+    phone = (phone or "").strip()
+    existing = None
     if email:
         existing = conn.execute(
             "SELECT id FROM clients WHERE provider_id=? AND lower(email)=? AND dismissed_at IS NULL",
             (provider_id, email.lower()),
         ).fetchone()
-        if existing:
-            return existing["id"]
     else:
         existing = conn.execute(
             "SELECT id FROM clients WHERE provider_id=? AND lower(name)=? AND dismissed_at IS NULL",
             (provider_id, name.lower()),
         ).fetchone()
-        if existing:
-            return existing["id"]
+    if existing:
+        if phone:
+            conn.execute("UPDATE clients SET phone=? WHERE id=?", (phone, existing["id"]))
+        return existing["id"]
     cur = conn.execute(
         "INSERT INTO clients (provider_id, name, email, phone, created_at) VALUES (?,?,?,?,?)",
-        (provider_id, name, email, (phone or "").strip(), now_iso()),
+        (provider_id, name, email, phone, now_iso()),
     )
     return int(cur.lastrowid)
 
@@ -875,6 +887,7 @@ async def api_book(slug: str, request: Request):
             f"New visit — {name}",
             f"{name} booked {format_long(day)} at {format_time(hhmm)} ({minutes} min, {visit_kind}) on your public link.",
         )
+        after_book(conn, appt_id)
         print(f"[book] {name} <{email}> with {u['slug']} on {day} {hhmm} {visit_kind}", flush=True)
         portal = "" if returning else (uget(u, "portal_url", "") or "").strip()
         return {
@@ -926,6 +939,7 @@ async def api_book_referral(slug: str, request: Request):
             f"You referred {name} to {first_name(peer['name'])}",
             f"{name} is on {first_name(peer['name'])}'s calendar {format_long(day)} at {format_time(hhmm)}.",
         )
+        after_book(conn, appt_id)
         print(f"[book-referral] {name} {origin['slug']} → {peer['slug']} {day} {hhmm}", flush=True)
         return {"ok": True, "appointmentId": appt_id, "redirect": f"/booked/{appt_id}"}
 
@@ -1025,9 +1039,11 @@ async def api_me_patch(request: Request):
         "portal_kind": str,
         "portal_url": str,
         "ical_url": str,
+        "phone": str,
+        "reminders_opt_in": int,
     }
     allow_empty = {"about", "specialty", "clinic", "address", "credentials", "title",
-                   "portal_url", "ical_url", "portal_kind"}
+                   "portal_url", "ical_url", "portal_kind", "phone"}
     sets, args = [], []
     for key, cast in fields.items():
         if key not in data:
@@ -1043,6 +1059,8 @@ async def api_me_patch(request: Request):
         if key in ("portal_url", "ical_url") and val and not str(val).lower().startswith(("http://", "https://")):
             return json_err(f"{key.replace('_', ' ')} should start with https://")
         if key == "consult_enabled":
+            val = 1 if val else 0
+        if key == "reminders_opt_in":
             val = 1 if val else 0
         sets.append(f"{key}=?")
         args.append(val)
@@ -1125,6 +1143,7 @@ def api_dismiss(request: Request, client_id: int):
                WHERE client_id=? AND status='booked' AND start_iso>=?""",
             (now_iso(), client_id, now_iso()),
         )
+        cancel_pending_for_client(conn, client_id)
         notify(conn, user["id"], "client", f"{c['name']} dismissed",
                "Their future visits were cancelled. Inferred weekly load no longer includes them.")
         return {"ok": True}
@@ -1202,6 +1221,7 @@ def api_cancel(request: Request, appt_id: int):
             "UPDATE appointments SET status='cancelled', cancelled_at=? WHERE id=?",
             (now_iso(), appt_id),
         )
+        cancel_pending(conn, appt_id)
         start = parse_iso(a["start_iso"])
         notify(conn, user["id"], "cancel", "Visit cancelled",
                f"The {format_time(start.strftime('%H:%M'))} time on {format_long(start.date())} "
@@ -1245,6 +1265,7 @@ async def api_reschedule(request: Request, appt_id: int):
             "UPDATE appointments SET start_iso=? WHERE id=?",
             (new_iso, appt_id),
         )
+        after_reschedule(conn, appt_id)
         notify(conn, user["id"], "reschedule", "Visit moved",
                f"{format_long(old.date())} {format_time(old.strftime('%H:%M'))} → "
                f"{format_long(day)} {format_time(hhmm)}. Hours stay with this visit.")
@@ -1464,6 +1485,7 @@ async def api_setup(request: Request):
         session_minutes = int(data.get("session_minutes") or 50)
         consult_minutes = int(data.get("consult_minutes") or 15)
         consult_enabled = 1 if str(data.get("consult_enabled", 1)) not in ("0", "false", "off", "") else 0
+        reminders_opt_in = 1 if str(data.get("reminders_opt_in", 0)) in ("1", "true", "on", "yes") else 0
     except (TypeError, ValueError):
         return json_err("Check the hour and minute numbers.")
     name = (data.get("name") or "").strip()
@@ -1474,12 +1496,13 @@ async def api_setup(request: Request):
         u = user_by_id(conn, user["id"])
         old_ical = (uget(u, "ical_url", "") or "").strip()
         ical_changed = ical_url != old_ical
+        phone = (data.get("phone") or "").strip()
         conn.execute(
             """UPDATE users SET
                  name=?, credentials=?, title=?, specialty=?, about=?, clinic=?, address=?,
                  weekly_target_hours=?, buffer_hours=?, workdays=?, slot_start=?, slot_end=?,
                  lunch=?, session_minutes=?, consult_minutes=?, consult_enabled=?,
-                 portal_kind=?, portal_url=?, ical_url=?,
+                 portal_kind=?, portal_url=?, ical_url=?, phone=?, reminders_opt_in=?,
                  ical_synced_at=CASE WHEN ? THEN NULL ELSE ical_synced_at END,
                  setup_complete=1
                WHERE id=?""",
@@ -1493,7 +1516,7 @@ async def api_setup(request: Request):
                 (data.get("address") or "").strip(),
                 weekly, buffer, json.dumps(days), slot_start, slot_end, lunch,
                 session_minutes, consult_minutes, consult_enabled,
-                portal_kind, portal_url, ical_url,
+                portal_kind, portal_url, ical_url, phone, reminders_opt_in,
                 1 if ical_changed else 0,
                 user["id"],
             ),
@@ -1682,7 +1705,27 @@ def api_calendar_delete(request: Request, appt_id: int):
             "UPDATE appointments SET status='cancelled', cancelled_at=? WHERE id=?",
             (now_iso(), appt_id),
         )
+        cancel_pending(conn, appt_id)
         return {"ok": True}
+
+
+def _tick_secret_ok(request: Request) -> bool:
+    expected = os.environ.get(TICK_ENV) or ""
+    got = request.headers.get(TICK_HEADER) or ""
+    if not expected or not got or len(got) != len(expected):
+        return False
+    return secrets.compare_digest(got, expected)
+
+
+@app.post("/internal/reminders/tick")
+@app.get("/internal/reminders/tick")
+def api_reminders_tick(request: Request):
+    """Wake-friendly send: process due reminder rows. Requires X-Reminder-Secret."""
+    if not _tick_secret_ok(request):
+        return json_err("Forbidden", 403)
+    with db() as conn:
+        result = send_due(conn)
+    return {"ok": True, **result}
 
 
 @app.get("/health")

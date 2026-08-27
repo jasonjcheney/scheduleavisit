@@ -44,6 +44,10 @@
         <label class="field" style="grid-column:1/-1">Address
           <input type="text" name="address" value="{{ me.address }}" placeholder="Boulder, CO">
         </label>
+        <label class="field">Phone <span class="tiny">(optional)</span>
+          <input type="tel" name="phone" value="{{ me.phone or '' }}" placeholder="303-555-0100" autocomplete="tel">
+          <span class="field-help">If you opt in to reminders, we can text this number when clients book.</span>
+        </label>
         <label class="field" style="grid-column:1/-1">Specialty
           <input type="text" name="specialty" value="{{ me.specialty }}" placeholder="Adult therapy — anxiety, life transitions">
         </label>
@@ -95,6 +99,11 @@
         </label>
       </div>
       <p class="help-tip">Tip: keep consult shorter than a full session so first visits fit even on tighter weeks.</p>
+      <label class="field check-line">
+        <input type="checkbox" name="reminders_opt_in" value="1" {% if me.reminders_opt_in %}checked{% endif %}>
+        Email me when clients book and before visits
+      </label>
+      <p class="tiny">Off by default. Scheduling reminders only — client first name, time, and clinic address. No clinical notes.</p>
     </section>
 
     <section class="card setup-section" id="client-portal">

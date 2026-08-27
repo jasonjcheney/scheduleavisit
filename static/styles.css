@@ -2597,3 +2597,6 @@ a:focus-visible,
   .need-chip strong { font-size: 0.9rem; overflow-wrap: anywhere; }
   .peer-cat { margin-top: 10px; }
 }
+
+#reminders-card .check-line { margin-top: 4px; }
+#reminders-card .fields { max-width: 420px; }

@@ -237,9 +237,8 @@ def main() -> None:
     expect(f"/booked/{appt_id}.ics" in booked_html.text, "booked.html missing .ics href")
     expect("What to do next" in booked_html.text, "booked.html missing next-steps heading")
     expect("Save the time" in booked_html.text, "booked.html missing Save the time step")
-    expect("We do not email reminders yet" in booked_html.text
-           or "we do not send email yet" in booked_html.text.lower(),
-           "booked.html missing calm no-email copy")
+    expect("scheduling reminder" in booked_html.text.lower(),
+           "booked.html missing scheduling-reminder copy")
     expect("confirm-next" in booked_html.text, "booked.html missing confirm-next chrome")
     print("OK booked.html Add to calendar link")
 

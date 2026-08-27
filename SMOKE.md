@@ -18,6 +18,7 @@ Today is Saturday 22 Aug 2026. Elena’s week is Mon 17 – Sun 23 Aug. Friday 2
 - **Cancel / reschedule** — from the dashboard upcoming list
 - **Client name filter** — search the Clients list
 - **Notifications mark-read** — per note or mark all; GET no longer auto-reads
+- **Visit reminders** — a successful book (including referral) creates `booked`, `day_before` (~24h before start, America/Denver), and `morning_of` (8:00am Denver) rows; send is attempted inline and via `POST /internal/reminders/tick` (`X-Reminder-Secret`). Email/SMS adapters no-op without env, so booking still returns 200. Therapists opt in on the dashboard (default off); optional client and therapist phones enable SMS. Cancel drops leftover pending rows; reschedule writes a new set.
 
 No SMTP, no paid ride keys, no HIPAA claims.
 
@@ -212,4 +213,4 @@ Existing Elena / James / Maya first-name login (`demo1234`) is unchanged and ski
 - Later weeks on Elena can have room — that is the engine, not a bug.
 - Recurring labels (Weekly / Biweekly / Occasional) are inferred from visit history.
 - Delete `data/app.db` and restart to re-seed the three demo providers (+ Jason).
-- Automated suites: `tests/test_public_paths.py`, `test_live_paths.py`, `test_setup_calendar.py`, `test_multihop_referral.py`, `test_specialty_referral.py`.
+- Automated suites: `tests/test_public_paths.py`, `test_live_paths.py`, `test_setup_calendar.py`, `test_multihop_referral.py`, `test_specialty_referral.py`, `test_reminders.py`.
