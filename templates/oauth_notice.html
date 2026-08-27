@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% set compact_nav = true %}
+{% block title %}Google sign-in — ScheduleAVisit{% endblock %}
+{% block content %}
+<main class="auth-wrap">
+  <p class="eyebrow">Provider</p>
+  <h1 class="page-title">{{ heading }}</h1>
+  <p class="sub">{{ message }}</p>
+  <div class="card">
+    <a class="btn btn-sage btn-block" href="/login">Back to log in</a>
+    <p class="tiny" style="margin-top:16px">You can still use email and a password.</p>
+  </div>
+</main>
+{% endblock %}

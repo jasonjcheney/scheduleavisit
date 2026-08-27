@@ -18,6 +18,11 @@
       </label>
       <button type="submit" class="btn btn-sage btn-block">Log in</button>
     </form>
+    <div class="auth-split"><span>or</span></div>
+    <a class="btn btn-google btn-block" href="/auth/google?next={{ next }}">Continue with Google</a>
+    {% if not google_ready %}
+    <p class="tiny google-hint">Google sign-in is not connected yet</p>
+    {% endif %}
     <p class="tiny" style="margin-top:16px">New here? <a href="/signup">Create a provider account</a>. No seed data required.</p>
   </div>
 </main>

@@ -47,8 +47,8 @@ def main() -> None:
         ("/book", 200, ["Book a visit", "Elena Vasquez", "Choose a professional"]),
         ("/p/jason-cheney", 200, ["Jason Cheney", "Pick a day", "Pick a time", 'property="og:title"', "Book with Jason Cheney"]),
         ("/p/elena-vasquez-lpc", 200, ["Elena Vasquez", "Free consultation", "Full session"]),
-        ("/login", 200, ["Welcome back", "jasoncheney", 'href="/privacy"', 'href="/terms"']),
-        ("/signup", 200, ["Set your name", "Create account", 'data-next="/setup"']),
+        ("/login", 200, ["Welcome back", "jasoncheney", "Continue with Google", 'href="/privacy"', 'href="/terms"']),
+        ("/signup", 200, ["Set your name", "Create account", "Continue with Google", 'data-next="/setup"']),
     ]
     for path, status, needles in cases:
         r = c.get(path)

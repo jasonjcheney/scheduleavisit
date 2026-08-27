@@ -194,6 +194,7 @@ def require_user(request: Request):
 
 def tpl(request: Request, name: str, status_code: int = 200, **ctx):
     ctx.setdefault("user", current_user(request))
+    ctx.setdefault("google_ready", google_configured())
     return templates.TemplateResponse(request, name, ctx, status_code=status_code)
 
 
@@ -231,6 +232,210 @@ def post_auth_redirect(user, nxt: str | None) -> str:
     if needs_setup(user) and not nxt.startswith("/invite") and not nxt.startswith("/setup"):
         return "/setup"
     return nxt
+
+
+GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
+GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
+GOOGLE_USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo"
+GOOGLE_STATE_COOKIE = "sav_google_oauth"
+GOOGLE_SCOPES = "openid email profile"
+
+
+def google_configured() -> bool:
+    return bool(
+        (os.environ.get("GOOGLE_CLIENT_ID") or "").strip()
+        and (os.environ.get("GOOGLE_CLIENT_SECRET") or "").strip()
+    )
+
+
+def _google_client_id() -> str:
+    return (os.environ.get("GOOGLE_CLIENT_ID") or "").strip()
+
+
+def _google_client_secret() -> str:
+    return (os.environ.get("GOOGLE_CLIENT_SECRET") or "").strip()
+
+
+def request_origin(request: Request) -> str:
+    forwarded = (request.headers.get("x-forwarded-proto") or "").split(",")[0].strip()
+    host = (
+        (request.headers.get("x-forwarded-host") or "").split(",")[0].strip()
+        or request.headers.get("host")
+        or request.url.netloc
+    )
+    proto = forwarded or request.url.scheme
+    return f"{proto}://{host}".rstrip("/")
+
+
+def google_redirect_uri(request: Request) -> str:
+    return f"{request_origin(request)}/auth/google/callback"
+
+
+def _oauth_serializer():
+    from itsdangerous import URLSafeTimedSerializer
+
+    secret = _google_client_secret() or "sav-google-oauth-unconfigured"
+    return URLSafeTimedSerializer(secret, salt="sav-google-oauth")
+
+
+def dump_oauth_state(next_url: str) -> str:
+    nxt = (next_url or "/dashboard").strip() or "/dashboard"
+    if not nxt.startswith("/"):
+        nxt = "/dashboard"
+    return _oauth_serializer().dumps({"next": nxt, "nonce": secrets.token_urlsafe(16)})
+
+
+def load_oauth_state(token: str) -> dict | None:
+    from itsdangerous import BadSignature, SignatureExpired
+
+    if not token:
+        return None
+    try:
+        data = _oauth_serializer().loads(token, max_age=600)
+    except (BadSignature, SignatureExpired, Exception):
+        return None
+    if not isinstance(data, dict):
+        return None
+    return data
+
+
+def unique_username(conn, email: str, name: str) -> str:
+    local = (email or "").split("@")[0]
+    base = re.sub(r"[^a-z0-9_]", "", local.lower())
+    if len(base) < 3:
+        base = re.sub(r"[^a-z0-9_]", "", (slugify(name) or "provider").replace("-", "_"))
+    if len(base) < 3:
+        base = "provider"
+    base = base[:32]
+    if not USERNAME_RE.match(base):
+        base = "provider"
+    uname = base
+    n = 2
+    while conn.execute(
+        "SELECT 1 FROM users WHERE lower(COALESCE(username,''))=?", (uname,)
+    ).fetchone():
+        suffix = f"_{n}"
+        uname = (base[: 32 - len(suffix)] + suffix)
+        n += 1
+    return uname
+
+
+def find_or_create_google_user(conn, email: str, name: str):
+    email = (email or "").strip().lower()
+    if not email or "@" not in email:
+        return None, False
+    existing = user_by_email(conn, email)
+    if existing:
+        return existing, False
+    display = (name or "").strip() or email.split("@")[0]
+    if len(display) < 2:
+        display = email.split("@")[0]
+    username = unique_username(conn, email, display)
+    slug = unique_slug(conn, display)
+    cur = conn.execute(
+        """INSERT INTO users (
+             email, password_hash, name, credentials, title, specialty, about, clinic, address,
+             slug, weekly_target_hours, buffer_hours, workdays, slot_start, slot_end, lunch,
+             session_minutes, timezone, created_at, username, setup_complete, consult_minutes,
+             consult_enabled, portal_kind, portal_url
+           ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+        (
+            email,
+            hash_password(secrets.token_urlsafe(32)),
+            display,
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            slug,
+            25,
+            3,
+            json.dumps([1, 2, 3, 4, 5]),
+            9,
+            17,
+            12,
+            50,
+            "America/Denver",
+            now_iso(),
+            username,
+            0,
+            15,
+            1,
+            "none",
+            "",
+        ),
+    )
+    uid = int(cur.lastrowid)
+    notify(
+        conn,
+        uid,
+        "welcome",
+        "Welcome to ScheduleAVisit",
+        "Finish setup so clients see the right hours and your portal link.",
+    )
+    return user_by_id(conn, uid), True
+
+
+def oauth_notice(request: Request, message: str, status_code: int = 200, heading: str = "Not just yet."):
+    return tpl(
+        request,
+        "oauth_notice.html",
+        status_code=status_code,
+        heading=heading,
+        message=message,
+    )
+
+
+def build_google_authorize_url(request: Request, nxt: str) -> tuple[str, str]:
+    from authlib.integrations.httpx_client import AsyncOAuth2Client
+
+    redirect_uri = google_redirect_uri(request)
+    client = AsyncOAuth2Client(
+        _google_client_id(),
+        scope=GOOGLE_SCOPES,
+        redirect_uri=redirect_uri,
+    )
+    state = dump_oauth_state(nxt)
+    url, _ = client.create_authorization_url(
+        GOOGLE_AUTH_URL,
+        state=state,
+        access_type="online",
+        include_granted_scopes="false",
+    )
+    return url, state
+
+
+async def fetch_google_profile(code: str, redirect_uri: str) -> dict:
+    """Exchange a one-time code for email/name. Never logs tokens."""
+    from authlib.integrations.httpx_client import AsyncOAuth2Client
+
+    client = AsyncOAuth2Client(_google_client_id(), _google_client_secret(), redirect_uri=redirect_uri)
+    try:
+        token = await client.fetch_token(
+            GOOGLE_TOKEN_URL,
+            code=code,
+            grant_type="authorization_code",
+        )
+        if isinstance(token, dict):
+            token.pop("refresh_token", None)
+        resp = await client.get(GOOGLE_USERINFO_URL)
+        resp.raise_for_status()
+        data = resp.json()
+    finally:
+        await client.aclose()
+    email = (data.get("email") or "").strip().lower()
+    name = (data.get("name") or "").strip()
+    if not name:
+        given = (data.get("given_name") or "").strip()
+        family = (data.get("family_name") or "").strip()
+        name = f"{given} {family}".strip()
+    return {
+        "email": email,
+        "name": name,
+        "email_verified": data.get("email_verified"),
+    }
 
 
 def normalize_hhmm(raw: str) -> str:
@@ -389,6 +594,86 @@ def signup_page(request: Request):
         prefill_email=request.query_params.get("email") or "",
         next=request.query_params.get("next") or "/setup",
     )
+
+
+@app.get("/auth/google")
+async def google_start(request: Request):
+    nxt = request.query_params.get("next") or "/dashboard"
+    if not google_configured():
+        return oauth_notice(request, "Google sign-in is not connected yet")
+    try:
+        url, state = build_google_authorize_url(request, nxt)
+    except Exception:
+        return oauth_notice(request, "Google sign-in is not connected yet")
+    resp = RedirectResponse(url, status_code=302)
+    resp.set_cookie(
+        GOOGLE_STATE_COOKIE,
+        state,
+        httponly=True,
+        samesite="lax",
+        max_age=600,
+        path="/",
+    )
+    return resp
+
+
+@app.get("/auth/google/callback")
+async def google_callback(request: Request):
+    if not google_configured():
+        return oauth_notice(request, "Google sign-in is not connected yet")
+    err = request.query_params.get("error")
+    if err == "access_denied":
+        return oauth_notice(
+            request,
+            "Google sign-in was cancelled. You can still use email and a password.",
+            heading="Cancelled.",
+        )
+    if err:
+        return oauth_notice(request, "Google sign-in is not connected yet")
+    code = (request.query_params.get("code") or "").strip()
+    state = (request.query_params.get("state") or "").strip()
+    cookie_state = request.cookies.get(GOOGLE_STATE_COOKIE) or ""
+    payload = load_oauth_state(state)
+    if not payload or (cookie_state and cookie_state != state):
+        return oauth_notice(
+            request,
+            "Google sign-in did not finish. You can still use email and a password.",
+            heading="Could not finish.",
+        )
+    if not code:
+        return oauth_notice(
+            request,
+            "Google sign-in did not finish. You can still use email and a password.",
+            heading="Could not finish.",
+        )
+    try:
+        profile = await fetch_google_profile(code, google_redirect_uri(request))
+    except Exception:
+        return oauth_notice(
+            request,
+            "Google sign-in did not finish. You can still use email and a password.",
+            heading="Could not finish.",
+        )
+    email = (profile.get("email") or "").strip().lower()
+    if not email or profile.get("email_verified") is False:
+        return oauth_notice(
+            request,
+            "Google did not share a verified email. You can still use email and a password.",
+            heading="Could not finish.",
+        )
+    with db() as conn:
+        user, _created = find_or_create_google_user(conn, email, profile.get("name") or "")
+        if not user:
+            return oauth_notice(
+                request,
+                "Google sign-in did not finish. You can still use email and a password.",
+                heading="Could not finish.",
+            )
+        nxt = post_auth_redirect(user, payload.get("next"))
+        resp = RedirectResponse(nxt, status_code=303)
+        set_session(conn, resp, user["id"])
+        resp.delete_cookie(GOOGLE_STATE_COOKIE, path="/")
+        return resp
 
 
 @app.get("/book", response_class=HTMLResponse)

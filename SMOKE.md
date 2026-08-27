@@ -211,6 +211,7 @@ Existing Elena / James / Maya first-name login (`demo1234`) is unchanged and ski
 
 ## Notes
 
+- Login and signup offer Continue with Google (`/auth/google` → `/auth/google/callback`) when `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set; otherwise a calm “not connected yet.” Password demo logins still work.
 - This week: `/login` no longer prints demo passwords; `/privacy` and `/terms` are live in the footer; confirmation and `.ics` use `/booked/{token}` (unguessable). Sequential `/booked/1` stays dark. Elena / `demo1234` and jasoncheney / `123456` still log in if you type them.
 - Capacity is server-side. Friday 3 pm is open on Elena’s grid and still rejected by the cap (24.8 + 0.83 > 25).
 - Later weeks on Elena can have room — that is the engine, not a bug.
