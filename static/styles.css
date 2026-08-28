@@ -2859,6 +2859,44 @@ body.public-chrome {
   letter-spacing: -0.03em;
   line-height: 1.08;
 }
+.public-chrome .hero.hero-solo {
+  position: relative;
+  grid-template-columns: 1fr;
+  max-width: 720px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-top: 88px;
+  padding-bottom: 72px;
+  gap: 0;
+}
+.public-chrome .hero.hero-solo .hero-copy { max-width: 38em; }
+.public-chrome .hero.hero-solo::before,
+.public-chrome .hero.hero-solo::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+}
+.public-chrome .hero.hero-solo::before {
+  width: 220px;
+  height: 220px;
+  right: -40px;
+  top: 24px;
+  background: var(--sage-soft);
+  border-radius: 64% 36% 58% 42% / 46% 54% 38% 62%;
+  opacity: 0.7;
+}
+.public-chrome .hero.hero-solo::after {
+  width: 140px;
+  height: 140px;
+  left: -48px;
+  bottom: 40px;
+  background: #f0d8cc;
+  border-radius: 42% 58% 36% 64% / 58% 36% 64% 42%;
+  opacity: 0.55;
+}
+.home-find { margin-top: 28px; max-width: 34em; }
+
 .public-chrome .hero-photo {
   position: relative;
   border: 0;
