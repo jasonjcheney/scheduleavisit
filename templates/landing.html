@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-{% set public_chrome = true %}
 {% block title %}ScheduleAVisit — Find a time, even when your clinician is full{% endblock %}
 {% block meta_description %}Find a time. No account needed. If your clinician is full, you still leave with a trusted colleague.{% endblock %}
 {% block og_title %}ScheduleAVisit — Find a time, even when your clinician is full{% endblock %}
@@ -10,20 +9,26 @@
 {% block canonical %}https://scheduleavisit.onrender.com/{% endblock %}
 {% block content %}
 <main>
-  <section class="hero hero-solo">
+  <section class="hero">
     <div class="hero-copy">
       <p class="eyebrow">No account needed</p>
       <h1>Find a time — even when your clinician is full.</h1>
-      <p class="lede">Search by name or city. If they are full, you still leave with a trusted colleague.</p>
-      <form class="find-form home-find" method="get" action="/book" role="search">
-        <label class="sr-only" for="home-q">Name or city</label>
-        <input id="home-q" class="find-input" type="search" name="q"
-               placeholder="Name or city — Jason Cheney, Grand Junction…"
-               autocomplete="off">
-        <button class="btn btn-primary" type="submit">Search</button>
-      </form>
+      <p class="lede">Pick a day — if your clinician is full, you still leave with a trusted colleague.</p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="/book">Book a visit</a>
+      </div>
     </div>
+    <aside class="hero-card" aria-label="Example of a full week that still finds a time">
+      <div class="mini-cal" role="list">
+        <div class="slot-chip taken" role="listitem">Tue 2&nbsp;pm<small>Elena · booked</small></div>
+        <div class="slot-chip taken" role="listitem">Tue 3&nbsp;pm<small>Elena · booked</small></div>
+        <div class="slot-chip rec" role="listitem">Tue 4&nbsp;pm<small>James · 4&nbsp;mi</small></div>
+      </div>
+      <p class="tiny hero-card-caption">Elena is full. Tuesday 4&nbsp;pm still works — with James, four miles away.</p>
+    </aside>
   </section>
+
+  <hr class="section-rule" />
 
   <section class="steps" id="how">
     <div class="steps-head">
@@ -31,64 +36,164 @@
       <h2>Three steps — and you still leave with a time.</h2>
     </div>
     <div class="step-grid">
-      <article class="step"><div class="step-num">1</div><h3>Search a name or a city</h3><p>No portal login. No phone tree. Look up the person you came to see, or a place you can get to.</p></article>
+      <article class="step"><div class="step-num">1</div><h3>Open one link</h3><p>No portal login. No phone tree. Just the booking page for the person you came to see — or the directory if you are still choosing.</p></article>
       <article class="step"><div class="step-num">2</div><h3>Pick a day and a time</h3><p>Choose a free consult or a full session when they offer it. Leave your name. That is the whole form.</p></article>
-      <article class="step"><div class="step-num">3</div><h3>If they are full, you still get a time</h3><p>You stay on the page and see a colleague they trust. If that person is full too, the next trusted colleague is offered.</p></article>
+      <article class="step"><div class="step-num">3</div><h3>If they are full, you still get a time</h3><p>You stay on the page and see a colleague they trust. If that person is full too, the next trusted colleague is offered. Never “we are not taking new patients.”</p></article>
+    </div>
+    <div class="referral-story card">
+      <p class="eyebrow">The referral story</p>
+      <h3>Elena → James → Maya</h3>
+      <p class="muted" style="margin:0">When Elena is at her weekly cap, the booking page offers James. If James is also full, it keeps walking trusted peers — Maya, or whoever is next — so you are never left without a name and a time.</p>
     </div>
   </section>
+
+  <hr class="section-rule" />
+
+  <section class="audience" id="for-whom">
+    <div class="audience-grid">
+      <article class="audience-card">
+        <p class="eyebrow">For clients</p>
+        <h2>Book in seconds. Never a dead end.</h2>
+        <ul class="check-list">
+          <li>Open one link — no account required to request a time</li>
+          <li>Choose a free consult or a full session when offered</li>
+          <li>If your clinician is full, still leave with a name and a time</li>
+          <li>Optional ride links to the office address</li>
+        </ul>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="/book">Book a visit</a>
+          <a class="btn btn-ghost" href="/p/elena-vasquez-lpc">Try Elena’s demo</a>
+        </div>
+      </article>
+      <article class="audience-card audience-card-clinician">
+        <p class="eyebrow">For clinicians</p>
+        <h2>Protect your week. Keep overflow warm.</h2>
+        <ul class="check-list">
+          <li>Set a weekly clinical hour target and a buffer for notes</li>
+          <li>See 8 weeks ahead before you take a new weekly client</li>
+          <li>Invite peers so overflow lands with people you trust</li>
+          <li>Add existing clients on a month calendar in one click</li>
+        </ul>
+        <div class="hero-actions">
+          {% if user %}
+            <a class="btn btn-ghost" href="/dashboard">Go to dashboard</a>
+          {% else %}
+            <a class="btn btn-ghost" href="/login">Provider login</a>
+            <a class="btn btn-text" href="/signup">Get your booking link</a>
+          {% endif %}
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <hr class="section-rule" />
+
+  <section class="band" id="for-clinicians">
+    <div class="band-inner">
+      <p class="eyebrow" style="color:#d5e6dc">For clinicians</p>
+      <h2>Built for people who cannot keep adding one more client.</h2>
+      <p>Most calendars show empty squares. They do not know you are already at 25 clinical hours, or that eight weekly clients will still be there in October. ScheduleAVisit watches the real load — then keeps the next person from falling through the cracks.</p>
+      <div class="stat-row">
+        <div class="stat"><strong>25 hrs</strong><span>Your weekly clinical target, not a guess</span></div>
+        <div class="stat"><strong>8 weeks</strong><span>Look-ahead before you take a new weekly client</span></div>
+        <div class="stat"><strong>Multi-hop</strong><span>Trusted peers, until someone has room</span></div>
+      </div>
+      <div class="band-cta">
+        {% if not user %}
+          <a class="btn btn-on-sage" href="/login">Provider login</a>
+          <a class="btn btn-ghost-on-sage" href="/signup">Get your booking link</a>
+        {% else %}
+          <a class="btn btn-on-sage" href="/dashboard">Open dashboard</a>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  <section class="who">
+    <p class="eyebrow">Who it is for</p>
+    <h2>The person booking, then the clinician.</h2>
+    <div class="who-grid">
+      <div class="who-card">
+        <div class="avatar av-maya" aria-hidden="true">MC</div>
+        <div><strong>The person booking the visit</strong><p class="muted" style="margin:4px 0 0">No “we are not taking new patients” dead end. A time, a name, and a way to get there.</p></div>
+      </div>
+      <div class="who-card">
+        <div class="avatar av-elena" aria-hidden="true">EV</div>
+        <div><strong>Counselors &amp; therapists</strong><p class="muted" style="margin:4px 0 0">See when a new weekly client would tip the next two months — without tagging every person by hand.</p></div>
+      </div>
+      <div class="who-card">
+        <div class="avatar av-priya" aria-hidden="true">MD</div>
+        <div><strong>Doctors who still run their own book</strong><p class="muted" style="margin:4px 0 0">Protect procedure days and admin time. Send overflow to a peer you already know.</p></div>
+      </div>
+      <div class="who-card">
+        <div class="avatar av-james" aria-hidden="true">JO</div>
+        <div><strong>Small peer networks</strong><p class="muted" style="margin:4px 0 0">Three calendars, one referral lane. When you are full, they get the hours — and the path can hop further if needed.</p></div>
+      </div>
+    </div>
+  </section>
+
+
+  <hr class="section-rule" />
 
   <section class="faq" id="faq" aria-labelledby="faq-heading">
     <div class="faq-head">
       <p class="eyebrow">FAQ</p>
       <h2 id="faq-heading">Common questions</h2>
+      <p class="muted">Plain answers for people booking a visit — and for clinicians who want a booking link.</p>
     </div>
     <div class="faq-list">
       <details class="faq-item">
         <summary>Do I need an account to book?</summary>
         <div class="faq-body">
-          <p>No. Search, pick a time, and leave your name. If your clinician is full, you still see a trusted colleague.</p>
+          <p>No. Open a booking link, pick a time, and leave your name. If your clinician is full, you still see a trusted colleague.</p>
         </div>
       </details>
       <details class="faq-item">
-        <summary>What happens when a clinician is full?</summary>
+        <summary>What happens when I&rsquo;m full?</summary>
         <div class="faq-body">
-          <p>Trusted peers on their network get offered. If everyone is full, you can join a waitlist.</p>
+          <p>Trusted peers on your network get offered; if everyone is full, clients can join your waitlist.</p>
         </div>
       </details>
       <details class="faq-item">
-        <summary>Do clients see the hour cap?</summary>
+        <summary>Do clients see my hour cap?</summary>
         <div class="faq-body">
-          <p>No. They see open times or a colleague the clinician trusts.</p>
+          <p>No. They see open times or a colleague you trust.</p>
+        </div>
+      </details>
+      <details class="faq-item">
+        <summary>How do peer referrals work?</summary>
+        <div class="faq-body">
+          <p>You invite colleagues; when you&rsquo;re at capacity the booking page offers them (including wider network hops).</p>
         </div>
       </details>
       <details class="faq-item">
         <summary>Is this HIPAA?</summary>
         <div class="faq-body">
-          <p>Not yet. No BAA. Do not put clinical notes here. Fine for scheduling while you grow.</p>
+          <p>Not yet. No BAA. Don&rsquo;t put clinical notes here. Fine for scheduling logistics while you grow.</p>
         </div>
       </details>
       <details class="faq-item">
-        <summary>How do I get a booking link?</summary>
+        <summary>How do I get my booking link?</summary>
         <div class="faq-body">
-          <p>Sign up or log in. Your public link and QR are on the dashboard.</p>
+          <p>Sign up / log in &rarr; setup &rarr; dashboard shows your public link and QR. Notifications are in-dashboard for now (no email yet).</p>
         </div>
       </details>
     </div>
   </section>
 
-  <section class="final-cta" aria-label="For clinicians">
+  <section class="final-cta" aria-label="Get started">
     <div class="final-cta-inner">
       <div>
-        <p class="eyebrow">For clinicians</p>
-        <h2>Protect the week. Keep overflow warm.</h2>
-        <p>Set a weekly hour target. When you are full, the next person still leaves with a colleague you trust.</p>
+        <p class="eyebrow">Ready when you are</p>
+        <h2>Find a time that works.</h2>
+        <p>No account needed. If your clinician is full, you still leave with a trusted colleague.</p>
       </div>
       <div class="hero-actions">
+        <a class="btn btn-primary" href="/book">Book a visit</a>
         {% if user %}
           <a class="btn btn-ghost" href="/dashboard">Open dashboard</a>
         {% else %}
           <a class="btn btn-ghost" href="/login">Provider login</a>
-          <a class="btn btn-text" href="/signup">Get your booking link</a>
         {% endif %}
       </div>
     </div>
@@ -105,6 +210,7 @@
       <a href="/signup">Get your booking link</a>
       <a href="#how">How it works</a>
       <a href="#faq">FAQ</a>
+      <a href="#for-whom">Who it’s for</a>
       <a href="/privacy">Privacy</a>
       <a href="/terms">Terms</a>
     </nav>
