@@ -979,6 +979,7 @@ def dashboard(request: Request):
                 "category": pcat,
                 "category_label": category_label(pcat),
             })
+        peer_rows.sort(key=lambda pr: ({"room": 0, "nearly": 1, "full": 2}.get(pr["status"], 9), pr.get("name") or ""))
 
         notes = conn.execute(
             "SELECT * FROM notifications WHERE user_id=? ORDER BY created_at DESC LIMIT 20",
@@ -1021,6 +1022,17 @@ def dashboard(request: Request):
             ir["url"] = f"{base}/invite/{inv['token']}"
             pending_invites.append(ir)
 
+        overflow_to = None
+        if st in ("full", "nearly"):
+            recs = referral_candidates(conn, u, today(), None, minutes, limit=1, category="general")
+            if recs:
+                r0 = recs[0]
+                overflow_to = {
+                    "first": r0["first"],
+                    "name": r0["name"],
+                    "remaining_label": hours_label(r0["remaining"]),
+                }
+
         ctx = {
             "me": row(u),
             "first": first_name(u["name"]),
@@ -1061,6 +1073,7 @@ def dashboard(request: Request):
             "categories": CATEGORY_CHOICES,
             "recommend_max": MAX_RECOMMENDATIONS,
             "recommend_count": outgoing_recommend_count(conn, u["id"]),
+            "overflow_to": overflow_to,
         }
     return tpl(request, "dashboard.html", **ctx)
 

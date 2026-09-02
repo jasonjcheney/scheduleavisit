@@ -48,9 +48,19 @@
         {% if cap.fits %}would still fit.{% else %}would put you over.{% endif %}
       </p>
       {% if cap.status == 'full' %}
-      <p class="help-tip" style="margin-top:10px">Your week is full. New clients on your booking link will be offered a colleague with room — invite one below if this list is empty.</p>
+        {% if overflow_to %}
+      <p class="help-tip" style="margin-top:10px">Your week is full. New clients on your booking link will be offered {{ overflow_to.first }} ({{ overflow_to.remaining_label }} left this week).</p>
+        {% elif peers %}
+      <p class="help-tip" style="margin-top:10px">Your week is full, and your trusted peers are full too. New clients can join the waitlist.</p>
+        {% else %}
+      <p class="help-tip" style="margin-top:10px">Your week is full. Invite a trusted peer below so overflow stays with someone you vouch for.</p>
+        {% endif %}
       {% elif cap.status == 'nearly' %}
+        {% if overflow_to %}
+      <p class="help-tip" style="margin-top:10px">Your week is nearly full. The next overflow client would be offered {{ overflow_to.first }} ({{ overflow_to.remaining_label }} left).</p>
+        {% else %}
       <p class="help-tip" style="margin-top:10px">Your week is nearly full. Invite a trusted peer so overflow stays with someone you vouch for.</p>
+        {% endif %}
       {% else %}
       <p class="help-tip" style="margin-top:10px">You still have room this week. Clients who book you get a time with you.</p>
       {% endif %}
@@ -355,7 +365,7 @@
 
     <section class="card" id="referral-network">
       <h2>Referral network</h2>
-      <p class="muted">Assign up to {{ recommend_max }} colleagues and tag each with a category. When you are full, the booking page offers the tagged match first, then your General slot, then peers of peers with room.</p>
+      <p class="muted">Assign up to {{ recommend_max }} colleagues and tag each with a category. When you are full, the booking page offers the tagged match first, then your General slot, then peers of peers with room. Colleagues with room this week sit at the top.</p>
       <p class="tiny recommend-count">{{ recommend_count }} of {{ recommend_max }} colleagues assigned. General is always available as a tag.</p>
       {% for p in peers %}
       <div class="peer" data-peer-id="{{ p.id }}">
