@@ -38,7 +38,7 @@ from db import (
     today,
     verify_password,
 )
-from icalutil import build_appointment_ics, maybe_sync_ical, note_summary
+from icalutil import build_appointment_ics, maybe_sync_ical, normalize_ical_urls, note_summary
 from reminders import (
     TICK_ENV,
     TICK_HEADER,
@@ -1404,8 +1404,12 @@ async def api_me_patch(request: Request):
             return json_err(f"Invalid {key}")
         if key == "portal_kind" and val not in ("none", "headway", "sondermind", "custom"):
             return json_err("Pick a portal type.")
-        if key in ("portal_url", "ical_url") and val and not str(val).lower().startswith(("http://", "https://")):
-            return json_err(f"{key.replace('_', ' ')} should start with https://")
+        if key == "portal_url" and val and not str(val).lower().startswith(("http://", "https://")):
+            return json_err("portal url should start with https://")
+        if key == "ical_url":
+            val, ical_err = normalize_ical_urls(str(val) if val else "")
+            if ical_err:
+                return json_err(ical_err)
         if key == "consult_enabled":
             val = 1 if val else 0
         if key == "reminders_opt_in":
@@ -1816,11 +1820,11 @@ async def api_setup(request: Request):
     if portal_kind not in ("none", "headway", "sondermind", "custom"):
         return json_err("Pick how clients start intake.")
     portal_url = (data.get("portal_url") or "").strip()
-    ical_url = (data.get("ical_url") or "").strip()
+    ical_url, ical_err = normalize_ical_urls(data.get("ical_url") or "")
+    if ical_err:
+        return json_err(ical_err)
     if portal_url and not portal_url.lower().startswith(("http://", "https://")):
         return json_err("Portal link should start with https://")
-    if ical_url and not ical_url.lower().startswith(("http://", "https://")):
-        return json_err("Calendar link should start with https://")
     days = _parse_workdays(data.get("workdays") or [1, 2, 3, 4, 5])
     if not days:
         return json_err("Pick at least one workday.")

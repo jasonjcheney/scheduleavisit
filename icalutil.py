@@ -198,6 +198,30 @@ def note_uid(note: str | None) -> str:
     return ""
 
 
+def ical_url_list(raw: str | None) -> list[str]:
+    """One iCal URL per line. A single URL still works."""
+    urls: list[str] = []
+    seen: set[str] = set()
+    for line in (raw or "").splitlines():
+        u = line.strip()
+        if not u:
+            continue
+        if not u.lower().startswith(("http://", "https://")):
+            continue
+        if u not in seen:
+            seen.add(u)
+            urls.append(u)
+    return urls
+
+
+def normalize_ical_urls(raw: str | None) -> tuple[str, str | None]:
+    lines = [ln.strip() for ln in (raw or "").splitlines() if ln.strip()]
+    for ln in lines:
+        if not ln.lower().startswith(("http://", "https://")):
+            return "", "Each calendar link should start with https://"
+    return "\n".join(lines), None
+
+
 def maybe_sync_ical(conn, user, timeout: float = 2.0) -> None:
     """Re-fetch at most every 15 minutes. Fail softly. Never raise into the page."""
     try:
@@ -206,8 +230,8 @@ def maybe_sync_ical(conn, user, timeout: float = 2.0) -> None:
         keys = set()
     if "ical_url" not in keys:
         return
-    url = (user["ical_url"] or "").strip()
-    if not url:
+    urls = ical_url_list(user["ical_url"] if "ical_url" in keys else "")
+    if not urls:
         return
     synced = user["ical_synced_at"] if "ical_synced_at" in keys else None
     if synced:
@@ -217,23 +241,33 @@ def maybe_sync_ical(conn, user, timeout: float = 2.0) -> None:
                 return
         except Exception:
             pass
-    _sync_ical(conn, user, url, timeout)
+    _sync_ical_urls(conn, user, urls, timeout)
 
 
 def _sync_ical(conn, user, url: str, timeout: float) -> None:
+    _sync_ical_urls(conn, user, [url], timeout)
+
+
+def _sync_ical_urls(conn, user, urls: list[str], timeout: float) -> None:
     provider_id = user["id"]
-    text = fetch_ics(url, timeout=timeout)
+    events: list = []
+    got = False
+    for url in urls:
+        text = fetch_ics(url, timeout=timeout)
+        if not text:
+            continue
+        got = True
+        try:
+            events.extend(parse_ics(text))
+        except Exception:
+            continue
     # Stamp the attempt so a bad URL does not stall every page load.
     try:
         conn.execute("UPDATE users SET ical_synced_at=? WHERE id=?", (now_iso(), provider_id))
         conn.commit()
     except Exception:
         pass
-    if not text:
-        return
-    try:
-        events = parse_ics(text)
-    except Exception:
+    if not got:
         return
 
     slot_start = int(user["slot_start"] or 9)
@@ -260,7 +294,12 @@ def _sync_ical(conn, user, url: str, timeout: float) -> None:
         by_start[row["start_iso"]] = row
 
     keep_ids = set()
+    seen_ev = set()
     for ev in events:
+        key = (ev.get("uid") or "") or (str(ev.get("start")), ev.get("summary") or "")
+        if key in seen_ev:
+            continue
+        seen_ev.add(key)
         start = ev["start"]
         minutes = ev["minutes"]
         if isinstance(start, datetime):

@@ -125,12 +125,12 @@
     <section class="card setup-section" id="calendar-ical">
       <p class="eyebrow">4</p>
       <h2>Calendar</h2>
-      <p class="muted">Optional. Paste a private calendar feed so meetings you already have show on your month calendar. We never ask you to sign in with Google.</p>
-      <label class="field">iCal / ICS secret URL
-        <input type="url" name="ical_url" value="{{ me.ical_url }}" placeholder="https://calendar.google.com/calendar/ical/…">
-        <span class="field-help">A private web link that ends in <code>.ics</code> (or looks like one). Only people with the link can see it — treat it like a password. Leave blank if you are not ready.</span>
+      <p class="muted">Optional. Paste every private calendar feed you use (Google, Outlook, a portal calendar). Each session on those calendars can count here. One link per line. We never ask you to sign in with Google.</p>
+      <label class="field">iCal / ICS secret URLs
+        <textarea name="ical_url" rows="3" placeholder="https://calendar.google.com/calendar/ical/…">{{ me.ical_url }}</textarea>
+        <span class="field-help">Private web links that end in <code>.ics</code>. One per line. Treat them like passwords. Leave blank if you are not ready.</span>
       </label>
-      <p class="tiny">After you paste the URL, those appointments appear on the month calendar automatically — you do not retype names.</p>
+      <p class="tiny">After you paste the URLs, those appointments appear on the month calendar automatically — you do not retype names. Click an imported box if it was a counseling session, so it counts toward your weekly cap.</p>
       <div class="howto">
         <p><strong>Google Calendar</strong> — Settings → click your calendar → “Secret address in iCal format.”</p>
         <p><strong>Outlook</strong> — Share → publish an ICS link.</p>
