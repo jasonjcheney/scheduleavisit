@@ -74,6 +74,19 @@ def user_workdays(user) -> list[int]:
         return [1, 2, 3, 4, 5]
 
 
+def hide_setup_placeholder(value: str | None) -> str:
+    """Blank copy that is clearly a setup hint, not a real public bio."""
+    text = (value or "").strip()
+    if not text:
+        return ""
+    low = text.lower()
+    if low in {"my practice"}:
+        return ""
+    if "edit this in setup" in low or "rewrite in setup" in low:
+        return ""
+    return text
+
+
 def public_provider(user, from_slug: str | None = None) -> dict[str, Any]:
     slug = user["slug"]
     return {
@@ -81,10 +94,10 @@ def public_provider(user, from_slug: str | None = None) -> dict[str, Any]:
         "name": user["name"],
         "first": first_name(user["name"]),
         "credentials": user["credentials"],
-        "title": user["title"],
-        "specialty": user["specialty"],
-        "about": user["about"],
-        "clinic": user["clinic"],
+        "title": hide_setup_placeholder(user["title"]),
+        "specialty": hide_setup_placeholder(user["specialty"]),
+        "about": hide_setup_placeholder(user["about"]),
+        "clinic": hide_setup_placeholder(user["clinic"]),
         "address": user["address"],
         "slug": slug,
         "session_minutes": int(uget(user, "session_minutes", 50) or 50),

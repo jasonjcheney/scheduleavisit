@@ -57,6 +57,11 @@ def main() -> None:
             expect(n in r.text, f"{path} missing {n!r}")
         print(f"OK {path} {r.status_code}")
 
+    jason_page = c.get("/p/jason-cheney").text
+    for banned in ("edit this in setup", "rewrite in setup"):
+        expect(banned not in jason_page, f"/p/jason-cheney still shows {banned!r}")
+    print("OK /p/jason-cheney hides setup placeholders")
+
     # —— Auth gate ——
     for path in ("/setup", "/dashboard"):
         r = c.get(path, follow_redirects=False)
