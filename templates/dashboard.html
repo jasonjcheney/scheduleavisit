@@ -47,6 +47,13 @@
         = {{ cap.projected_label }} projected. A new {{ session_minutes }}-minute visit
         {% if cap.fits %}would still fit.{% else %}would put you over.{% endif %}
       </p>
+      {% if cap.status == 'full' %}
+      <p class="help-tip" style="margin-top:10px">Your week is full. New clients on your booking link will be offered a colleague with room — invite one below if this list is empty.</p>
+      {% elif cap.status == 'nearly' %}
+      <p class="help-tip" style="margin-top:10px">Your week is nearly full. Invite a trusted peer so overflow stays with someone you vouch for.</p>
+      {% else %}
+      <p class="help-tip" style="margin-top:10px">You still have room this week. Clients who book you get a time with you.</p>
+      {% endif %}
       <form id="cap-form" class="fields two" style="margin-top:16px">
         <label class="field">Weekly hour target
           <input type="number" name="weekly_target_hours" min="4" max="60" step="1" value="{{ me.weekly_target_hours }}">
