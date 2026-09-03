@@ -20,7 +20,7 @@
       </div>
     </div>
     {% if provider.about %}<p>{{ provider.about }}</p>{% endif %}
-    <p class="tiny">{{ provider.address }}</p>
+    {% if provider.address %}<p class="tiny">{{ provider.address }}</p>{% endif %}
   </section>
   <section class="card" id="need-card">
     <h2>What are you hoping to work on?</h2>

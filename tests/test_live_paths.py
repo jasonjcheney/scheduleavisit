@@ -58,9 +58,9 @@ def main() -> None:
         print(f"OK {path} {r.status_code}")
 
     jason_page = c.get("/p/jason-cheney").text
-    for banned in ("edit this in setup", "rewrite in setup"):
+    for banned in ("edit this in setup", "rewrite in setup", "Boulder"):
         expect(banned not in jason_page, f"/p/jason-cheney still shows {banned!r}")
-    print("OK /p/jason-cheney hides setup placeholders")
+    print("OK /p/jason-cheney hides setup placeholders and seeded Boulder")
 
     # —— Auth gate ——
     for path in ("/setup", "/dashboard"):

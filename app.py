@@ -70,6 +70,7 @@ from capacity import (
     network_reachable,
     peers_of,
     projected_hours,
+    public_address,
     public_provider,
     referral_candidates,
     remaining_hours,
@@ -579,11 +580,15 @@ def provider_matches_query(user, q: str) -> bool:
     needle = _norm_search(q)
     if not needle:
         return True
+    # Search the same public-facing values clients see (seed Boulder etc. stay hidden).
+    pub = public_provider(user)
     for field in DIRECTORY_SEARCH_FIELDS:
-        try:
-            val = user[field]
-        except (KeyError, IndexError, TypeError):
-            val = ""
+        val = pub.get(field, "") if field in pub else ""
+        if field not in pub:
+            try:
+                val = user[field]
+            except (KeyError, IndexError, TypeError):
+                val = ""
         if needle in _norm_search(str(val) if val is not None else ""):
             return True
     return False

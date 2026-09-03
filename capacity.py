@@ -87,6 +87,18 @@ def hide_setup_placeholder(value: str | None) -> str:
     return text
 
 
+def public_address(user) -> str:
+    """Blank seeded / misleading location until the provider saves real copy."""
+    raw = (user["address"] or "").strip()
+    if not raw:
+        return ""
+    slug = (user["slug"] or "").strip()
+    # Jason's seed used Boulder; do not invent Grand Junction until he approves copy.
+    if slug == "jason-cheney" and raw.lower() in {"boulder, co", "boulder"}:
+        return ""
+    return raw
+
+
 def public_provider(user, from_slug: str | None = None) -> dict[str, Any]:
     slug = user["slug"]
     return {
@@ -98,7 +110,7 @@ def public_provider(user, from_slug: str | None = None) -> dict[str, Any]:
         "specialty": hide_setup_placeholder(user["specialty"]),
         "about": hide_setup_placeholder(user["about"]),
         "clinic": hide_setup_placeholder(user["clinic"]),
-        "address": user["address"],
+        "address": public_address(user),
         "slug": slug,
         "session_minutes": int(uget(user, "session_minutes", 50) or 50),
         "consult_minutes": int(uget(user, "consult_minutes", 15) or 15),
