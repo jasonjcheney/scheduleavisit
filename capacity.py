@@ -346,6 +346,35 @@ def availability_for(conn, user, day: date, minutes: int | None = None) -> dict[
     }
 
 
+def open_days_ahead(conn, user, from_date: date, days: int, minutes: int | None = None) -> list[dict[str, Any]]:
+    """Open-slot counts for the next `days` calendar days (includes from_date)."""
+    minutes = int(minutes or user["session_minutes"] or 50)
+    workdays = user_workdays(user)
+    now = datetime.now(TZ)
+    horizon = max(1, int(days))
+    out: list[dict[str, Any]] = []
+    for i in range(horizon):
+        d = from_date + timedelta(days=i)
+        week_info = projected_hours(conn, user, start_of_week(d), 0)
+        week_has_room = week_info["projected"] + minutes / 60.0 <= week_info["target"] + 0.001
+        closed = d.isoweekday() not in workdays
+        open_count = 0
+        if not closed:
+            for t in slot_times(user):
+                start = at_local(d, t)
+                if start <= now:
+                    continue
+                if not is_taken(conn, user["id"], start, minutes):
+                    open_count += 1
+        out.append({
+            "date": d.isoformat(),
+            "openCount": open_count,
+            "closed": closed,
+            "weekHasRoom": week_has_room,
+        })
+    return out
+
+
 def next_open_slot(conn, user, from_date: date, prefer_time: str | None, minutes: int) -> dict | None:
     workdays = user_workdays(user)
     now = datetime.now(TZ)

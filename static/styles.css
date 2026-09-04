@@ -2026,6 +2026,47 @@ a:focus-visible,
   margin-top: 2px;
 }
 
+/* Booking — faster time-to-slot cues (cream/forest/terracotta only) */
+.date-chip.has-none {
+  opacity: 0.58;
+  background: var(--paper-2);
+}
+.date-chip.has-none .d { color: var(--muted); }
+.date-chip.has-none.active {
+  opacity: 1;
+  background: var(--sage);
+  color: #fff;
+}
+.date-chip.has-none.active .d { color: #fff; }
+.date-chip.has-open {
+  border-color: var(--sage-mid, var(--sage));
+}
+.date-chip.is-closed.has-none {
+  border-style: dashed;
+}
+.time-slot.soonest:not(.active):not(.gone) {
+  border-color: var(--sage-mid, var(--sage));
+  box-shadow: inset 0 0 0 1px rgba(45, 90, 74, 0.12);
+}
+.time-slot .soonest-label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+  color: var(--sage-deep, var(--sage));
+  margin-top: 2px;
+}
+.time-slot.active .soonest-label,
+.time-slot[aria-pressed="true"] .soonest-label {
+  color: #d5e6dc;
+}
+#schedule-card .empty-state .empty-retry {
+  margin-top: 12px;
+}
+#need-card {
+  scroll-margin-top: 12px;
+}
+
 /* Booking — date strip + slot grid + waitlist spacing */
 .date-strip {
   gap: 10px;

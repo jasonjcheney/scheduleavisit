@@ -22,21 +22,10 @@
     {% if provider.about %}<p>{{ provider.about }}</p>{% endif %}
     {% if provider.address %}<p class="tiny">{{ provider.address }}</p>{% endif %}
   </section>
-  <section class="card" id="need-card">
-    <h2>What are you hoping to work on?</h2>
-    <p class="muted">One question so we can match you if {{ provider.first }}’s week is full. Pick the closest fit — no need to get it perfect.</p>
-    <div class="choice-grid need-chips" id="need-kind" role="group" aria-label="What you want help with">
-      {% for key, label in categories %}
-      <button type="button" class="choice-card need-chip{% if key == 'general' %} active{% endif %}" data-need="{{ key }}" aria-pressed="{{ 'true' if key == 'general' else 'false' }}">
-        <strong>{{ label }}</strong>
-      </button>
-      {% endfor %}
-    </div>
-  </section>
   {% if provider.consult_enabled %}
   <section class="card" id="visit-kind-card">
     <h2>What kind of visit?</h2>
-    <p class="muted">New here? Start with a consult. Already working together? Book a session.</p>
+    <p class="muted">New here? Start with a consult. Already working together? Book a session. Times below update for the length you pick.</p>
     <div class="choice-grid two visit-chips" id="visit-kind" role="group" aria-label="Visit type">
       <button type="button" class="choice-card active" data-kind="consult" aria-pressed="true">
         <strong>Free consultation ({{ provider.consult_minutes }} min) — see if it’s a fit</strong>
@@ -52,9 +41,9 @@
     <p class="help-tip" id="visit-kind-help">A consultation is a short free intro. A full session is the regular therapy hour.</p>
   </section>
   {% endif %}
-  <section class="card">
+  <section class="card" id="schedule-card">
     <h2>Pick a day</h2>
-    <p class="tiny" style="margin-top:-4px">Swipe or tap a day. Times update for the visit length you chose.</p>
+    <p class="tiny" style="margin-top:-4px">We open on the soonest day with room. Swipe or tap to change — times update for the visit length you chose.</p>
     <div class="date-strip" id="date-strip" role="listbox" aria-label="Available days"></div>
     <h2 style="margin-top:8px">Pick a time</h2>
     <div class="slot-grid" id="slot-grid" style="margin-top:10px" aria-live="polite" aria-busy="false">
@@ -62,6 +51,17 @@
         <div class="slot-skel"></div><div class="slot-skel"></div><div class="slot-skel"></div>
         <div class="slot-skel"></div><div class="slot-skel"></div><div class="slot-skel"></div>
       </div>
+    </div>
+  </section>
+  <section class="card" id="need-card">
+    <h2>What are you hoping to work on?</h2>
+    <p class="muted">One optional question so we can match you if {{ provider.first }}’s week is full. Pick the closest fit — no need to get it perfect.</p>
+    <div class="choice-grid need-chips" id="need-kind" role="group" aria-label="What you want help with">
+      {% for key, label in categories %}
+      <button type="button" class="choice-card need-chip{% if key == 'general' %} active{% endif %}" data-need="{{ key }}" aria-pressed="{{ 'true' if key == 'general' else 'false' }}">
+        <strong>{{ label }}</strong>
+      </button>
+      {% endfor %}
     </div>
   </section>
   <div id="book-result" aria-live="polite"></div>

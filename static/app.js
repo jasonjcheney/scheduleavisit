@@ -126,10 +126,73 @@
     var visitKind = consultEnabled ? "consult" : "session";
     var first = bookPage.getAttribute("data-first") || "Your clinician";
     var needCategory = "general";
-    var state = { date: null, time: null, phase: "pick", recs: null, weekHasRoom: true };
+    var state = {
+      date: null,
+      time: null,
+      phase: "pick",
+      recs: null,
+      weekHasRoom: true,
+      openDays: null,
+      soonestOpenDate: null
+    };
 
     function currentMinutes() {
       return visitKind === "consult" ? consultMinutes : sessionMinutes;
+    }
+
+    function openDayInfo(iso) {
+      var list = state.openDays || [];
+      for (var i = 0; i < list.length; i++) {
+        if (list[i].date === iso) return list[i];
+      }
+      return null;
+    }
+
+    function nextOpenAfter(iso) {
+      var list = state.openDays || [];
+      var seen = !iso;
+      for (var i = 0; i < list.length; i++) {
+        if (!seen) {
+          if (list[i].date === iso) seen = true;
+          continue;
+        }
+        if (list[i].openCount > 0) return list[i];
+      }
+      if (state.soonestOpenDate) {
+        for (var j = 0; j < list.length; j++) {
+          if (list[j].date === state.soonestOpenDate && list[j].openCount > 0) return list[j];
+        }
+      }
+      return null;
+    }
+
+    function anyOpenInHorizon() {
+      var list = state.openDays || [];
+      for (var i = 0; i < list.length; i++) {
+        if (list[i].openCount > 0) return true;
+      }
+      return false;
+    }
+
+    function anyWeekFullInHorizon() {
+      var list = state.openDays || [];
+      for (var i = 0; i < list.length; i++) {
+        if (list[i].weekHasRoom === false) return true;
+      }
+      return state.weekHasRoom === false;
+    }
+
+    function scrollActiveDateIntoView() {
+      var strip = $("#date-strip");
+      if (!strip) return;
+      var active = $(".date-chip.active", strip);
+      if (active && active.scrollIntoView) {
+        try {
+          active.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+        } catch (e) {
+          active.scrollIntoView(false);
+        }
+      }
     }
 
     $$("#need-kind [data-need]").forEach(function (btn) {
@@ -160,7 +223,7 @@
         }
         state.time = null;
         $("#book-result").innerHTML = "";
-        if (state.date) loadSlots();
+        loadSlots({ preferOpen: true, includeDays: true });
       });
     });
 
@@ -173,8 +236,23 @@
         var d = addDays(start, i);
         var iso = toISODate(d);
         var active = iso === state.date;
-        html += '<button type="button" class="date-chip' + (active ? " active" : "") +
-          '" data-date="' + iso + '" aria-pressed="' + active + '">' +
+        var info = openDayInfo(iso);
+        var cls = "date-chip";
+        if (active) cls += " active";
+        if (info) {
+          if (info.openCount > 0) cls += " has-open";
+          else cls += " has-none";
+          if (info.closed) cls += " is-closed";
+        }
+        var title = "";
+        if (info) {
+          if (info.closed) title = "Office closed";
+          else if (info.openCount > 0) title = info.openCount + " open";
+          else title = "No open times";
+        }
+        html += '<button type="button" class="' + cls +
+          '" data-date="' + iso + '" aria-pressed="' + active + '"' +
+          (title ? ' title="' + title + '"' : "") + ">" +
           '<span class="w">' + weekdayName(d) + "</span>" +
           '<span class="d">' + d.getDate() + "</span></button>";
       }
@@ -185,10 +263,11 @@
           state.time = null;
           state.phase = "pick";
           renderDates();
-          loadSlots();
+          loadSlots({ includeDays: true });
           $("#book-result").innerHTML = "";
         });
       });
+      scrollActiveDateIntoView();
     }
 
     function slotSkeleton() {
@@ -198,12 +277,87 @@
         "</div>";
     }
 
-    async function loadSlots() {
+    function wireJump(btnId, iso) {
+      var btn = $("#" + btnId);
+      if (!btn || !iso) return;
+      btn.addEventListener("click", function () {
+        state.date = iso;
+        state.time = null;
+        state.phase = "pick";
+        renderDates();
+        loadSlots({ includeDays: true });
+        $("#book-result").innerHTML = "";
+      });
+    }
+
+    function showInlineWaitlist(reason) {
+      var copy = reason || ("No openings with " + first + " in the next two weeks.");
+      $("#book-result").innerHTML =
+        '<section class="waitlist-panel" id="waitlist-panel" tabindex="-1">' +
+          '<p class="eyebrow">Waitlist</p>' +
+          "<h2>" + escapeHtml(copy) + "</h2>" +
+          "<p class=\"muted\">Leave your name and email — " + escapeHtml(first) +
+            " will see it on their dashboard when room opens. If a trusted colleague has room later in the week, confirming a time can still offer that path.</p>" +
+          '<form id="waitlist-form" class="fields">' +
+            '<p class="err hidden" id="waitlist-err" aria-live="polite"></p>' +
+            '<label class="field">Your name<input type="text" name="name" required placeholder="Jordan Lee" autocomplete="name"></label>' +
+            '<label class="field">Email<input type="email" name="email" required placeholder="you@email.com" autocomplete="email"></label>' +
+            '<button type="submit" class="btn btn-primary">Join the waitlist</button>' +
+          "</form>" +
+          '<p class="tiny" id="waitlist-ok" hidden></p>' +
+        "</section>";
+      var wlForm = $("#waitlist-form");
+      if (wlForm) {
+        wlForm.addEventListener("submit", async function (e) {
+          e.preventDefault();
+          var err = $("#waitlist-err");
+          var okEl = $("#waitlist-ok");
+          err.classList.add("hidden");
+          if (okEl) okEl.hidden = true;
+          var data = await api("/api/p/" + encodeURIComponent(slug) + "/waitlist", {
+            method: "POST",
+            body: {
+              name: this.name.value.trim(),
+              email: this.email.value.trim(),
+              requested_minutes: currentMinutes()
+            }
+          });
+          if (!data.ok) {
+            err.textContent = data.error || "Could not join the waitlist.";
+            err.classList.remove("hidden");
+            return;
+          }
+          this.querySelectorAll("input, button").forEach(function (el) { el.disabled = true; });
+          if (okEl) {
+            okEl.hidden = false;
+            okEl.textContent = data.message || ("You're on " + first + "'s waitlist. They will see your request on their dashboard.");
+          }
+          toast("You're on the waitlist");
+        });
+      }
+      var panel = $("#waitlist-panel");
+      if (panel && panel.focus) {
+        try { panel.focus(); } catch (e) {}
+      }
+      $("#book-result").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    async function loadSlots(opts) {
+      opts = opts || {};
       var grid = $("#slot-grid");
+      if (!state.date) {
+        var today = new Date();
+        state.date = toISODate(new Date(today.getFullYear(), today.getMonth(), today.getDate()));
+      }
       grid.setAttribute("aria-busy", "true");
       grid.innerHTML = slotSkeleton();
-      var data = await api("/api/p/" + encodeURIComponent(slug) + "/availability?date=" + state.date +
-        "&minutes=" + currentMinutes() + "&visit_kind=" + encodeURIComponent(visitKind));
+      var qs = "/api/p/" + encodeURIComponent(slug) + "/availability?date=" + state.date +
+        "&minutes=" + currentMinutes() + "&visit_kind=" + encodeURIComponent(visitKind);
+      if (opts.includeDays || opts.preferOpen || !state.openDays) {
+        qs += "&include_days=16";
+      }
+      if (opts.preferOpen) qs += "&prefer_open=1";
+      var data = await api(qs);
       grid.setAttribute("aria-busy", "false");
       if (!data.ok && !data.slots) {
         grid.innerHTML =
@@ -213,49 +367,111 @@
             '<button type="button" class="btn btn-ghost btn-sm empty-retry" id="slot-retry">Retry</button>' +
           "</div>";
         var retry = $("#slot-retry");
-        if (retry) retry.addEventListener("click", loadSlots);
+        if (retry) retry.addEventListener("click", function () { loadSlots(opts); });
         return;
       }
+      if (data.openDays) {
+        state.openDays = data.openDays;
+        state.soonestOpenDate = data.soonestOpenDate || null;
+      }
+      if (data.date && data.date !== state.date) {
+        state.date = data.date;
+        state.time = null;
+      }
       state.weekHasRoom = data.weekHasRoom;
+      renderDates();
+
       if (!data.slots || !data.slots.length) {
+        var nextClosed = nextOpenAfter(state.date);
+        var closedActions = "";
+        var closedMsg = '<p class="muted">This day is outside clinic hours. Try another day above.</p>';
+        if (nextClosed) {
+          closedMsg = '<p class="muted">Closed this day. Next opening is ' +
+            formatLong(parseISODate(nextClosed.date)) + ".</p>";
+          closedActions = '<button type="button" class="btn btn-primary btn-sm empty-retry" id="jump-next-open">Jump to that day</button>';
+        } else if (!anyOpenInHorizon()) {
+          closedMsg = anyWeekFullInHorizon()
+            ? '<p class="muted">No clinic openings in the next two weeks — the week may be at capacity. You can join the waitlist below.</p>'
+            : '<p class="muted">No clinic openings in the next two weeks. Check back later, or join the waitlist below.</p>';
+          closedActions = '<button type="button" class="btn btn-primary btn-sm empty-retry" id="open-waitlist">Join the waitlist</button>';
+        }
         grid.innerHTML =
           '<div class="empty-state compact">' +
             '<p class="empty-title">No clinic hours this day</p>' +
-            '<p class="muted">Try another day above, or check back later.</p>' +
-          '</div>';
+            closedMsg +
+            closedActions +
+          "</div>";
+        wireJump("jump-next-open", nextClosed && nextClosed.date);
+        var wlClosed = $("#open-waitlist");
+        if (wlClosed) wlClosed.addEventListener("click", function () {
+          showInlineWaitlist("No openings with " + first + " right now");
+        });
         return;
       }
-      var openCount = data.slots.filter(function (s) { return !(s.booked || s.past || !s.open); }).length;
+      var openSlots = data.slots.filter(function (s) { return !(s.booked || s.past || !s.open); });
+      var openCount = openSlots.length;
       if (openCount === 0) {
-        var fuller = data.weekHasRoom === false
-          ? '<p class="muted">This week looks full on hours. Pick another day, or confirm a time to see a trusted referral.</p>'
-          : '<p class="muted">Every slot for this day is taken. Pick another day above.</p>';
+        var next = nextOpenAfter(state.date);
+        var fuller = "";
+        var actions = "";
+        if (next) {
+          fuller = '<p class="muted">Every slot for this day is taken. Next opening is ' +
+            formatLong(parseISODate(next.date)) + ".</p>";
+          actions = '<button type="button" class="btn btn-primary btn-sm empty-retry" id="jump-next-open">Jump to that day</button>';
+        } else if (!anyOpenInHorizon()) {
+          if (data.weekHasRoom === false || anyWeekFullInHorizon()) {
+            fuller = '<p class="muted">No open times left in the next two weeks. This week looks full on hours — join the waitlist, or a trusted peer path may open if a square frees up.</p>';
+          } else {
+            fuller = '<p class="muted">No open times left in the next two weeks. Join the waitlist so ' +
+              escapeHtml(first) + " sees your request.</p>";
+          }
+          actions = '<button type="button" class="btn btn-primary btn-sm empty-retry" id="open-waitlist">Join the waitlist</button>';
+        } else if (data.weekHasRoom === false) {
+          fuller = '<p class="muted">This week looks full on hours. Try another day above — open squares later may still offer a trusted referral when you confirm.</p>';
+        } else {
+          fuller = '<p class="muted">Every slot for this day is taken. Pick another day above.</p>';
+        }
         grid.innerHTML =
           '<div class="empty-state compact">' +
             '<p class="empty-title">No open times left</p>' +
             fuller +
-          '</div>';
+            actions +
+          "</div>";
+        wireJump("jump-next-open", next && next.date);
+        var wlBtn = $("#open-waitlist");
+        if (wlBtn) wlBtn.addEventListener("click", function () {
+          showInlineWaitlist("No openings with " + first + " right now");
+        });
         return;
       }
       var banner = "";
-      if (data.weekHasRoom === false) {
-        banner = '<p class="notice slot-banner" role="status">This week is at the clinical hour cap. Open squares may still show — confirming one will offer a trusted peer instead of overbooking.</p>';
-      } else if (openCount <= 2) {
-        banner = '<p class="help-tip slot-banner" role="status">Only a few times left this day — ' + openCount + ' still open.</p>';
+      if (data.autoSelected) {
+        banner += '<p class="help-tip slot-banner" role="status">Showing the soonest day with an opening — ' +
+          formatLong(parseISODate(state.date)) + ".</p>";
       }
+      if (data.weekHasRoom === false) {
+        banner += '<p class="notice slot-banner" role="status">This week is at the clinical hour cap. Open squares may still show — confirming one will offer a trusted peer instead of overbooking.</p>';
+      } else if (openCount <= 2) {
+        banner += '<p class="help-tip slot-banner" role="status">Only a few times left this day — ' + openCount + ' still open.</p>';
+      }
+      var soonestTime = openSlots[0] && openSlots[0].time;
       grid.innerHTML = banner + data.slots.map(function (s) {
         var gone = s.booked || s.past || !s.open;
         var active = state.time === s.time;
-        return '<button type="button" class="time-slot' + (gone ? " gone" : "") + (active ? " active" : "") +
+        var soon = !gone && soonestTime && s.time === soonestTime;
+        return '<button type="button" class="time-slot' + (gone ? " gone" : "") +
+          (active ? " active" : "") + (soon ? " soonest" : "") +
           '" data-time="' + s.time + '" ' + (gone ? "disabled" : "") +
-          ' aria-pressed="' + active + '">' + formatTime(s.time) + "</button>";
+          ' aria-pressed="' + active + '">' + formatTime(s.time) +
+          (soon ? ' <span class="tiny soonest-label">soonest</span>' : "") +
+          "</button>";
       }).join("");
       $$(".time-slot", grid).forEach(function (btn) {
         btn.addEventListener("click", function () {
           if (btn.disabled) return;
           state.time = btn.getAttribute("data-time");
           state.phase = "confirm";
-          loadSlots();
+          loadSlots({ includeDays: true });
           showConfirm();
         });
       });
@@ -497,7 +713,7 @@
     var start = new Date();
     state.date = toISODate(new Date(start.getFullYear(), start.getMonth(), start.getDate()));
     renderDates();
-    loadSlots();
+    loadSlots({ preferOpen: true, includeDays: true });
   }
 
   /* ——— Dashboard ——— */

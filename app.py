@@ -51,6 +51,7 @@ from reminders import (
 from capacity import (
     WEEKLY_HORIZON,
     availability_for,
+    open_days_ahead,
     avatar_class,
     booked_hours,
     uget,
@@ -1193,7 +1194,14 @@ async def api_logout(request: Request):
 # ───────── Public booking API ─────────
 
 @app.get("/api/p/{slug}/availability")
-def api_availability(slug: str, date: str, minutes: Optional[int] = None, visit_kind: Optional[str] = None):
+def api_availability(
+    slug: str,
+    date: str,
+    minutes: Optional[int] = None,
+    visit_kind: Optional[str] = None,
+    include_days: Optional[int] = None,
+    prefer_open: Optional[int] = None,
+):
     try:
         day = datetime.strptime(date, "%Y-%m-%d").date()
     except ValueError:
@@ -1209,10 +1217,35 @@ def api_availability(slug: str, date: str, minutes: Optional[int] = None, visit_
                 minutes = int(uget(u, "consult_minutes", 15) or 15)
             else:
                 minutes = int(uget(u, "session_minutes", 50) or 50)
-        data = availability_for(conn, u, day, minutes=int(minutes))
+        minutes = int(minutes)
+        data = availability_for(conn, u, day, minutes=minutes)
+        auto_selected = False
+        scan_n = 16
+        if include_days is not None:
+            try:
+                scan_n = max(1, min(28, int(include_days)))
+            except (TypeError, ValueError):
+                scan_n = 16
+        want_scan = include_days is not None or bool(prefer_open)
+        days_info = None
+        soonest = None
+        if want_scan:
+            scan_from = datetime.now(TZ).date()
+            days_info = open_days_ahead(conn, u, scan_from, scan_n, minutes)
+            soonest = next((d["date"] for d in days_info if d["openCount"] > 0), None)
+            open_here = sum(1 for s in data.get("slots") or [] if s.get("open"))
+            if prefer_open and open_here == 0 and soonest and soonest != day.isoformat():
+                day = datetime.strptime(soonest, "%Y-%m-%d").date()
+                data = availability_for(conn, u, day, minutes=minutes)
+                auto_selected = True
         data["ok"] = True
         data["visitKind"] = kind
         data["provider"] = public_provider(u)
+        if days_info is not None:
+            data["openDays"] = days_info
+            data["soonestOpenDate"] = soonest
+        if auto_selected:
+            data["autoSelected"] = True
         return data
 
 
