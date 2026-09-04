@@ -62,6 +62,88 @@ def main() -> None:
         expect(banned not in jason_page, f"/p/jason-cheney still shows {banned!r}")
     print("OK /p/jason-cheney hides setup placeholders and seeded Boulder")
 
+    elena_book = c.get("/p/elena-vasquez-lpc").text
+    vi = elena_book.find('id="visit-kind-card"')
+    si = elena_book.find('id="schedule-card"')
+    ni = elena_book.find('id="need-card"')
+    expect(vi != -1 and si != -1 and ni != -1, "Elena booking missing visit/schedule/need cards")
+    expect(vi < si < ni, "Elena booking order should be visit kind → schedule → need")
+    expect("soonest day with room" in elena_book, "Elena booking missing soonest-day helper copy")
+    print("OK /p/elena-vasquez-lpc booking step order")
+
+    from datetime import datetime, timedelta
+    from db import TZ
+    today = datetime.now(TZ).date()
+    # Prefer a known-empty day (Sunday) so prefer_open must advance to a weekday with slots.
+    sunday = today + timedelta(days=(7 - today.isoweekday()) % 7)
+    avail = c.get(
+        "/api/p/elena-vasquez-lpc/availability",
+        params={
+            "date": sunday.isoformat(),
+            "minutes": 15,
+            "visit_kind": "consult",
+            "include_days": 16,
+            "prefer_open": 1,
+        },
+    )
+    expect(avail.status_code == 200, f"availability prefer_open status {avail.status_code}")
+    body = avail.json()
+    expect(body.get("ok"), f"availability prefer_open not ok: {body}")
+    expect(isinstance(body.get("openDays"), list) and len(body["openDays"]) >= 7,
+           "availability missing openDays scan")
+    expect(body.get("soonestOpenDate"), "availability missing soonestOpenDate")
+    open_here = sum(1 for s in (body.get("slots") or []) if s.get("open"))
+    expect(open_here > 0, "prefer_open did not land on a day with open slots")
+    expect(body.get("date") == body.get("soonestOpenDate") or open_here > 0,
+           "prefer_open date mismatch")
+    if sunday.isoweekday() == 7:
+        expect(body.get("date") != sunday.isoformat() or body.get("autoSelected"),
+               "prefer_open should skip a closed Sunday when later days have room")
+    print("OK availability prefer_open + openDays")
+
+
+    # —— Ride links must not invent Boulder for blank public addresses ——
+    for ride_path in ("/ride", "/ride?address=", "/ride?address=%20"):
+        ride = c.get(ride_path)
+        expect(ride.status_code == 200, f"{ride_path} expected 200, got {ride.status_code}")
+        expect("Boulder" not in ride.text, f"{ride_path} still invents Boulder")
+        expect(
+            "not listed a public address" in ride.text,
+            f"{ride_path} missing empty-address copy",
+        )
+        print(f"OK {ride_path} no invented Boulder")
+    ride_ok = c.get("/ride?address=500%20Eldorado%20Blvd%2C%20Superior%2C%20CO")
+    expect(ride_ok.status_code == 200 and "Superior" in ride_ok.text, "populated /ride missing Superior")
+    expect("Open maps" in ride_ok.text, "populated /ride missing maps CTA")
+    print("OK /ride with real address still works")
+
+    # Jason seed address is Boulder — public blanking must also apply to rideUrl.
+    from capacity import public_address, public_provider, referral_candidates
+    from datetime import date, timedelta
+    from urllib.parse import unquote
+    with connect() as conn:
+        elena = conn.execute("SELECT * FROM users WHERE slug=?", ("elena-vasquez-lpc",)).fetchone()
+        jason = conn.execute("SELECT * FROM users WHERE slug=?", ("jason-cheney",)).fetchone()
+        expect(elena is not None and jason is not None, "seed missing elena/jason for rideUrl check")
+        expect(public_address(jason) == "", "public_address(jason) should blank seeded Boulder")
+        expect(public_provider(jason).get("address") == "", "public_provider jason address should be blank")
+        when = date.today()
+        for i in range(0, 14):
+            d = when + timedelta(days=i)
+            if d.weekday() < 5:
+                when = d
+                break
+        recs = referral_candidates(conn, elena, when, "11:00", 50, category="general")
+        jason_recs = [r for r in recs if r.get("slug") == "jason-cheney"]
+        if jason_recs:
+            for r in jason_recs:
+                ride = unquote(r.get("rideUrl") or "")
+                expect("Boulder" not in ride, f"jason rideUrl leaks Boulder: {r.get('rideUrl')}")
+                expect((r.get("address") or "") == "", f"jason rec address should be blank, got {r.get('address')!r}")
+            print("OK jason referral rideUrl blanks seeded Boulder")
+        else:
+            print("OK jason public_address blanks seeded Boulder (not in this week's recs)")
+
     # —— Auth gate ——
     for path in ("/setup", "/dashboard"):
         r = c.get(path, follow_redirects=False)

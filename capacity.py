@@ -472,7 +472,7 @@ def referral_candidates(
                 "hops": hops,
                 "viaName": via_name if hops > 1 else origin_first,
                 "recommendedBy": origin_first,
-                "rideUrl": f"/ride?address={quote(p['address'] or '')}",
+                "rideUrl": f"/ride?address={quote(pub.get('address') or '')}",
                 "category": shown_cat,
                 "categoryLabel": category_label(shown_cat),
                 "linkCategory": link_cat,

@@ -831,11 +831,27 @@ def booked_page(request: Request, token: str):
 
 @app.get("/ride", response_class=HTMLResponse)
 def ride_page(request: Request):
-    address = request.query_params.get("address") or "Boulder, CO"
-    maps = "https://www.google.com/maps/dir/?api=1&destination=" + quote(address)
-    uber = "https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[formatted_address]=" + quote(address)
-    lyft = "https://lyft.com/ride?destination[address]=" + quote(address)
-    return tpl(request, "ride.html", address=address, maps=maps, uber=uber, lyft=lyft)
+    address = (request.query_params.get("address") or "").strip()
+    # Do not invent a city when the provider has no public address (e.g. Jason seed).
+    maps = (
+        "https://www.google.com/maps/dir/?api=1&destination=" + quote(address) if address else ""
+    )
+    uber = (
+        "https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[formatted_address]="
+        + quote(address)
+        if address
+        else ""
+    )
+    lyft = "https://lyft.com/ride?destination[address]=" + quote(address) if address else ""
+    return tpl(
+        request,
+        "ride.html",
+        address=address,
+        maps=maps,
+        uber=uber,
+        lyft=lyft,
+        has_address=bool(address),
+    )
 
 
 @app.get("/invite/{token}", response_class=HTMLResponse)

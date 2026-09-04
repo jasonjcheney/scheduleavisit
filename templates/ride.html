@@ -5,6 +5,7 @@
 <main class="ride-page">
   <p class="eyebrow">Getting there</p>
   <h1 class="page-title">Get a ride</h1>
+  {% if has_address %}
   <p class="sub">{{ address }}</p>
   <section class="card">
     <div class="ride-opt">
@@ -21,5 +22,11 @@
     </div>
     <p class="tiny" style="margin-top:12px">Ask the office about parking or the bus if you would rather not ride-hail.</p>
   </section>
+  {% else %}
+  <p class="sub">This clinician has not listed a public address yet.</p>
+  <section class="card">
+    <p class="tiny">Ask the office for directions, parking, or the bus. We will not invent a city for ride links.</p>
+  </section>
+  {% endif %}
 </main>
 {% endblock %}
