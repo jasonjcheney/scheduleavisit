@@ -423,6 +423,18 @@ def main() -> None:
     expect("taken" in (body_clash.get("error") or "").lower(), "taken error wording")
     print("OK book conflict returns taken=True")
 
+    # Peer confirm path keeps contact details + names the colleague
+    js = (ROOT / "static" / "app.js").read_text()
+    expect("data-ref-name=" in js, "peer book button missing data-ref-name")
+    expect("Back to peer times" in js, "peer confirm missing back link")
+    expect("Confirm with " in js and "Referred from " in js,
+           "peer confirm missing named-peer / referred-from copy")
+    expect("state._prefill" in js and "if (data.full)" in js,
+           "capacity handoff should stash contact prefill")
+    expect("ref-confirm" in js and ".ref-confirm" in css,
+           "ref-confirm chrome missing")
+    print("OK peer confirm path friction polish")
+
     print("ALL LIVE PATH SMOKES PASSED")
 
 

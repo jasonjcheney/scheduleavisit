@@ -292,6 +292,7 @@
 
     function showInlineWaitlist(reason) {
       var copy = reason || ("No openings with " + first + " in the next two weeks.");
+      var pref = state._prefill || {};
       $("#book-result").innerHTML =
         '<section class="waitlist-panel" id="waitlist-panel" tabindex="-1">' +
           '<p class="eyebrow">Waitlist</p>' +
@@ -300,8 +301,8 @@
             " will see it on their dashboard when room opens. If a trusted colleague has room later in the week, confirming a time can still offer that path.</p>" +
           '<form id="waitlist-form" class="fields">' +
             '<p class="err hidden" id="waitlist-err" aria-live="polite"></p>' +
-            '<label class="field">Your name<input type="text" name="name" required placeholder="Jordan Lee" autocomplete="name"></label>' +
-            '<label class="field">Email<input type="email" name="email" required placeholder="you@email.com" autocomplete="email"></label>' +
+            '<label class="field">Your name<input type="text" name="name" required placeholder="Jordan Lee" autocomplete="name" value="' + escapeHtml(pref.name || "") + '"></label>' +
+            '<label class="field">Email<input type="email" name="email" required placeholder="you@email.com" autocomplete="email" value="' + escapeHtml(pref.email || "") + '"></label>' +
             '<button type="submit" class="btn btn-primary">Join the waitlist</button>' +
           "</form>" +
           '<p class="tiny" id="waitlist-ok" hidden></p>' +
@@ -642,7 +643,8 @@
           '<div class="row">' +
             '<button type="button" class="btn btn-primary' + (featured ? "" : " btn-sm") + '" data-book-ref="' + escapeHtml(r.peerSlug) +
               '" data-ref-date="' + r.date + '" data-ref-time="' + r.time +
-              '" data-ref-minutes="' + (r.minutes || sessionMinutes) + '">Book this time with ' +
+              '" data-ref-minutes="' + (r.minutes || sessionMinutes) +
+              '" data-ref-name="' + escapeHtml(r.name || peerFirst) + '">Book this time with ' +
               escapeHtml(peerFirst) + "</button>" +
             '<a class="btn btn-ghost btn-sm" href="' + escapeHtml(r.rideUrl) + '">Get a ride</a>' +
           "</div>" +
@@ -665,8 +667,8 @@
               escapeHtml(first) + " will see it on their dashboard when room opens.</p>" +
             '<form id="waitlist-form" class="fields">' +
               '<p class="err hidden" id="waitlist-err" aria-live="polite"></p>' +
-              '<label class="field">Your name<input type="text" name="name" required placeholder="Jordan Lee" autocomplete="name"></label>' +
-              '<label class="field">Email<input type="email" name="email" required placeholder="you@email.com" autocomplete="email"></label>' +
+              '<label class="field">Your name<input type="text" name="name" required placeholder="Jordan Lee" autocomplete="name" value="' + escapeHtml((state._prefill || {}).name || "") + '"></label>' +
+              '<label class="field">Email<input type="email" name="email" required placeholder="you@email.com" autocomplete="email" value="' + escapeHtml((state._prefill || {}).email || "") + '"></label>' +
               '<button type="submit" class="btn btn-primary">Join the waitlist</button>' +
             "</form>" +
             '<p class="help-tip">You can still pick a different day above. Later weeks may have room with ' +
@@ -755,32 +757,54 @@
             btn.getAttribute("data-book-ref"),
             btn.getAttribute("data-ref-date"),
             btn.getAttribute("data-ref-time"),
-            Number(btn.getAttribute("data-ref-minutes") || sessionMinutes)
+            Number(btn.getAttribute("data-ref-minutes") || sessionMinutes),
+            btn.getAttribute("data-ref-name") || ""
           );
         });
       });
       $("#book-result").scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
-    function showRefConfirm(peerSlug, date, time, refMinutes) {
+    function showRefConfirm(peerSlug, date, time, refMinutes, peerName) {
       var d = parseISODate(date);
       var peerMinutes = refMinutes || sessionMinutes;
+      var peerFirst = ((peerName || "").trim().split(" ")[0]) || peerName || "them";
+      var pref = state._prefill || {};
       $("#book-result").innerHTML =
-        '<section class="card">' +
-          "<h2>Confirm this referred visit</h2>" +
+        '<section class="card ref-confirm" id="ref-confirm" tabindex="-1">' +
+          '<p class="eyebrow">Trusted peer</p>' +
+          "<h2>Confirm with " + escapeHtml(peerFirst) + "</h2>" +
           "<p>" + formatLong(d) + " at " + formatTime(time) + " · " + peerMinutes + " minutes</p>" +
+          '<p class="help-tip">Referred from ' + escapeHtml(first) +
+            "’s network — your name and email stay filled in from the step above.</p>" +
           '<form id="ref-form" class="fields">' +
             '<p class="err hidden" id="visit-err" aria-live="polite"></p>' +
-            '<label class="field">Your name<input type="text" name="name" required placeholder="Jordan Lee" autocomplete="name"></label>' +
-            '<label class="field">Email<input type="email" name="email" required placeholder="you@email.com" autocomplete="email"></label>' +
-            '<label class="field">Phone <span class="tiny">(optional)</span><input type="tel" name="phone" autocomplete="tel"></label>' +
-            '<button type="submit" class="btn btn-primary">Confirm this visit</button>' +
+            '<label class="field">Your name<input type="text" name="name" required placeholder="Jordan Lee" autocomplete="name" value="' + escapeHtml(pref.name || "") + '"></label>' +
+            '<label class="field">Email so the office can reach you<input type="email" name="email" required placeholder="you@email.com" autocomplete="email" value="' + escapeHtml(pref.email || "") + '"></label>' +
+            '<label class="field">Phone <span class="tiny">(optional)</span><input type="tel" name="phone" autocomplete="tel" value="' + escapeHtml(pref.phone || "") + '"></label>' +
+            '<button type="submit" class="btn btn-primary">Confirm with ' + escapeHtml(peerFirst) + "</button>" +
+            '<button type="button" class="btn btn-ghost" id="ref-back">Back to peer times</button>' +
           "</form>" +
         "</section>";
       $("#book-result").scrollIntoView({ behavior: "smooth", block: "start" });
+      var panel = $("#ref-confirm");
+      if (panel && panel.focus) {
+        try { panel.focus(); } catch (e) {}
+      }
+      var back = $("#ref-back");
+      if (back) {
+        back.addEventListener("click", function () {
+          if (state.recs) showReferral(state.recs);
+        });
+      }
       $("#ref-form").addEventListener("submit", async function (e) {
         e.preventDefault();
         var err = $("#visit-err");
+        state._prefill = {
+          name: this.name.value.trim(),
+          email: this.email.value.trim(),
+          phone: (this.phone && this.phone.value ? this.phone.value.trim() : "")
+        };
         var data = await api("/api/p/" + encodeURIComponent(slug) + "/book-referral", {
           method: "POST",
           body: {
@@ -827,6 +851,11 @@
         }
       });
       if (data.full) {
+        state._prefill = {
+          name: form.name.value.trim(),
+          email: form.email.value.trim(),
+          phone: form.phone.value.trim()
+        };
         showReferral(data);
         return;
       }
