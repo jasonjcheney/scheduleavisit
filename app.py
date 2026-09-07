@@ -1278,7 +1278,7 @@ async def api_book(slug: str, request: Request):
         if day.isoweekday() not in user_workdays(u):
             return json_err("The office is closed that day.")
         if is_taken(conn, u["id"], start, minutes):
-            return json_err("That time was just taken. Please pick another.")
+            return json_err("That time was just taken. Please pick another.", taken=True)
         if not can_accept_visit(conn, u, day, minutes):
             wanted = normalize_category(data.get("category") or data.get("need") or "general")
             recs = referral_candidates(conn, u, day, hhmm, minutes, category=wanted)
@@ -1339,7 +1339,7 @@ async def api_book_referral(slug: str, request: Request):
         minutes = int(peer["session_minutes"] or 50)
         start = at_local(day, hhmm)
         if is_taken(conn, peer["id"], start, minutes):
-            return json_err("That time was just taken.")
+            return json_err("That time was just taken.", taken=True)
         if not can_accept_visit(conn, peer, day, minutes):
             return json_err("That professional just reached their weekly cap.")
         cid = get_or_create_client(conn, peer["id"], name, email, data.get("phone") or "")

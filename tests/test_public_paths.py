@@ -114,8 +114,9 @@ def main() -> None:
     expect("No one matched that search" in miss.text, "/book?q=zzzzzz missing empty state")
     expect("different name or city" in miss.text, "/book?q=zzzzzz missing invite to try again")
     expect('href="/p/jason-cheney"' not in miss.text, "/book?q=zzzzzz listed Jason")
-    expect('href="/p/elena-vasquez-lpc"' not in miss.text, "/book?q=zzzzzz listed Elena")
     expect("person-card" not in miss.text, "/book?q=zzzzzz still rendered result cards")
+    expect('href="/p/elena-vasquez-lpc"' in miss.text and "demo" in miss.text.lower(),
+           "/book?q=zzzzzz missing Elena demo CTA")
     print("OK /book?q=zzzzzz empty state")
 
     landing = c.get("/")

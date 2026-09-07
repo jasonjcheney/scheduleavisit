@@ -71,6 +71,13 @@ def main() -> None:
     expect("soonest day with room" in elena_book, "Elena booking missing soonest-day helper copy")
     print("OK /p/elena-vasquez-lpc booking step order")
 
+    empty_book = c.get("/book", params={"q": "zzzz-no-such-provider-xyz"})
+    expect(empty_book.status_code == 200, "empty book search status")
+    expect("No one matched that search" in empty_book.text, "empty book missing empty copy")
+    expect("/p/elena-vasquez-lpc" in empty_book.text and "demo" in empty_book.text.lower(),
+           "empty book missing Elena demo CTA")
+    print("OK /book empty search offers Elena demo")
+
     from datetime import datetime, timedelta
     from db import TZ
     today = datetime.now(TZ).date()
@@ -368,6 +375,53 @@ def main() -> None:
             ("none", "", "elena-vasquez-lpc"),
         )
         conn.commit()
+
+
+    # Slot-taken conflict returns taken flag for mid-flow recovery UX
+    with connect() as conn:
+        conn.execute(
+            "UPDATE users SET weekly_target_hours=? WHERE slug=?",
+            (40, "elena-vasquez-lpc"),
+        )
+        conn.commit()
+    avail2 = c.get(
+        "/api/p/elena-vasquez-lpc/availability",
+        params={"date": today.isoformat(), "minutes": 15, "visit_kind": "consult", "prefer_open": 1, "include_days": 16},
+    ).json()
+    expect(avail2.get("ok"), f"avail for taken test: {avail2}")
+    open_slot = next((s for s in (avail2.get("slots") or []) if s.get("open")), None)
+    expect(open_slot, "no open slot to conflict")
+    conflict_day = avail2.get("date") or today.isoformat()
+    conflict_time = open_slot["time"]
+    first_book = c.post(
+        "/api/p/elena-vasquez-lpc/book",
+        json={
+            "date": conflict_day,
+            "time": conflict_time,
+            "name": "Conflict Probe",
+            "email": "conflict-probe@example.com",
+            "visitKind": "consult",
+            "category": "general",
+        },
+    )
+    first_body = first_book.json()
+    expect(first_book.status_code == 200 and first_body.get("ok"), f"seed book failed: {first_body}")
+    clash = c.post(
+        "/api/p/elena-vasquez-lpc/book",
+        json={
+            "date": conflict_day,
+            "time": conflict_time,
+            "name": "Other Client",
+            "email": "other-client@example.com",
+            "visitKind": "consult",
+            "category": "general",
+        },
+    )
+    body_clash = clash.json()
+    expect(clash.status_code == 400, f"taken conflict status {clash.status_code} body={body_clash}")
+    expect(body_clash.get("taken") is True, f"taken flag missing: {body_clash}")
+    expect("taken" in (body_clash.get("error") or "").lower(), "taken error wording")
+    print("OK book conflict returns taken=True")
 
     print("ALL LIVE PATH SMOKES PASSED")
 

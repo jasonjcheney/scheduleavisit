@@ -463,7 +463,7 @@
           (active ? " active" : "") + (soon ? " soonest" : "") +
           '" data-time="' + s.time + '" ' + (gone ? "disabled" : "") +
           ' aria-pressed="' + active + '">' + formatTime(s.time) +
-          (soon ? ' <span class="tiny soonest-label">soonest</span>' : "") +
+          (soon ? ' <span class="tiny soonest-label">First open</span>' : "") +
           "</button>";
       }).join("");
       $$(".time-slot", grid).forEach(function (btn) {
@@ -471,13 +471,15 @@
           if (btn.disabled) return;
           state.time = btn.getAttribute("data-time");
           state.phase = "confirm";
+          var pref = state._prefill || null;
           loadSlots({ includeDays: true });
-          showConfirm();
+          showConfirm(pref || undefined);
         });
       });
     }
 
-    function showConfirm() {
+    function showConfirm(prefill) {
+      prefill = prefill || {};
       var d = parseISODate(state.date);
       var kindLabel = visitKind === "consult" ? "free consultation" : "full session";
       $("#book-result").innerHTML =
@@ -486,14 +488,111 @@
           "<p>" + formatLong(d) + " at " + formatTime(state.time) + " · " + currentMinutes() + " minutes · " + kindLabel + "</p>" +
           '<form id="visit-form" class="fields">' +
             '<p class="err hidden" id="visit-err" aria-live="polite"></p>' +
-            '<label class="field">Your name<input type="text" name="name" required placeholder="Jordan Lee" autocomplete="name"></label>' +
-            '<label class="field">Email so the office can reach you<input type="email" name="email" required placeholder="you@email.com" autocomplete="email"></label>' +
-            '<label class="field">Phone <span class="tiny">(optional)</span><input type="tel" name="phone" autocomplete="tel"></label>' +
+            '<label class="field">Your name<input type="text" name="name" required placeholder="Jordan Lee" autocomplete="name" value="' + escapeHtml(prefill.name || "") + '"></label>' +
+            '<label class="field">Email so the office can reach you<input type="email" name="email" required placeholder="you@email.com" autocomplete="email" value="' + escapeHtml(prefill.email || "") + '"></label>' +
+            '<label class="field">Phone <span class="tiny">(optional)</span><input type="tel" name="phone" autocomplete="tel" value="' + escapeHtml(prefill.phone || "") + '"></label>' +
             '<button type="submit" class="btn btn-primary">Confirm this visit</button>' +
           "</form>" +
         "</section>";
       $("#visit-form").addEventListener("submit", onBook);
       $("#book-result").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function isTakenError(data) {
+      if (!data) return false;
+      if (data.taken) return true;
+      var msg = (data.error || "").toLowerCase();
+      return msg.indexOf("just taken") !== -1 || msg.indexOf("already booked") !== -1 ||
+        msg.indexOf("already passed") !== -1;
+    }
+
+    async function recoverTakenSlot(prefill, reason) {
+      prefill = prefill || {};
+      var lostTime = state.time;
+      state.time = null;
+      state.phase = "pick";
+      $("#book-result").innerHTML =
+        '<section class="taken-recovery" id="taken-recovery" tabindex="-1" role="status">' +
+          '<p class="eyebrow">That time filled up</p>' +
+          "<h2>" + escapeHtml(reason || "That time was just taken") + "</h2>" +
+          '<p class="muted">Refreshing open times — your details stay filled in.</p>' +
+          '<div class="taken-recovery-actions" id="taken-actions">' +
+            '<div class="slot-loading" aria-hidden="true"><div class="slot-skel"></div><div class="slot-skel"></div></div>' +
+          "</div>" +
+        "</section>";
+      var panel = $("#taken-recovery");
+      if (panel && panel.focus) {
+        try { panel.focus(); } catch (e) {}
+      }
+      $("#book-result").scrollIntoView({ behavior: "smooth", block: "start" });
+      await loadSlots({ includeDays: true, preferOpen: true });
+      var next = nextOpenAfter(state.date);
+      var actions = $("#taken-actions");
+      if (!actions) return;
+      var openBtns = $$("#slot-grid .time-slot:not(.gone):not([disabled])");
+      var nextTime = null;
+      for (var i = 0; i < openBtns.length; i++) {
+        var t = openBtns[i].getAttribute("data-time");
+        if (lostTime && t === lostTime) continue;
+        nextTime = t;
+        break;
+      }
+      if (!nextTime && openBtns.length) nextTime = openBtns[0].getAttribute("data-time");
+      var html = "";
+      if (nextTime) {
+        html +=
+          '<button type="button" class="btn btn-primary" id="taken-next-time">Take the next open — ' +
+          formatTime(nextTime) + "</button>";
+      }
+      if (next && next.date !== state.date) {
+        html +=
+          '<button type="button" class="btn btn-ghost" id="taken-jump-day">Jump to ' +
+          formatLong(parseISODate(next.date)) + "</button>";
+      }
+      if (!nextTime && !anyOpenInHorizon()) {
+        html +=
+          '<button type="button" class="btn btn-primary" id="taken-waitlist">Join the waitlist</button>';
+      }
+      if (!html) {
+        html = '<p class="muted">Pick another open time above — your name and email will stay ready.</p>' +
+          '<button type="button" class="btn btn-ghost btn-sm" id="taken-dismiss">Got it</button>';
+      }
+      actions.innerHTML = html;
+      var nextBtn = $("#taken-next-time");
+      if (nextBtn && nextTime) {
+        nextBtn.addEventListener("click", function () {
+          state.time = nextTime;
+          state.phase = "confirm";
+          loadSlots({ includeDays: true });
+          showConfirm(prefill);
+        });
+      }
+      wireJump("taken-jump-day", next && next.date);
+      var jump = $("#taken-jump-day");
+      if (jump) {
+        jump.addEventListener("click", function () {
+          // wireJump already sets date; keep recovery note until they pick
+          setTimeout(function () {
+            $("#book-result").innerHTML =
+              '<section class="taken-recovery" role="status">' +
+                '<p class="help-tip">Times refreshed for the next open day. Pick a time above — we will keep your details.</p>' +
+              "</section>";
+            // Stash prefill for next confirm via one-shot
+            state._prefill = prefill;
+          }, 0);
+        });
+      }
+      var wl = $("#taken-waitlist");
+      if (wl) wl.addEventListener("click", function () {
+        showInlineWaitlist("No openings with " + first + " right now");
+      });
+      var dismiss = $("#taken-dismiss");
+      if (dismiss) dismiss.addEventListener("click", function () {
+        state._prefill = prefill;
+        $("#book-result").innerHTML =
+          '<p class="help-tip" role="status">Pick another open time above — your details will stay filled in.</p>';
+      });
+      state._prefill = prefill;
     }
 
     function recCard(r, featured) {
@@ -522,8 +621,16 @@
         metaTiny = "Also in " + escapeHtml(r.recommendedBy) + "’s network · " +
           r.miles + " miles · " + escapeHtml(r.clinic);
       }
+      var whenBlock = featured
+        ? '<div class="rec-when" role="status">' +
+            '<span class="rec-when-label">Ready to book</span>' +
+            '<strong class="rec-when-time">' + escapeHtml(r.displayWhen) + "</strong>" +
+            '<span class="tiny">' + r.minutes + " minutes with " + escapeHtml(peerFirst) + "</span>" +
+          "</div>"
+        : "<p style=\"margin:0\"><strong>" + escapeHtml(r.displayWhen) + "</strong> · " + r.minutes + " minutes</p>";
       return (
         '<div class="rec-card' + (featured ? " featured" : "") + '">' +
+          (featured ? '<p class="eyebrow rec-eyebrow">Trusted peer has room</p>' : "") +
           '<div class="person">' +
             '<div class="avatar ' + escapeHtml(r.avatar) + '" aria-hidden="true">' + escapeHtml(r.initials) + "</div>" +
             "<div><strong>" + escapeHtml(r.name) + "</strong>" +
@@ -531,9 +638,9 @@
             hopSecondary +
             needLine +
             '<div class="tiny">' + metaTiny + "</div></div></div>" +
-          "<p style=\"margin:0\"><strong>" + escapeHtml(r.displayWhen) + "</strong> · " + r.minutes + " minutes</p>" +
+          whenBlock +
           '<div class="row">' +
-            '<button type="button" class="btn btn-primary btn-sm" data-book-ref="' + escapeHtml(r.peerSlug) +
+            '<button type="button" class="btn btn-primary' + (featured ? "" : " btn-sm") + '" data-book-ref="' + escapeHtml(r.peerSlug) +
               '" data-ref-date="' + r.date + '" data-ref-time="' + r.time +
               '" data-ref-minutes="' + (r.minutes || sessionMinutes) + '">Book this time with ' +
               escapeHtml(peerFirst) + "</button>" +
@@ -544,6 +651,7 @@
     }
 
     function showReferral(payload) {
+      state.recs = payload;
       var rec = payload.recommendation;
       var rest = payload.alternatives || [];
       var body;
@@ -570,19 +678,25 @@
         var hopLine = hops > 1
           ? "If the closest peer is also full, we keep walking " + escapeHtml(first) +
             "’s trusted network until someone has room."
-          : "You still get a time — with a colleague they trust.";
+          : "You still get a time — with a colleague " + escapeHtml(first) + " trusts.";
         body =
           '<section class="referral" id="referral-panel" tabindex="-1">' +
-            '<p class="eyebrow">Weekly capacity</p>' +
-            "<h2>" + escapeHtml(first) + "’s week is at capacity</h2>" +
-            "<p>" + hopLine + " The weekly cap already includes people seen every week, plus notes and emergencies — so open squares are not always bookable with " +
-            escapeHtml(first) + ".</p>" +
+            '<p class="eyebrow">Full → peer handoff</p>' +
+            "<h2>" + escapeHtml(first) + "’s week is full — here is the next open time</h2>" +
+            "<p class=\"muted\">" + hopLine + " Open squares on " + escapeHtml(first) +
+              "’s calendar are not always bookable once the weekly clinical hour cap is reached.</p>" +
             recCard(rec, true) +
             (rest.length
               ? '<button type="button" class="btn btn-text" id="see-more" aria-expanded="false" aria-controls="more-list">Show other trusted colleagues</button>' +
                 '<div class="more-list" id="more-list">' + rest.map(function (r) { return recCard(r, false); }).join("") + "</div>"
               : "") +
-            '<p class="tiny">You can still pick a different day above. Later weeks may have room with ' + escapeHtml(first) + ".</p>" +
+            '<div class="referral-alt">' +
+              '<p class="tiny" style="margin:0 0 8px">Prefer to wait for ' + escapeHtml(first) +
+                " instead? Join the waitlist — they will see it on their dashboard.</p>" +
+              '<button type="button" class="btn btn-ghost btn-sm" id="referral-waitlist">Join ' +
+                escapeHtml(first) + "’s waitlist</button>" +
+            "</div>" +
+            '<p class="tiny">Or pick a different day above. Later weeks may have room with ' + escapeHtml(first) + ".</p>" +
           "</section>";
       }
       $("#book-result").innerHTML = body;
@@ -594,6 +708,12 @@
           var open = list.classList.toggle("open");
           more.textContent = open ? "Hide other colleagues" : "Show other trusted colleagues";
           more.setAttribute("aria-expanded", open ? "true" : "false");
+        });
+      }
+      var refWl = $("#referral-waitlist");
+      if (refWl) {
+        refWl.addEventListener("click", function () {
+          showInlineWaitlist("Prefer to wait for " + first);
         });
       }
       var wlForm = $("#waitlist-form");
@@ -673,6 +793,14 @@
           }
         });
         if (!data.ok) {
+          if (isTakenError(data)) {
+            err.textContent = (data.error || "That time was just taken.") +
+              " Pick another peer time or join the waitlist.";
+            err.classList.remove("hidden");
+            // Bounce back to referral if we still have payload
+            if (state.recs) showReferral(state.recs);
+            return;
+          }
           err.textContent = data.error || "Could not book that time.";
           err.classList.remove("hidden");
           return;
@@ -703,6 +831,14 @@
         return;
       }
       if (!data.ok) {
+        if (isTakenError(data)) {
+          await recoverTakenSlot({
+            name: form.name.value.trim(),
+            email: form.email.value.trim(),
+            phone: form.phone.value.trim()
+          }, data.error || "That time was just taken");
+          return;
+        }
         err.textContent = data.error || "Could not book that time.";
         err.classList.remove("hidden");
         return;

@@ -65,8 +65,9 @@ def main() -> None:
     expect(miss.status_code == 200, f"/book?q=zzzzzz got {miss.status_code}")
     expect("No one matched that search" in miss.text, "/book?q=zzzzzz missing empty state")
     expect('href="/p/jason-cheney"' not in miss.text, "/book?q=zzzzzz listed Jason")
-    expect('href="/p/elena-vasquez-lpc"' not in miss.text, "/book?q=zzzzzz listed Elena")
     expect("person-card" not in miss.text, "/book?q=zzzzzz still rendered result cards")
+    expect('href="/p/elena-vasquez-lpc"' in miss.text and "demo" in miss.text.lower(),
+           "/book?q=zzzzzz missing Elena demo CTA")
     print("OK /book?q=zzzzzz empty state, not a 500")
 
     print("ALL BOOK SEARCH TESTS PASSED")

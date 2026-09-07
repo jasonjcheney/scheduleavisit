@@ -20,6 +20,9 @@
   <section class="find-empty" id="find-empty">
     <p class="empty-title">No one matched that search.</p>
     <p class="muted">Try a different name or city — a first name, a clinic, or a place like Boulder or Grand Junction.</p>
+    <p class="find-demo-cta">
+      <a class="btn btn-primary btn-sm" href="/p/elena-vasquez-lpc">Try Elena’s demo booking page</a>
+    </p>
   </section>
   {% else %}
     {% if not searched %}
@@ -45,7 +48,9 @@
       {% endfor %}
     </div>
     <p class="find-empty find-live-empty" id="find-live-empty" hidden>
-      No one matched that search. Try a different name or city.
+      No one matched that search.
+      <a href="/p/elena-vasquez-lpc">Try Elena’s demo</a>
+      instead.
     </p>
   {% endif %}
 </main>
