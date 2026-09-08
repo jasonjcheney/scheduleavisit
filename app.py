@@ -1379,6 +1379,32 @@ async def api_waitlist(slug: str, request: Request):
         u = user_by_slug(conn, slug)
         if not u:
             return json_err("Calendar not found", 404)
+        existing = conn.execute(
+            """SELECT id, name, email, requested_minutes FROM waitlist_requests
+               WHERE provider_id=? AND lower(email)=lower(?) AND dismissed_at IS NULL
+               ORDER BY id DESC LIMIT 1""",
+            (u["id"], email),
+        ).fetchone()
+        if existing:
+            conn.execute(
+                """UPDATE waitlist_requests
+                   SET name=?, requested_minutes=?
+                   WHERE id=?""",
+                (name, minutes, int(existing["id"])),
+            )
+            print(
+                f"[waitlist] already {name} <{email}> → {u['slug']} {minutes}min id={existing['id']}",
+                flush=True,
+            )
+            return {
+                "ok": True,
+                "waitlistId": int(existing["id"]),
+                "alreadyJoined": True,
+                "message": (
+                    f"You're already on {first_name(u['name'])}'s waitlist. "
+                    "The office will see your request on their dashboard."
+                ),
+            }
         cur = conn.execute(
             """INSERT INTO waitlist_requests
                (provider_id, name, email, requested_minutes, created_at)
@@ -1395,6 +1421,7 @@ async def api_waitlist(slug: str, request: Request):
         return {
             "ok": True,
             "waitlistId": wid,
+            "alreadyJoined": False,
             "message": f"You're on {first_name(u['name'])}'s waitlist. The office will see your request on their dashboard.",
         }
 

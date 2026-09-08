@@ -171,7 +171,40 @@ def main() -> None:
     ).fetchone()
     assert note is not None
     assert "Pat Waitlist" in note["title"]
+    assert d4.get("alreadyJoined") is False, d4
     print("ok full-network waitlist")
+
+    # Re-join with same email must not duplicate rows or re-notify
+    note_count = conn.execute(
+        "SELECT COUNT(*) AS n FROM notifications WHERE user_id=? AND kind='waitlist'",
+        (a,),
+    ).fetchone()["n"]
+    r4b = client.post(
+        "/api/p/alpha-therapist/waitlist",
+        json={
+            "name": "Pat Waitlist Updated",
+            "email": "PAT.waitlist@example.com",
+            "requested_minutes": 50,
+        },
+    )
+    assert r4b.status_code == 200, r4b.text
+    d4b = r4b.json()
+    assert d4b.get("ok") is True, d4b
+    assert d4b.get("alreadyJoined") is True, d4b
+    assert int(d4b.get("waitlistId")) == int(d4["waitlistId"]), d4b
+    assert "already" in (d4b.get("message") or "").lower(), d4b
+    rows = conn.execute(
+        "SELECT * FROM waitlist_requests WHERE provider_id=? AND lower(email)=lower(?) AND dismissed_at IS NULL",
+        (a, "pat.waitlist@example.com"),
+    ).fetchall()
+    assert len(rows) == 1, rows
+    assert rows[0]["name"] == "Pat Waitlist Updated"
+    note_count2 = conn.execute(
+        "SELECT COUNT(*) AS n FROM notifications WHERE user_id=? AND kind='waitlist'",
+        (a,),
+    ).fetchone()["n"]
+    assert int(note_count2) == int(note_count), (note_count, note_count2)
+    print("ok waitlist idempotent re-join")
 
     wid = int(d4["waitlistId"])
     # Auth required + ownership: unauthenticated dismiss fails

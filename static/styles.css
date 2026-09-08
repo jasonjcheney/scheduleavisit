@@ -1832,6 +1832,17 @@ a:focus-visible,
   font-weight: 650;
   margin-top: 12px;
 }
+.waitlist-panel.waitlist-success {
+  border-color: #b7d0bf;
+  background: linear-gradient(180deg, #f4faf6 0%, #eef6f1 100%);
+}
+.waitlist-panel.waitlist-success h2 {
+  color: var(--sage-deep);
+}
+.waitlist-panel.waitlist-success .help-tip {
+  margin-top: 12px;
+  margin-bottom: 0;
+}
 
 /* Dashboard waitlist rows */
 .waitlist-row {

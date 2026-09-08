@@ -435,6 +435,14 @@ def main() -> None:
            "ref-confirm chrome missing")
     print("OK peer confirm path friction polish")
 
+    expect("showWaitlistSuccess" in js and "waitlist-success" in js,
+           "waitlist success panel helper missing")
+    expect("alreadyJoined" in js and "data-busy" in js,
+           "waitlist submit should guard busy + alreadyJoined")
+    expect(".waitlist-panel.waitlist-success" in css,
+           "waitlist success CSS missing")
+    print("OK waitlist success UX chrome")
+
     print("ALL LIVE PATH SMOKES PASSED")
 
 

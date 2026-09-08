@@ -290,6 +290,68 @@
       });
     }
 
+    function showWaitlistSuccess(message, already) {
+      var msg = message || ("You're on " + first + "'s waitlist. The office will see your request on their dashboard.");
+      var eyebrow = already ? "Already on the list" : "You're on the list";
+      var title = already ? "Request already received" : "Request received";
+      $("#book-result").innerHTML =
+        '<section class="waitlist-panel waitlist-success" id="waitlist-panel" tabindex="-1" role="status">' +
+          '<p class="eyebrow">' + eyebrow + "</p>" +
+          "<h2>" + title + "</h2>" +
+          '<p class="muted">' + escapeHtml(msg) + "</p>" +
+          '<p class="help-tip">You can still pick a day above if an opening appears. The office already has your name and email — no need to join again.</p>' +
+        "</section>";
+      var panel = $("#waitlist-panel");
+      if (panel && panel.focus) {
+        try { panel.focus(); } catch (e) {}
+      }
+      $("#book-result").scrollIntoView({ behavior: "smooth", block: "start" });
+      toast(already ? "Already on the waitlist" : "You're on the waitlist");
+    }
+
+    function wireWaitlistForm(form) {
+      if (!form || form.getAttribute("data-wired") === "1") return;
+      form.setAttribute("data-wired", "1");
+      form.addEventListener("submit", async function (e) {
+        e.preventDefault();
+        var err = $("#waitlist-err");
+        if (err) err.classList.add("hidden");
+        var name = this.name.value.trim();
+        var email = this.email.value.trim();
+        var submitBtn = this.querySelector('button[type="submit"]');
+        if (submitBtn) {
+          if (submitBtn.getAttribute("data-busy") === "1") return;
+          submitBtn.setAttribute("data-busy", "1");
+          submitBtn.disabled = true;
+        }
+        var data = await api("/api/p/" + encodeURIComponent(slug) + "/waitlist", {
+          method: "POST",
+          body: {
+            name: name,
+            email: email,
+            requested_minutes: currentMinutes()
+          }
+        });
+        if (!data.ok) {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.removeAttribute("data-busy");
+          }
+          if (err) {
+            err.textContent = data.error || "Could not join the waitlist.";
+            err.classList.remove("hidden");
+          }
+          return;
+        }
+        state._prefill = { name: name, email: email, phone: (state._prefill && state._prefill.phone) || "" };
+        state._waitlisted = true;
+        showWaitlistSuccess(
+          data.message || ("You're on " + first + "'s waitlist. The office will see your request on their dashboard."),
+          !!data.alreadyJoined
+        );
+      });
+    }
+
     function showInlineWaitlist(reason) {
       var copy = reason || ("No openings with " + first + " in the next two weeks.");
       var pref = state._prefill || {};
@@ -305,37 +367,8 @@
             '<label class="field">Email<input type="email" name="email" required placeholder="you@email.com" autocomplete="email" value="' + escapeHtml(pref.email || "") + '"></label>' +
             '<button type="submit" class="btn btn-primary">Join the waitlist</button>' +
           "</form>" +
-          '<p class="tiny" id="waitlist-ok" hidden></p>' +
         "</section>";
-      var wlForm = $("#waitlist-form");
-      if (wlForm) {
-        wlForm.addEventListener("submit", async function (e) {
-          e.preventDefault();
-          var err = $("#waitlist-err");
-          var okEl = $("#waitlist-ok");
-          err.classList.add("hidden");
-          if (okEl) okEl.hidden = true;
-          var data = await api("/api/p/" + encodeURIComponent(slug) + "/waitlist", {
-            method: "POST",
-            body: {
-              name: this.name.value.trim(),
-              email: this.email.value.trim(),
-              requested_minutes: currentMinutes()
-            }
-          });
-          if (!data.ok) {
-            err.textContent = data.error || "Could not join the waitlist.";
-            err.classList.remove("hidden");
-            return;
-          }
-          this.querySelectorAll("input, button").forEach(function (el) { el.disabled = true; });
-          if (okEl) {
-            okEl.hidden = false;
-            okEl.textContent = data.message || ("You're on " + first + "'s waitlist. They will see your request on their dashboard.");
-          }
-          toast("You're on the waitlist");
-        });
-      }
+      wireWaitlistForm($("#waitlist-form"));
       var panel = $("#waitlist-panel");
       if (panel && panel.focus) {
         try { panel.focus(); } catch (e) {}
@@ -673,7 +706,6 @@
             "</form>" +
             '<p class="help-tip">You can still pick a different day above. Later weeks may have room with ' +
               escapeHtml(first) + ".</p>" +
-            '<p class="tiny" id="waitlist-ok" hidden></p>' +
           "</section>";
       } else {
         var hops = rec.hops || 1;
@@ -718,35 +750,7 @@
           showInlineWaitlist("Prefer to wait for " + first);
         });
       }
-      var wlForm = $("#waitlist-form");
-      if (wlForm) {
-        wlForm.addEventListener("submit", async function (e) {
-          e.preventDefault();
-          var err = $("#waitlist-err");
-          var okEl = $("#waitlist-ok");
-          err.classList.add("hidden");
-          if (okEl) okEl.hidden = true;
-          var data = await api("/api/p/" + encodeURIComponent(slug) + "/waitlist", {
-            method: "POST",
-            body: {
-              name: this.name.value.trim(),
-              email: this.email.value.trim(),
-              requested_minutes: currentMinutes()
-            }
-          });
-          if (!data.ok) {
-            err.textContent = data.error || "Could not join the waitlist.";
-            err.classList.remove("hidden");
-            return;
-          }
-          this.querySelectorAll("input, button").forEach(function (el) { el.disabled = true; });
-          if (okEl) {
-            okEl.hidden = false;
-            okEl.textContent = data.message || ("You're on " + first + "'s waitlist. They will see your request on their dashboard.");
-          }
-          toast("You're on the waitlist");
-        });
-      }
+      wireWaitlistForm($("#waitlist-form"));
       var panel = $("#referral-panel") || $("#waitlist-panel");
       if (panel && panel.focus) {
         try { panel.focus(); } catch (e) {}
