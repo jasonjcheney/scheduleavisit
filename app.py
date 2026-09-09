@@ -796,14 +796,15 @@ def booked_ics(token: str):
 def booked_page(request: Request, token: str):
     with db() as conn:
         a = appointment_by_public_token(conn, token)
-        if not a or a["status"] != "booked":
+        if not a or a["status"] not in ("booked", "cancelled"):
             return tpl(request, "notfound.html", status_code=404, message="We could not find that visit.")
+        cancelled = a["status"] == "cancelled"
         provider = user_by_id(conn, a["provider_id"])
         client = conn.execute("SELECT * FROM clients WHERE id=?", (a["client_id"],)).fetchone() if a["client_id"] else None
         referred = user_by_id(conn, a["referred_from_provider_id"]) if a["referred_from_provider_id"] else None
         start = parse_iso(a["start_iso"])
         first_visit = False
-        if a["client_id"]:
+        if not cancelled and a["client_id"]:
             count = conn.execute(
                 "SELECT COUNT(*) AS c FROM appointments WHERE client_id=? AND status='booked'",
                 (a["client_id"],),
@@ -821,13 +822,41 @@ def booked_page(request: Request, token: str):
             "when_long": format_long(start.date()),
             "when_time": format_time(start.strftime("%H:%M")),
             "referred": public_provider(referred) if referred else None,
-            "show_portal": bool(first_visit and portal_url),
+            "show_portal": bool((not cancelled) and first_visit and portal_url),
             "portal_url": portal_url,
             "portal_kind": portal_kind,
             "visit_kind": visit_kind,
             "first_visit": first_visit,
+            "cancelled": cancelled,
         }
     return tpl(request, "booked.html", **ctx)
+
+
+@app.post("/api/booked/{token}/cancel")
+def api_booked_cancel(token: str):
+    """Client self-service cancel from the confirmation link. No login required."""
+    with db() as conn:
+        a = appointment_by_public_token(conn, token)
+        if not a:
+            return json_err("Visit not found", 404)
+        if a["status"] == "cancelled":
+            return {"ok": True, "already": True, "redirect": f"/booked/{a['public_token']}"}
+        if a["status"] != "booked":
+            return json_err("Visit not found", 404)
+        conn.execute(
+            "UPDATE appointments SET status='cancelled', cancelled_at=? WHERE id=?",
+            (now_iso(), a["id"]),
+        )
+        cancel_pending(conn, a["id"])
+        start = parse_iso(a["start_iso"])
+        client = conn.execute("SELECT * FROM clients WHERE id=?", (a["client_id"],)).fetchone() if a["client_id"] else None
+        who = (client["name"] if client else "A client")
+        notify(
+            conn, a["provider_id"], "cancel", "Visit cancelled",
+            f"{who} cancelled the {format_time(start.strftime('%H:%M'))} time on "
+            f"{format_long(start.date())}. This week's hours updated immediately.",
+        )
+        return {"ok": True, "redirect": f"/booked/{a['public_token']}"}
 
 
 @app.get("/ride", response_class=HTMLResponse)

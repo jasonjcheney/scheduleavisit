@@ -491,6 +491,14 @@ input:focus { outline: 3px solid rgba(45,90,74,0.25); border-color: var(--sage);
   box-shadow: 0 6px 20px rgba(196, 92, 62, 0.3);
 }
 .confirm-step-optional { background: var(--sage-wash); border-color: transparent; }
+.confirm-step-cancel { background: #faf7f2; border-color: rgba(196, 92, 62, 0.18); }
+.confirm-step-cancel .confirm-step-label { color: var(--clay-deep); }
+.confirm-cancelled .confirm-icon-cancelled {
+  color: var(--clay-deep);
+  background: rgba(196, 92, 62, 0.12);
+}
+.confirm-cancelled h1 { color: var(--ink); }
+
 
 @media (max-width: 480px) {
   .booked-page { padding-left: 12px; padding-right: 12px; }

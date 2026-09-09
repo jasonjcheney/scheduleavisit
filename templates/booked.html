@@ -1,9 +1,31 @@
 {% extends "base.html" %}
 {% set compact_nav = true %}
-{% block title %}You’re on the calendar — ScheduleAVisit{% endblock %}
+{% block title %}{% if cancelled %}Visit cancelled{% else %}You’re on the calendar{% endif %} — ScheduleAVisit{% endblock %}
 {% block content %}
 <main class="app-wrap booked-page">
-  <section class="card confirm">
+  <section class="card confirm{% if cancelled %} confirm-cancelled{% endif %}">
+    {% if cancelled %}
+    <div class="confirm-icon confirm-icon-cancelled" aria-hidden="true">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+    </div>
+    <span class="badge visit-kind">Cancelled</span>
+    <h1>This visit was cancelled.</h1>
+    <p class="lede confirm-lede">That time is open again on {{ provider.first }}’s calendar. Nothing else is required from you. You can book another time below if you still need one.</p>
+    <dl>
+      <dt>Was</dt><dd>{{ when_long }} · {{ when_time }}</dd>
+      <dt>With</dt><dd>{{ provider.name }}<div class="tiny">{{ provider.clinic }}{% if provider.address %} · {{ provider.address }}{% endif %}</div></dd>
+      <dt>For</dt><dd>{{ client_name }} · {{ appointment.duration_minutes }}-minute {% if visit_kind=='consult' %}consultation{% else %}visit{% endif %}</dd>
+    </dl>
+    <div class="confirm-next">
+      <h2 class="confirm-next-title">What to do next</h2>
+      <p class="confirm-next-intro">If you still need a visit, pick a new time. The old calendar invite no longer applies.</p>
+      <div class="confirm-step">
+        <div class="confirm-step-label">Book another time</div>
+        <p class="confirm-step-help">Open {{ provider.first }}’s booking page and choose a day that works.</p>
+        <a class="btn btn-primary" href="/p/{{ provider.slug }}">Book with {{ provider.first }}</a>
+      </div>
+    </div>
+    {% else %}
     <div class="confirm-icon" aria-hidden="true">
       <svg width="36" height="36" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.2 4.2L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
@@ -60,7 +82,15 @@
           <a class="btn btn-ghost" href="/p/{{ provider.slug }}">Book another visit</a>
         </div>
       </div>
+
+      <div class="confirm-step confirm-step-cancel">
+        <div class="confirm-step-label">{% if show_portal and portal_url %}4{% else %}3{% endif %} · Need to change plans?</div>
+        <p class="confirm-step-help">Cancel here if you cannot make it. {{ provider.first }} is notified and the time opens again right away. No account needed.</p>
+        <p class="err hidden" id="booked-cancel-err" role="status" aria-live="polite"></p>
+        <button type="button" class="btn btn-ghost" id="booked-cancel-btn" data-cancel-token="{{ confirm_token }}" data-provider-first="{{ provider.first }}">Cancel this visit</button>
+      </div>
     </div>
+    {% endif %}
   </section>
 </main>
 {% endblock %}

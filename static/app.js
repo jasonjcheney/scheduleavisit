@@ -1697,4 +1697,37 @@
       ok.classList.remove("hidden");
     });
   }
+
+  /* ——— Confirmation page: client self-service cancel ——— */
+  var bookedCancel = $("#booked-cancel-btn");
+  if (bookedCancel) {
+    bookedCancel.addEventListener("click", async function () {
+      var token = bookedCancel.getAttribute("data-cancel-token") || "";
+      var first = bookedCancel.getAttribute("data-provider-first") || "the office";
+      var err = $("#booked-cancel-err");
+      if (err) {
+        err.classList.add("hidden");
+        err.textContent = "";
+      }
+      if (!token) return;
+      if (!confirm("Cancel this visit with " + first + "? The time opens again right away.")) return;
+      if (bookedCancel.getAttribute("data-busy") === "1") return;
+      bookedCancel.setAttribute("data-busy", "1");
+      bookedCancel.disabled = true;
+      var data = await api("/api/booked/" + encodeURIComponent(token) + "/cancel", { method: "POST" });
+      if (!data.ok) {
+        bookedCancel.removeAttribute("data-busy");
+        bookedCancel.disabled = false;
+        if (err) {
+          err.textContent = data.error || "Could not cancel this visit.";
+          err.classList.remove("hidden");
+        } else {
+          toast(data.error || "Could not cancel this visit.");
+        }
+        return;
+      }
+      location.href = data.redirect || ("/booked/" + token);
+    });
+  }
+
 })();

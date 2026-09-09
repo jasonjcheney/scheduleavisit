@@ -376,6 +376,45 @@ def main() -> None:
         )
         conn.commit()
 
+    # —— Confirmation page: cancel CTA + cancelled clarity (not a 404) ——
+    expect("Cancel this visit" in booked_html.text, "booked.html missing cancel CTA")
+    expect("Need to change plans" in booked_html.text, "booked.html missing change-plans step")
+    expect('id="booked-cancel-btn"' in booked_html.text, "booked.html missing cancel button id")
+    expect(f'data-cancel-token="{token}"' in booked_html.text, "booked.html missing cancel token")
+    js_booked = (ROOT / "static" / "app.js").read_text()
+    expect("/api/booked/" in js_booked and "booked-cancel-btn" in js_booked,
+           "app.js missing client cancel handler")
+    expect(".confirm-step-cancel" in css, "styles missing confirm-step-cancel")
+
+    cancel_r = c.post(f"/api/booked/{token}/cancel")
+    expect(cancel_r.status_code == 200 and cancel_r.json().get("ok"),
+           f"client cancel failed: {cancel_r.text}")
+    with connect() as conn:
+        row_a = conn.execute("SELECT status, cancelled_at FROM appointments WHERE public_token=?", (token,)).fetchone()
+        expect(row_a is not None and row_a["status"] == "cancelled", "cancel should set status=cancelled")
+        expect(row_a["cancelled_at"], "cancel should stamp cancelled_at")
+        # Slot must be free again for the same start.
+        start_iso = conn.execute("SELECT start_iso FROM appointments WHERE public_token=?", (token,)).fetchone()["start_iso"]
+        clash_count = conn.execute(
+            """SELECT COUNT(*) AS c FROM appointments
+               WHERE provider_id=? AND status='booked' AND start_iso=?""",
+            (prov["id"], start_iso),
+        ).fetchone()["c"]
+        expect(clash_count == 0, "cancelled visit should free the slot")
+    cancelled_html = c.get(f"/booked/{token}")
+    expect(cancelled_html.status_code == 200, f"cancelled booked page got {cancelled_html.status_code}")
+    expect("This visit was cancelled" in cancelled_html.text, "cancelled page missing clear headline")
+    expect("We could not find that visit" not in cancelled_html.text, "cancelled page must not 404-copy")
+    expect("Book with" in cancelled_html.text, "cancelled page missing rebook CTA")
+    expect("Add to calendar" not in cancelled_html.text, "cancelled page should hide .ics")
+    expect("Cancel this visit" not in cancelled_html.text, "cancelled page should hide cancel CTA")
+    again = c.post(f"/api/booked/{token}/cancel")
+    expect(again.status_code == 200 and again.json().get("ok") and again.json().get("already"),
+           f"idempotent cancel failed: {again.text}")
+    ics_gone = c.get(f"/booked/{token}.ics")
+    expect(ics_gone.status_code == 404, f"cancelled .ics should 404, got {ics_gone.status_code}")
+    print("OK booked cancel + cancelled confirmation clarity")
+
 
     # Slot-taken conflict returns taken flag for mid-flow recovery UX
     with connect() as conn:
