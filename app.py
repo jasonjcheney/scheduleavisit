@@ -821,6 +821,8 @@ def booked_page(request: Request, token: str):
             "client_email": client["email"] if client else "",
             "when_long": format_long(start.date()),
             "when_time": format_time(start.strftime("%H:%M")),
+            "when_date": start.date().isoformat(),
+            "when_hhmm": start.strftime("%H:%M"),
             "referred": public_provider(referred) if referred else None,
             "show_portal": bool((not cancelled) and first_visit and portal_url),
             "portal_url": portal_url,
@@ -857,6 +859,63 @@ def api_booked_cancel(token: str):
             f"{format_long(start.date())}. This week's hours updated immediately.",
         )
         return {"ok": True, "redirect": f"/booked/{a['public_token']}"}
+
+
+@app.post("/api/booked/{token}/reschedule")
+async def api_booked_reschedule(token: str, request: Request):
+    """Client self-service reschedule from the confirmation link. Same provider, no login."""
+    data = await _body(request)
+    try:
+        day = datetime.strptime(data.get("date") or "", "%Y-%m-%d").date()
+    except ValueError:
+        return json_err("Pick a day.")
+    hhmm = (data.get("time") or "").strip()
+    if not re.match(r"^\d{2}:\d{2}$", hhmm):
+        return json_err("Pick a time.")
+    with db() as conn:
+        a = appointment_by_public_token(conn, token)
+        if not a:
+            return json_err("Visit not found", 404)
+        if a["status"] != "booked":
+            return json_err("That visit is not on the calendar.")
+        provider = user_by_id(conn, a["provider_id"])
+        if not provider:
+            return json_err("Calendar not found", 404)
+        minutes = int(a["duration_minutes"] or 50)
+        start = at_local(day, hhmm)
+        if start <= datetime.now(TZ):
+            return json_err("That time has already passed.")
+        if day.isoweekday() not in user_workdays(provider):
+            return json_err("The office is closed that day.")
+        if is_taken(conn, provider["id"], start, minutes, ignore_id=a["id"]):
+            return json_err("That time was just taken. Please pick another.", taken=True)
+        old = parse_iso(a["start_iso"])
+        if not can_accept_visit(conn, provider, day, minutes):
+            # Allow moving within the same week without double-counting this visit.
+            if start_of_week(old.date()) != start_of_week(day):
+                return json_err("That week does not have hour-cap room.")
+        new_iso = start.isoformat(timespec="seconds")
+        if new_iso == a["start_iso"]:
+            return {"ok": True, "redirect": f"/booked/{a['public_token']}", "unchanged": True}
+        conn.execute(
+            "UPDATE appointments SET start_iso=? WHERE id=?",
+            (new_iso, a["id"]),
+        )
+        after_reschedule(conn, a["id"])
+        client = conn.execute("SELECT * FROM clients WHERE id=?", (a["client_id"],)).fetchone() if a["client_id"] else None
+        who = (client["name"] if client else "A client")
+        notify(
+            conn, a["provider_id"], "reschedule", "Visit moved",
+            f"{who} moved {format_long(old.date())} {format_time(old.strftime('%H:%M'))} → "
+            f"{format_long(day)} {format_time(hhmm)}. Hours stay with this visit.",
+        )
+        return {
+            "ok": True,
+            "redirect": f"/booked/{a['public_token']}",
+            "startIso": new_iso,
+            "date": day.isoformat(),
+            "time": hhmm,
+        }
 
 
 @app.get("/ride", response_class=HTMLResponse)

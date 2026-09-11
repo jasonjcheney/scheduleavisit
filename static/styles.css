@@ -493,6 +493,27 @@ input:focus { outline: 3px solid rgba(45,90,74,0.25); border-color: var(--sage);
 .confirm-step-optional { background: var(--sage-wash); border-color: transparent; }
 .confirm-step-cancel { background: #faf7f2; border-color: rgba(196, 92, 62, 0.18); }
 .confirm-step-cancel .confirm-step-label { color: var(--clay-deep); }
+.confirm-change-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+.confirm-change-actions .btn { min-height: 44px; }
+.booked-reschedule-panel {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(45, 90, 74, 0.12);
+}
+.booked-reschedule-panel .date-strip { margin: 0 0 4px; }
+.booked-reschedule-panel .slot-grid { margin-bottom: 8px; }
+.booked-reschedule-panel .time-slot span.tiny {
+  display: block;
+  font-size: 0.68rem;
+  color: var(--sage);
+  font-weight: 600;
+}
+.confirm-step-rebook { background: var(--sage-wash); border-color: transparent; }
 .confirm-cancelled .confirm-icon-cancelled {
   color: var(--clay-deep);
   background: rgba(196, 92, 62, 0.12);

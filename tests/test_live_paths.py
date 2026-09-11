@@ -376,41 +376,171 @@ def main() -> None:
         )
         conn.commit()
 
-    # —— Confirmation page: cancel CTA + cancelled clarity (not a 404) ——
+    # —— Confirmation page: reschedule + cancel CTA + cancelled clarity ——
     expect("Cancel this visit" in booked_html.text, "booked.html missing cancel CTA")
+    expect("Pick a new time" in booked_html.text, "booked.html missing reschedule CTA")
     expect("Need to change plans" in booked_html.text, "booked.html missing change-plans step")
     expect('id="booked-cancel-btn"' in booked_html.text, "booked.html missing cancel button id")
+    expect('id="booked-reschedule-btn"' in booked_html.text, "booked.html missing reschedule button id")
+    expect('id="booked-reschedule-panel"' in booked_html.text, "booked.html missing reschedule panel")
     expect(f'data-cancel-token="{token}"' in booked_html.text, "booked.html missing cancel token")
+    expect(f'data-token="{token}"' in booked_html.text, "booked.html missing change-plans token")
+    expect('data-provider-slug="elena-vasquez-lpc"' in booked_html.text,
+           "booked.html missing provider slug for reschedule")
     js_booked = (ROOT / "static" / "app.js").read_text()
     expect("/api/booked/" in js_booked and "booked-cancel-btn" in js_booked,
            "app.js missing client cancel handler")
+    expect("booked-reschedule-btn" in js_booked and "/reschedule" in js_booked,
+           "app.js missing client reschedule handler")
     expect(".confirm-step-cancel" in css, "styles missing confirm-step-cancel")
+    expect(".booked-reschedule-panel" in css, "styles missing booked-reschedule-panel")
+    expect(".confirm-step-rebook" in css, "styles missing confirm-step-rebook")
+
+    # Find another open time with the same provider (keep duration/kind).
+    with connect() as conn:
+        old_row = conn.execute(
+            "SELECT start_iso, duration_minutes, provider_id FROM appointments WHERE public_token=?",
+            (token,),
+        ).fetchone()
+        expect(old_row is not None, "reschedule seed appointment missing")
+        old_start_iso = old_row["start_iso"]
+        note_before = conn.execute(
+            "SELECT COUNT(*) AS c FROM notifications WHERE user_id=? AND kind='reschedule'",
+            (old_row["provider_id"],),
+        ).fetchone()["c"]
+
+    # Prefer same calendar week as the existing visit so hour-cap does not block the move.
+    from db import start_of_week
+    with connect() as conn:
+        conn.execute(
+            "UPDATE users SET weekly_target_hours=? WHERE slug=?",
+            (40, "elena-vasquez-lpc"),
+        )
+        conn.commit()
+    move_day = None
+    move_time = None
+    cur_day = db_today() + timedelta(days=3)
+    week0 = start_of_week(cur_day)
+    candidates = [cur_day + timedelta(days=i) for i in range(0, 5)]  # rest of same week first
+    candidates += [db_today() + timedelta(days=i) for i in range(16)]
+    seen = set()
+    for day in candidates:
+        key = day.isoformat()
+        if key in seen:
+            continue
+        seen.add(key)
+        avail_r = c.get(
+            "/api/p/elena-vasquez-lpc/availability",
+            params={"date": key, "minutes": 50, "visit_kind": "session"},
+        ).json()
+        if not avail_r.get("ok"):
+            continue
+        for s in (avail_r.get("slots") or []):
+            if not s.get("open"):
+                continue
+            if key == cur_day.isoformat() and s["time"] == "10:00":
+                continue
+            move_day = key
+            move_time = s["time"]
+            break
+        if move_day:
+            break
+    expect(move_day and move_time, "no alternate open slot for client reschedule")
+
+    bad_rs = c.post(f"/api/booked/{token}/reschedule", json={"date": "nope", "time": "10:00"})
+    expect(bad_rs.status_code == 400, f"bad reschedule date should 400, got {bad_rs.status_code}")
+    rs_r = c.post(f"/api/booked/{token}/reschedule", json={"date": move_day, "time": move_time})
+    expect(rs_r.status_code == 200 and rs_r.json().get("ok"),
+           f"client reschedule failed: {rs_r.text}")
+    expect(rs_r.json().get("redirect") == f"/booked/{token}", "reschedule should keep same token redirect")
+    with connect() as conn:
+        moved = conn.execute(
+            "SELECT status, start_iso, public_token FROM appointments WHERE public_token=?",
+            (token,),
+        ).fetchone()
+        expect(moved is not None and moved["status"] == "booked", "reschedule should keep status=booked")
+        expect(moved["start_iso"] != old_start_iso, "reschedule should change start_iso")
+        expect(moved["start_iso"].startswith(move_day), f"reschedule day mismatch: {moved['start_iso']}")
+        expect(move_time in moved["start_iso"], f"reschedule time mismatch: {moved['start_iso']}")
+        # This token's visit left the old start (seed may still occupy that clock time).
+        still_old = conn.execute(
+            """SELECT COUNT(*) AS c FROM appointments
+               WHERE public_token=? AND status='booked' AND start_iso=?""",
+            (token, old_start_iso),
+        ).fetchone()["c"]
+        expect(still_old == 0, "token visit should leave the old start_iso")
+        note_after = conn.execute(
+            """SELECT title, body FROM notifications
+               WHERE user_id=? AND kind='reschedule' ORDER BY id DESC LIMIT 1""",
+            (prov["id"],),
+        ).fetchone()
+        expect(note_after is not None, "reschedule should notify provider in-app")
+        expect("Visit moved" in (note_after["title"] or ""), "reschedule notify title")
+        expect("ICS Test Client" in (note_after["body"] or ""), "reschedule notify should name client")
+        note_count = conn.execute(
+            "SELECT COUNT(*) AS c FROM notifications WHERE user_id=? AND kind='reschedule'",
+            (prov["id"],),
+        ).fetchone()["c"]
+        expect(note_count == note_before + 1, "reschedule should add one provider notification")
+
+    moved_html = c.get(f"/booked/{token}")
+    expect(moved_html.status_code == 200, f"rescheduled booked page got {moved_html.status_code}")
+    expect("You’re on the calendar" in moved_html.text or "You're on the calendar" in moved_html.text,
+           "rescheduled page should stay confirmation, not cancelled")
+    expect("Cancel this visit" in moved_html.text, "rescheduled page should keep cancel CTA")
+    expect("Pick a new time" in moved_html.text, "rescheduled page should keep reschedule CTA")
+    print("OK booked client reschedule + provider notify")
+
+    cancel_note_before = 0
+    with connect() as conn:
+        cancel_note_before = conn.execute(
+            "SELECT COUNT(*) AS c FROM notifications WHERE user_id=? AND kind='cancel'",
+            (prov["id"],),
+        ).fetchone()["c"]
 
     cancel_r = c.post(f"/api/booked/{token}/cancel")
     expect(cancel_r.status_code == 200 and cancel_r.json().get("ok"),
            f"client cancel failed: {cancel_r.text}")
     with connect() as conn:
-        row_a = conn.execute("SELECT status, cancelled_at FROM appointments WHERE public_token=?", (token,)).fetchone()
+        row_a = conn.execute("SELECT status, cancelled_at, start_iso FROM appointments WHERE public_token=?", (token,)).fetchone()
         expect(row_a is not None and row_a["status"] == "cancelled", "cancel should set status=cancelled")
         expect(row_a["cancelled_at"], "cancel should stamp cancelled_at")
-        # Slot must be free again for the same start.
-        start_iso = conn.execute("SELECT start_iso FROM appointments WHERE public_token=?", (token,)).fetchone()["start_iso"]
+        # Slot must be free again for the (possibly moved) start.
+        start_iso = row_a["start_iso"]
         clash_count = conn.execute(
             """SELECT COUNT(*) AS c FROM appointments
                WHERE provider_id=? AND status='booked' AND start_iso=?""",
             (prov["id"], start_iso),
         ).fetchone()["c"]
         expect(clash_count == 0, "cancelled visit should free the slot")
+        cancel_note = conn.execute(
+            """SELECT title, body FROM notifications
+               WHERE user_id=? AND kind='cancel' ORDER BY id DESC LIMIT 1""",
+            (prov["id"],),
+        ).fetchone()
+        expect(cancel_note is not None, "cancel should notify provider in-app")
+        expect("Visit cancelled" in (cancel_note["title"] or ""), "cancel notify title")
+        expect("ICS Test Client" in (cancel_note["body"] or ""), "cancel notify should name client")
+        cancel_note_after = conn.execute(
+            "SELECT COUNT(*) AS c FROM notifications WHERE user_id=? AND kind='cancel'",
+            (prov["id"],),
+        ).fetchone()["c"]
+        expect(cancel_note_after == cancel_note_before + 1, "cancel should add one provider notification")
     cancelled_html = c.get(f"/booked/{token}")
     expect(cancelled_html.status_code == 200, f"cancelled booked page got {cancelled_html.status_code}")
     expect("This visit was cancelled" in cancelled_html.text, "cancelled page missing clear headline")
     expect("We could not find that visit" not in cancelled_html.text, "cancelled page must not 404-copy")
-    expect("Book with" in cancelled_html.text, "cancelled page missing rebook CTA")
+    expect("Book a new time with" in cancelled_html.text, "cancelled page missing rebook CTA")
+    expect('id="booked-rebook-btn"' in cancelled_html.text, "cancelled page missing rebook button id")
+    expect('href="/p/elena-vasquez-lpc"' in cancelled_html.text, "cancelled rebook CTA missing provider page")
     expect("Add to calendar" not in cancelled_html.text, "cancelled page should hide .ics")
     expect("Cancel this visit" not in cancelled_html.text, "cancelled page should hide cancel CTA")
+    expect("Pick a new time" not in cancelled_html.text, "cancelled page should hide reschedule CTA")
     again = c.post(f"/api/booked/{token}/cancel")
     expect(again.status_code == 200 and again.json().get("ok") and again.json().get("already"),
            f"idempotent cancel failed: {again.text}")
+    rs_cancelled = c.post(f"/api/booked/{token}/reschedule", json={"date": move_day, "time": move_time})
+    expect(rs_cancelled.status_code == 400, f"reschedule after cancel should fail, got {rs_cancelled.status_code}")
     ics_gone = c.get(f"/booked/{token}.ics")
     expect(ics_gone.status_code == 404, f"cancelled .ics should 404, got {ics_gone.status_code}")
     print("OK booked cancel + cancelled confirmation clarity")

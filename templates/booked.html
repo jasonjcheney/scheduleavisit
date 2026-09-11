@@ -18,11 +18,11 @@
     </dl>
     <div class="confirm-next">
       <h2 class="confirm-next-title">What to do next</h2>
-      <p class="confirm-next-intro">If you still need a visit, pick a new time. The old calendar invite no longer applies.</p>
-      <div class="confirm-step">
-        <div class="confirm-step-label">Book another time</div>
-        <p class="confirm-step-help">Open {{ provider.first }}’s booking page and choose a day that works.</p>
-        <a class="btn btn-primary" href="/p/{{ provider.slug }}">Book with {{ provider.first }}</a>
+      <p class="confirm-next-intro">If you still need a visit, rebook a new time with {{ provider.first }}. The old calendar invite no longer applies.</p>
+      <div class="confirm-step confirm-step-rebook">
+        <div class="confirm-step-label">Rebook with {{ provider.first }}</div>
+        <p class="confirm-step-help">Open the booking page and choose a day that works. You will get a fresh confirmation link.</p>
+        <a class="btn btn-primary" id="booked-rebook-btn" href="/p/{{ provider.slug }}">Book a new time with {{ provider.first }}</a>
       </div>
     </div>
     {% else %}
@@ -83,11 +83,33 @@
         </div>
       </div>
 
-      <div class="confirm-step confirm-step-cancel">
+      <div class="confirm-step confirm-step-cancel" id="booked-change-plans"
+           data-token="{{ confirm_token }}"
+           data-provider-slug="{{ provider.slug }}"
+           data-provider-first="{{ provider.first }}"
+           data-date="{{ when_date }}"
+           data-time="{{ when_hhmm }}"
+           data-minutes="{{ appointment.duration_minutes }}"
+           data-kind="{{ visit_kind }}">
         <div class="confirm-step-label">{% if show_portal and portal_url %}4{% else %}3{% endif %} · Need to change plans?</div>
-        <p class="confirm-step-help">Cancel here if you cannot make it. {{ provider.first }} is notified and the time opens again right away. No account needed.</p>
-        <p class="err hidden" id="booked-cancel-err" role="status" aria-live="polite"></p>
-        <button type="button" class="btn btn-ghost" id="booked-cancel-btn" data-cancel-token="{{ confirm_token }}" data-provider-first="{{ provider.first }}">Cancel this visit</button>
+        <p class="confirm-step-help">Pick a new open time with {{ provider.first }}, or cancel if you cannot make it. {{ provider.first }} is notified either way. No account needed.</p>
+        <p class="err hidden" id="booked-change-err" role="status" aria-live="polite"></p>
+        <div class="confirm-change-actions">
+          <button type="button" class="btn btn-sage" id="booked-reschedule-btn">Pick a new time</button>
+          <button type="button" class="btn btn-ghost" id="booked-cancel-btn" data-cancel-token="{{ confirm_token }}" data-provider-first="{{ provider.first }}">Cancel this visit</button>
+        </div>
+        <div id="booked-reschedule-panel" class="booked-reschedule-panel hidden" hidden>
+          <p class="tiny booked-reschedule-who" id="booked-reschedule-who">Currently {{ when_long }} · {{ when_time }} · {{ appointment.duration_minutes }} min with {{ provider.first }}</p>
+          <p class="tiny" style="margin:10px 0 6px">Pick a day</p>
+          <div class="date-strip" id="booked-reschedule-dates"></div>
+          <p class="tiny" style="margin:8px 0 6px">Open times with {{ provider.first }}</p>
+          <div class="slot-grid" id="booked-reschedule-slots" aria-live="polite"></div>
+          <p class="help-tip">Your current time stays reserved until you save a new one.</p>
+          <div class="confirm-secondary-actions" style="margin-top:12px">
+            <button type="button" class="btn btn-primary" id="booked-reschedule-save" disabled>Save new time</button>
+            <button type="button" class="btn btn-ghost" id="booked-reschedule-close">Close</button>
+          </div>
+        </div>
       </div>
     </div>
     {% endif %}
