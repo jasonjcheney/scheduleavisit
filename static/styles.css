@@ -178,6 +178,16 @@ p { margin: 0 0 0.8em; }
   aspect-ratio: 4 / 3;
   object-position: 50% 50%;
 }
+.hero-photo-collage {
+  background: var(--paper);
+  border-color: var(--line);
+}
+.hero-photo-collage img {
+  aspect-ratio: 3 / 2;
+  object-fit: contain;
+  object-position: center;
+  background: var(--paper);
+}
 .mini-cal { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
 .slot-chip {
   border: 1px solid var(--line); border-radius: 12px; padding: 10px 8px;
@@ -3117,6 +3127,23 @@ body.public-chrome {
   aspect-ratio: 1 / 1;
   transform: rotate(2.5deg) scale(1.06);
   object-position: 48% 18%;
+}
+/* Keep the collage readable — no blob crop over the design */
+.public-chrome .hero-photo-collage {
+  background: var(--paper);
+  padding: 0;
+  border-radius: var(--radius);
+  transform: none;
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-lg);
+}
+.public-chrome .hero-photo-collage img {
+  border-radius: var(--radius);
+  aspect-ratio: 3 / 2;
+  transform: none;
+  object-fit: contain;
+  object-position: center;
+  background: var(--paper);
 }
 .public-chrome .step,
 .public-chrome .audience-card,
