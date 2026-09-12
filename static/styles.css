@@ -179,14 +179,20 @@ p { margin: 0 0 0.8em; }
   object-position: 50% 50%;
 }
 .hero-photo-collage {
-  background: var(--paper);
-  border-color: var(--line);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  border-radius: 0;
+  overflow: visible;
 }
 .hero-photo-collage img {
-  aspect-ratio: 3 / 2;
+  aspect-ratio: auto;
+  width: 100%;
+  height: auto;
   object-fit: contain;
   object-position: center;
-  background: var(--paper);
+  background: transparent;
+  border-radius: 0;
 }
 .mini-cal { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
 .slot-chip {
@@ -3130,20 +3136,21 @@ body.public-chrome {
 }
 /* Keep the collage readable — no blob crop over the design */
 .public-chrome .hero-photo-collage {
-  background: var(--paper);
+  background: transparent;
   padding: 0;
-  border-radius: var(--radius);
+  border-radius: 0;
   transform: none;
-  border: 1px solid var(--line);
-  box-shadow: var(--shadow-lg);
+  border: 0;
+  box-shadow: none;
+  overflow: visible;
 }
 .public-chrome .hero-photo-collage img {
-  border-radius: var(--radius);
-  aspect-ratio: 3 / 2;
+  border-radius: 0;
+  aspect-ratio: auto;
   transform: none;
   object-fit: contain;
   object-position: center;
-  background: var(--paper);
+  background: transparent;
 }
 .public-chrome .step,
 .public-chrome .audience-card,
