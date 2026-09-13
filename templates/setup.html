@@ -125,16 +125,66 @@
     <section class="card setup-section" id="calendar-ical">
       <p class="eyebrow">4</p>
       <h2>Calendar</h2>
-      <p class="muted">Optional. Paste every private calendar feed you use (Google, Outlook, a portal calendar). Each session on those calendars can count here. One link per line. We never ask you to sign in with Google.</p>
-      <label class="field">iCal / ICS secret URLs
+      <p class="muted">Connect Google once so your busy time blocks new bookings, and new visits here show up on Google. You can still paste an iCal link for Outlook, Apple, or a portal calendar.</p>
+
+      <div class="gcal-box" id="google-calendar">
+        <h3>Google Calendar</h3>
+        {% if not google_cal_ready %}
+        <p class="help-tip">Google Calendar is not set up on this server yet. You can still paste an iCal link below. When the site owner adds Google, a Connect button will appear here.</p>
+        {% elif google_cal_connected %}
+        <p class="tiny">Connected{% if google_cal_email %} as {{ google_cal_email }}{% endif %}. ScheduleAVisit only writes the client’s name, time, and consult vs session — never clinical notes.</p>
+        {% if google_cal_error %}
+        <p class="err" role="alert">{{ google_cal_error }}</p>
+        {% endif %}
+        {% if google_calendars %}
+        <p class="field" style="margin-top:12px">Which calendars count as busy</p>
+        <div class="gcal-cals" id="gcal-busy-list">
+          {% for cal in google_calendars %}
+          <label class="check-line">
+            <input type="checkbox" name="google_busy" value="{{ cal.id }}" {% if cal.id in google_busy_calendar_ids %}checked{% endif %}>
+            {{ cal.summary }}{% if cal.primary %} (main){% endif %}
+          </label>
+          {% endfor %}
+        </div>
+        <label class="field" style="margin-top:12px">Where new ScheduleAVisit bookings should appear
+          <select name="google_write_calendar_id" id="gcal-write">
+            {% for cal in google_calendars %}
+              {% if cal.canWrite %}
+              <option value="{{ cal.id }}" {% if cal.id == google_write_calendar_id %}selected{% endif %}>{{ cal.summary }}{% if cal.primary %} (main){% endif %}</option>
+              {% endif %}
+            {% endfor %}
+          </select>
+          <span class="field-help">Default is your main Google calendar.</span>
+        </label>
+        <div class="hero-actions" style="margin-top:8px">
+          <button type="button" class="btn btn-sage" id="gcal-save">Save calendar choices</button>
+          <button type="button" class="btn btn-ghost" id="gcal-disconnect">Disconnect Google Calendar</button>
+        </div>
+        <p class="ok-msg hidden" id="gcal-ok" role="status"></p>
+        <p class="err hidden" id="gcal-err" role="alert"></p>
+        {% else %}
+        <div class="hero-actions" style="margin-top:8px">
+          <a class="btn btn-google" href="/auth/google/calendar?next=/setup#calendar-ical">Connect Google Calendar again</a>
+          <button type="button" class="btn btn-ghost" id="gcal-disconnect">Disconnect Google Calendar</button>
+        </div>
+        {% endif %}
+        {% else %}
+        <p class="tiny">One tap. Google will ask if ScheduleAVisit can see when you are busy and add the visits people book here.</p>
+        <div class="hero-actions" style="margin-top:8px">
+          <a class="btn btn-google" href="/auth/google/calendar?next=/setup#calendar-ical">Connect Google Calendar</a>
+        </div>
+        {% endif %}
+      </div>
+
+      <label class="field" style="margin-top:20px">Other calendars (iCal / ICS secret URLs)
         <textarea name="ical_url" rows="3" placeholder="https://calendar.google.com/calendar/ical/…">{{ me.ical_url }}</textarea>
-        <span class="field-help">Private web links that end in <code>.ics</code>. One per line. Treat them like passwords. Leave blank if you are not ready.</span>
+        <span class="field-help">For Outlook, Apple, or a portal calendar — or Google if you are not ready to connect. Private web links that end in <code>.ics</code>. One per line. Treat them like passwords. Leave blank if Google is enough.</span>
       </label>
-      <p class="tiny">After you paste the URLs, those appointments appear on the month calendar automatically — you do not retype names. Click an imported box if it was a counseling session, so it counts toward your weekly cap.</p>
+      <p class="tiny">Imported appointments appear on the month calendar automatically. Click an imported box if it was a counseling session, so it counts toward your weekly cap.</p>
       <div class="howto">
-        <p><strong>Google Calendar</strong> — Settings → click your calendar → “Secret address in iCal format.”</p>
+        <p><strong>If you already connected Google</strong> — you do not need the secret iCal link for those same calendars.</p>
         <p><strong>Outlook</strong> — Share → publish an ICS link.</p>
-        <p><strong>Apple Calendar</strong> — “File → New Calendar Subscription” is for following someone else’s calendar. To publish yours: Calendar → Share calendar, or an iCloud public calendar, then paste that URL here.</p>
+        <p><strong>Apple Calendar</strong> — Calendar → Share calendar, or an iCloud public calendar, then paste that URL here.</p>
       </div>
       <p class="help-tip">After setup, you can also click empty days on the dashboard month calendar to add clients by name.</p>
     </section>

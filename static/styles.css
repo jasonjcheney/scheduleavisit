@@ -772,6 +772,7 @@ footer.site-footer a { color: inherit; }
 .cal-block.booked { background: var(--sage-soft); color: var(--sage-deep); }
 .cal-block.manual { background: var(--clay-soft); color: var(--clay-deep); }
 .cal-block.ical { background: var(--sky-soft); color: var(--sky); }
+.cal-block.google { background: var(--sky-soft); color: var(--sky); }
 .cal-block.ical.session { background: var(--sage); color: #fffdf8; }
 
 input[type="url"], input[type="checkbox"] { font: inherit; }
@@ -1416,6 +1417,25 @@ h3 { font-size: var(--text-xl); }
 .setup-section.is-current {
   border-color: #b7d0c4;
   box-shadow: var(--shadow), inset 3px 0 0 var(--sage);
+}
+.gcal-box {
+  background: var(--sage-wash);
+  border: 1px dashed var(--sage-mid);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin: 12px 0 8px;
+}
+.gcal-box h3 {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+}
+.gcal-cals {
+  display: grid;
+  gap: 8px;
+  margin-top: 6px;
+}
+.gcal-dash .hero-actions {
+  flex-wrap: wrap;
 }
 .field-help {
   display: block;

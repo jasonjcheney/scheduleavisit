@@ -99,6 +99,11 @@ CREATE TABLE IF NOT EXISTS users (
   ical_synced_at TEXT,
   phone TEXT DEFAULT '',
   reminders_opt_in INTEGER NOT NULL DEFAULT 0,
+  google_refresh_token TEXT DEFAULT '',
+  google_connected_email TEXT DEFAULT '',
+  google_write_calendar_id TEXT DEFAULT 'primary',
+  google_busy_calendar_ids TEXT DEFAULT '["primary"]',
+  google_synced_at TEXT,
   created_at TEXT NOT NULL
 );
 
@@ -131,7 +136,8 @@ CREATE TABLE IF NOT EXISTS appointments (
   cancelled_at TEXT,
   visit_kind TEXT DEFAULT 'session',
   note TEXT DEFAULT '',
-  public_token TEXT
+  public_token TEXT,
+  google_event_id TEXT DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS network_invites (
@@ -273,6 +279,11 @@ def migrate(conn: sqlite3.Connection) -> None:
         ("ical_synced_at", "TEXT"),
         ("phone", "TEXT DEFAULT ''"),
         ("reminders_opt_in", "INTEGER NOT NULL DEFAULT 0"),
+        ("google_refresh_token", "TEXT DEFAULT ''"),
+        ("google_connected_email", "TEXT DEFAULT ''"),
+        ("google_write_calendar_id", "TEXT DEFAULT 'primary'"),
+        ("google_busy_calendar_ids", "TEXT DEFAULT '[\"primary\"]'"),
+        ("google_synced_at", "TEXT"),
     ]
     for name, decl in user_cols:
         if not _has_column(conn, "users", name):
@@ -281,6 +292,7 @@ def migrate(conn: sqlite3.Connection) -> None:
         ("visit_kind", "TEXT DEFAULT 'session'"),
         ("note", "TEXT DEFAULT ''"),
         ("public_token", "TEXT"),
+        ("google_event_id", "TEXT DEFAULT ''"),
     ]
     for name, decl in appt_cols:
         if not _has_column(conn, "appointments", name):

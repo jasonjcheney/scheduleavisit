@@ -77,6 +77,7 @@ def main() -> None:
         ("/p/elena-vasquez-lpc", 200, ["Elena Vasquez", "Free consultation", "Full session"]),
         ("/privacy", 200, ["We only keep what we need", "jasonjcheney@gmail.com",
                            "clinical notes", "hosted on Render", "do not sell",
+                           "Google Calendar", "refresh token",
                            'href="/privacy"', 'href="/terms"']),
         ("/terms", 200, ["A scheduling tool", "jasonjcheney@gmail.com",
                          "do not take cards", "hosted on Render", 'href="/terms"']),

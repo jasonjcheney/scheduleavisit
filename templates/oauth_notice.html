@@ -7,8 +7,12 @@
   <h1 class="page-title">{{ heading }}</h1>
   <p class="sub">{{ message }}</p>
   <div class="card">
-    <a class="btn btn-sage btn-block" href="/login">Back to log in</a>
+    <a class="btn btn-sage btn-block" href="{{ back_href|default('/login') }}">{{ back_label|default('Back to log in') }}</a>
+    {% if extra is defined and extra %}
+    <p class="tiny" style="margin-top:16px">{{ extra }}</p>
+    {% elif extra is not defined %}
     <p class="tiny" style="margin-top:16px">You can still use email and a password.</p>
+    {% endif %}
   </div>
 </main>
 {% endblock %}

@@ -1441,8 +1441,9 @@
           html += '<div class="' + classes + '" data-date="' + iso + '">';
           html += '<button type="button" class="cal-day-num" data-add-date="' + iso + '" aria-label="Add client on ' + iso + '">' + d.getDate() + "</button>";
           blocks.forEach(function (b) {
-            var extra = (b.source === "ical" && b.countsTowardCap) ? " session" : "";
-            html += '<button type="button" class="cal-block ' + escapeHtml(b.source) + extra + '" data-block="' +
+            var srcClass = (b.source === "google") ? "ical google" : b.source;
+            var extra = ((b.source === "ical" || b.source === "google") && b.countsTowardCap) ? " session" : "";
+            html += '<button type="button" class="cal-block ' + escapeHtml(srcClass) + extra + '" data-block="' +
               encodeURIComponent(JSON.stringify(b)) + '" title="' + escapeHtml(formatTime(b.time) + " " + b.name) + '">' +
               escapeHtml(formatTime(b.time)) + " " + escapeHtml(b.name) + "</button>";
           });
@@ -1697,6 +1698,50 @@
       ok.classList.remove("hidden");
     });
   }
+
+  /* ——— Google Calendar connect / choices ——— */
+  var gcalSave = $("#gcal-save");
+  if (gcalSave) {
+    gcalSave.addEventListener("click", async function () {
+      var err = $("#gcal-err");
+      var ok = $("#gcal-ok");
+      if (err) err.classList.add("hidden");
+      if (ok) ok.classList.add("hidden");
+      var busy = $$("input[name=google_busy]:checked").map(function (el) { return el.value; });
+      var writeEl = $("#gcal-write");
+      var write = writeEl ? writeEl.value : "primary";
+      var data = await api("/api/me/google", {
+        method: "POST",
+        body: { busy_calendar_ids: busy, write_calendar_id: write }
+      });
+      if (!data.ok) {
+        if (err) {
+          err.textContent = data.error || "Could not save calendar choices.";
+          err.classList.remove("hidden");
+        } else {
+          toast(data.error || "Could not save calendar choices.");
+        }
+        return;
+      }
+      if (ok) {
+        ok.textContent = data.message || "Saved.";
+        ok.classList.remove("hidden");
+      } else {
+        toast(data.message || "Saved.");
+      }
+    });
+  }
+  $$("#gcal-disconnect").forEach(function (btn) {
+    btn.addEventListener("click", async function () {
+      if (!confirm("Disconnect Google Calendar? We will stop reading and writing that account. iCal links you pasted still work.")) return;
+      var data = await api("/api/me/google/disconnect", { method: "POST" });
+      if (!data.ok) {
+        toast(data.error || "Could not disconnect.");
+        return;
+      }
+      location.reload();
+    });
+  });
 
   /* ——— Confirmation page: client self-service cancel + reschedule ——— */
   var bookedCancel = $("#booked-cancel-btn");

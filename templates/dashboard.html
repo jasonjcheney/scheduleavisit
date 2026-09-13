@@ -28,7 +28,7 @@
       <li class="done"><span aria-hidden="true">✓</span> Finish setup and open your public link</li>
       <li class="{% if upcoming or clients %}done{% endif %}"><span aria-hidden="true">{% if upcoming or clients %}✓{% else %}○{% endif %}</span> Add a client on the month calendar <a href="#month-cal-card">jump down</a></li>
       <li class="{% if peers %}done{% endif %}"><span aria-hidden="true">{% if peers %}✓{% else %}○{% endif %}</span> Invite a trusted peer for overflow <a href="#referral-network">jump down</a></li>
-      <li class="{% if me.ical_url %}done{% endif %}"><span aria-hidden="true">{% if me.ical_url %}✓{% else %}○{% endif %}</span> Optional: paste your calendar feeds under <a href="/setup#calendar-ical">Edit my page</a></li>
+      <li class="{% if google_cal_connected or me.ical_url %}done{% endif %}"><span aria-hidden="true">{% if google_cal_connected or me.ical_url %}✓{% else %}○{% endif %}</span> Optional: connect Google Calendar (or paste a feed) under <a href="/setup#calendar-ical">Edit my page</a></li>
     </ul>
     <p class="help-tip">Tip: clients never see your hour cap. They either get a time with you, or a recommended peer.</p>
   </section>
@@ -119,11 +119,34 @@
     <p class="help-tip">Scheduling only — first name, therapist, date, time, and clinic address if you added one. No clinical notes.</p>
   </section>
 
+  <section class="card gcal-dash" id="google-calendar">
+    <div class="row">
+      <div>
+        <h2>Google Calendar</h2>
+        {% if not google_cal_ready %}
+        <p class="tiny" style="margin:0">Google Calendar is not set up on this server yet. You can still paste an iCal feed under <a href="/setup#calendar-ical">Edit my page</a>.</p>
+        {% elif google_cal_connected %}
+        <p class="tiny" style="margin:0">Connected{% if google_cal_email %} as {{ google_cal_email }}{% endif %}. Busy time from the calendars you picked fills the grid below. New visits here also appear on Google.</p>
+        {% else %}
+        <p class="tiny" style="margin:0">Connect once so clients cannot book over your Google events, and new visits show up in Google everywhere.</p>
+        {% endif %}
+      </div>
+      <div class="hero-actions">
+        {% if google_cal_ready and not google_cal_connected %}
+        <a class="btn btn-google btn-sm" href="/auth/google/calendar?next=/dashboard#google-calendar">Connect Google Calendar</a>
+        {% elif google_cal_connected %}
+        <a class="btn btn-ghost btn-sm" href="/setup#calendar-ical">Choose calendars</a>
+        <button type="button" class="btn btn-ghost btn-sm" id="gcal-disconnect">Disconnect</button>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
   <section class="card" id="month-cal-card" data-year="{{ cal_year }}" data-month="{{ cal_month }}" data-session-minutes="{{ session_minutes }}">
     <div class="row">
       <div>
         <h2>Month calendar</h2>
-        <p class="tiny" style="margin:0">A connected personal calendar fills this grid automatically. Click an imported box to mark it as a counseling session — a name is optional. Click any empty day to add a client by name; that time counts toward your weekly cap.</p>
+        <p class="tiny" style="margin:0">Google Calendar or an iCal feed fills this grid automatically. Click an imported box to mark it as a counseling session — a name is optional. Click any empty day to add a client by name; that time counts toward your weekly cap.</p>
       </div>
       <div class="cal-nav">
         <button type="button" class="btn btn-ghost btn-sm" id="cal-prev">Previous</button>
@@ -134,7 +157,7 @@
     <div class="cal-legend" aria-label="Calendar color key">
       <span><i class="lg-booked" aria-hidden="true"></i>Booked on your link</span>
       <span><i class="lg-manual" aria-hidden="true"></i>You added</span>
-      <span><i class="lg-ical" aria-hidden="true"></i>Imported busy</span>
+      <span><i class="lg-ical" aria-hidden="true"></i>Imported busy (Google or iCal)</span>
       <span><i class="lg-ical-session" aria-hidden="true"></i>Marked as a session</span>
       <span><i class="lg-today" aria-hidden="true"></i>Today</span>
     </div>
@@ -244,10 +267,10 @@
         <div class="list-item">
           <div>
             <strong>{{ a.client_name }}</strong>
-            <div class="meta tiny">{{ a.when }} · {{ a.minutes }} min{% if a.visit_kind=='consult' %} · consult{% elif a.via=='manual' %} · on calendar{% elif a.via=='ical' %} · imported{% endif %}{% if a.referred %} · referral{% endif %}</div>
+            <div class="meta tiny">{{ a.when }} · {{ a.minutes }} min{% if a.visit_kind=='consult' %} · consult{% elif a.via=='manual' %} · on calendar{% elif a.via in ('ical', 'google') %} · imported{% endif %}{% if a.referred %} · referral{% endif %}</div>
           </div>
           <div class="appt-actions">
-            {% if a.via != 'ical' %}
+            {% if a.via not in ('ical', 'google') %}
             <button type="button" class="btn btn-sage btn-sm" data-reschedule="{{ a.id }}" data-date="{{ a.date }}" data-time="{{ a.time }}" data-minutes="{{ a.minutes }}" data-name="{{ a.client_name }}" data-kind="{{ a.visit_kind }}" aria-label="Reschedule visit with {{ a.client_name }}">Reschedule</button>
             {% endif %}
             <button type="button" class="btn btn-ghost btn-sm" data-cancel="{{ a.id }}" data-name="{{ a.client_name }}" aria-label="Cancel visit with {{ a.client_name }}">Cancel</button>
