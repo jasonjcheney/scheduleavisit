@@ -11,7 +11,7 @@ Today is Saturday 22 Aug 2026. Elena’s week is Mon 17 – Sun 23 Aug. Friday 2
 - **Multi-hop referral** — when full, walk trusted peers (and peers of peers) until someone has room
 - **Waitlist** — if the whole reachable network is full, client leaves name + email; provider sees it and can dismiss
 - **Consult vs session** — free first consult (default 15 min) or full session (default 50 min)
-- **Month calendar** — click a day to add a client; optional iCal busy import
+- **Month calendar** — click a day to add a client; optional Google Calendar (two-way) or iCal busy import
 - **.ics download** — booked page “Add to calendar”
 - **Scan to book QR** — beside the dashboard booking link
 - **Change password** — on `/setup`
@@ -212,6 +212,7 @@ Existing Elena / James / Maya first-name login (`demo1234`) is unchanged and ski
 ## Notes
 
 - Login and signup offer Continue with Google (`/auth/google` → `/auth/google/callback`) when `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set; otherwise a calm “not connected yet.” Password demo logins still work.
+- Therapists connect Google Calendar separately (`/auth/google/calendar` → `/auth/google/calendar/callback`) using the same client ID/secret plus optional `GOOGLE_REDIRECT_URI`. Setup steps: `docs/google-calendar.md`. Without those env vars, Edit my page says Google is not set up yet and iCal paste still works.
 - This week: `/login` no longer prints demo passwords; `/privacy` and `/terms` are live in the footer; confirmation and `.ics` use `/booked/{token}` (unguessable). Sequential `/booked/1` stays dark. Elena / `demo1234` and jasoncheney / `123456` still log in if you type them.
 - Capacity is server-side. Friday 3 pm is open on Elena’s grid and still rejected by the cap (24.8 + 0.83 > 25).
 - Later weeks on Elena can have room — that is the engine, not a bug.

@@ -21,7 +21,7 @@ def main() -> None:
     sys.path.insert(0, str(ROOT))
     # Force reimport against temp db
     for mod in list(sys.modules):
-        if mod in {"db", "capacity", "app", "icalutil"} or mod.startswith("db.") or mod.startswith("capacity"):
+        if mod in {"db", "capacity", "app", "icalutil", "gcal"} or mod.startswith("db.") or mod.startswith("capacity"):
             del sys.modules[mod]
 
     import db

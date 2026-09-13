@@ -39,6 +39,26 @@ from db import (
     verify_password,
 )
 from icalutil import build_appointment_ics, maybe_sync_ical, normalize_ical_urls, note_summary
+from gcal import (
+    STATE_COOKIE as GOOGLE_CAL_STATE_COOKIE,
+    build_connect_url as build_google_calendar_connect_url,
+    busy_calendar_ids,
+    calendar_redirect_uri,
+    clear_connection as clear_google_connection,
+    connected_email,
+    delete_appointment_event,
+    fetch_calendar_list,
+    finish_connect as finish_google_calendar_connect,
+    access_token_for,
+    is_connected as google_is_connected,
+    load_connect_state,
+    maybe_sync_google,
+    public_status as google_public_status,
+    push_appointment,
+    save_calendar_prefs,
+    slot_busy_on_google,
+    write_calendar_id,
+)
 from reminders import (
     TICK_ENV,
     TICK_HEADER,
@@ -198,6 +218,54 @@ def tpl(request: Request, name: str, status_code: int = 200, **ctx):
     ctx.setdefault("user", current_user(request))
     ctx.setdefault("google_ready", google_configured())
     return templates.TemplateResponse(request, name, ctx, status_code=status_code)
+
+
+def sync_busy_calendars(conn, user, timeout: float = 2.0) -> None:
+    maybe_sync_ical(conn, user, timeout=timeout)
+    maybe_sync_google(conn, user, timeout=timeout)
+
+
+def safe_user_row(u) -> dict:
+    data = row(u) or {}
+    data["password_hash"] = None
+    data["google_refresh_token"] = None
+    return data
+
+
+def google_setup_context(u) -> dict:
+    connected = google_is_connected(u)
+    calendars = []
+    load_error = ""
+    if connected and google_configured():
+        token = access_token_for(u)
+        if token:
+            try:
+                calendars = fetch_calendar_list(token)
+            except Exception:
+                load_error = "We could not load your Google calendars just now. Try again in a minute."
+        else:
+            load_error = "Google Calendar needs to be connected again."
+    return {
+        "google_cal_ready": google_configured(),
+        "google_cal_connected": connected,
+        "google_cal_email": connected_email(u),
+        "google_write_calendar_id": write_calendar_id(u),
+        "google_busy_calendar_ids": busy_calendar_ids(u),
+        "google_calendars": calendars,
+        "google_cal_error": load_error,
+    }
+
+
+def reject_if_busy(conn, user, start, minutes, ignore_id=None):
+    """Sync feeds, then refuse a slot that is already taken locally or on Google."""
+    sync_busy_calendars(conn, user)
+    user = user_by_id(conn, user["id"]) or user
+    if is_taken(conn, user["id"], start, minutes, ignore_id=ignore_id):
+        return json_err("That time was just taken. Please pick another.", taken=True)
+    if slot_busy_on_google(user, start, minutes):
+        maybe_sync_google(conn, user, timeout=2.0, force=True)
+        return json_err("That time was just taken. Please pick another.", taken=True)
+    return None
 
 
 def find_login_user(conn, identifier: str):
@@ -380,13 +448,24 @@ def find_or_create_google_user(conn, email: str, name: str):
     return user_by_id(conn, uid), True
 
 
-def oauth_notice(request: Request, message: str, status_code: int = 200, heading: str = "Not just yet."):
+def oauth_notice(
+    request: Request,
+    message: str,
+    status_code: int = 200,
+    heading: str = "Not just yet.",
+    back_href: str = "/login",
+    back_label: str = "Back to log in",
+    extra: str = "You can still use email and a password.",
+):
     return tpl(
         request,
         "oauth_notice.html",
         status_code=status_code,
         heading=heading,
         message=message,
+        back_href=back_href,
+        back_label=back_label,
+        extra=extra,
     )
 
 
@@ -721,6 +800,136 @@ async def google_callback(request: Request):
         return resp
 
 
+@app.get("/auth/google/calendar")
+def google_calendar_start(request: Request):
+    user = current_user(request)
+    nxt = request.query_params.get("next") or "/setup#calendar-ical"
+    if not nxt.startswith("/"):
+        nxt = "/setup#calendar-ical"
+    if not user:
+        return RedirectResponse("/login?next=" + quote("/auth/google/calendar?next=" + nxt), status_code=303)
+    if not google_configured():
+        return oauth_notice(
+            request,
+            "Google Calendar is not set up on this server yet. You can still paste an iCal link on Edit my page.",
+            heading="Not just yet.",
+            back_href="/setup#calendar-ical",
+            back_label="Back to Edit my page",
+            extra="Pasting a secret calendar feed still works.",
+        )
+    try:
+        url, state = build_google_calendar_connect_url(request, user["id"], nxt)
+    except Exception:
+        return oauth_notice(
+            request,
+            "Google Calendar is not set up on this server yet. You can still paste an iCal link on Edit my page.",
+            heading="Not just yet.",
+            back_href="/setup#calendar-ical",
+            back_label="Back to Edit my page",
+            extra="Pasting a secret calendar feed still works.",
+        )
+    resp = RedirectResponse(url, status_code=302)
+    resp.set_cookie(
+        GOOGLE_CAL_STATE_COOKIE,
+        state,
+        httponly=True,
+        samesite="lax",
+        max_age=600,
+        path="/",
+    )
+    return resp
+
+
+@app.get("/auth/google/calendar/callback")
+def google_calendar_callback(request: Request):
+    user = current_user(request)
+    if not google_configured():
+        return oauth_notice(
+            request,
+            "Google Calendar is not set up on this server yet. You can still paste an iCal link on Edit my page.",
+            heading="Not just yet.",
+            back_href="/setup#calendar-ical",
+            back_label="Back to Edit my page",
+            extra="Pasting a secret calendar feed still works.",
+        )
+    err = request.query_params.get("error")
+    if err == "access_denied":
+        return oauth_notice(
+            request,
+            "Google Calendar was not connected. Your ScheduleAVisit page is unchanged.",
+            heading="Cancelled.",
+            back_href="/setup#calendar-ical",
+            back_label="Back to Edit my page",
+            extra="You can try again, or paste an iCal link instead.",
+        )
+    if err:
+        return oauth_notice(
+            request,
+            "Google Calendar did not finish connecting. Please try again.",
+            heading="Could not finish.",
+            back_href="/setup#calendar-ical",
+            back_label="Back to Edit my page",
+            extra="Pasting a secret calendar feed still works.",
+        )
+    code = (request.query_params.get("code") or "").strip()
+    state = (request.query_params.get("state") or "").strip()
+    cookie_state = request.cookies.get(GOOGLE_CAL_STATE_COOKIE) or ""
+    payload = load_connect_state(state)
+    if not payload or (cookie_state and cookie_state != state):
+        return oauth_notice(
+            request,
+            "Google Calendar did not finish connecting. Please try again.",
+            heading="Could not finish.",
+            back_href="/setup#calendar-ical",
+            back_label="Back to Edit my page",
+            extra="Pasting a secret calendar feed still works.",
+        )
+    if not user or int(user["id"]) != int(payload.get("uid") or 0):
+        return oauth_notice(
+            request,
+            "Please log in, then tap Connect Google Calendar again.",
+            heading="Please log in first.",
+            back_href="/login?next=/setup#calendar-ical",
+            back_label="Log in",
+            extra="",
+        )
+    if not code:
+        return oauth_notice(
+            request,
+            "Google Calendar did not finish connecting. Please try again.",
+            heading="Could not finish.",
+            back_href="/setup#calendar-ical",
+            back_label="Back to Edit my page",
+            extra="Pasting a secret calendar feed still works.",
+        )
+    with db() as conn:
+        fail = finish_google_calendar_connect(conn, user["id"], code, calendar_redirect_uri(request))
+        if fail:
+            return oauth_notice(
+                request,
+                fail,
+                heading="Could not finish.",
+                back_href="/setup#calendar-ical",
+                back_label="Back to Edit my page",
+                extra="Pasting a secret calendar feed still works.",
+            )
+        u = user_by_id(conn, user["id"])
+        maybe_sync_google(conn, u, timeout=4.0, force=True)
+        notify(
+            conn,
+            user["id"],
+            "calendar",
+            "Google Calendar connected",
+            "Busy time from the calendars you pick will block new bookings. New visits here will show on Google.",
+        )
+    nxt = payload.get("next") or "/setup#calendar-ical"
+    if not str(nxt).startswith("/"):
+        nxt = "/setup#calendar-ical"
+    resp = RedirectResponse(nxt, status_code=303)
+    resp.delete_cookie(GOOGLE_CAL_STATE_COOKIE, path="/")
+    return resp
+
+
 @app.get("/book", response_class=HTMLResponse)
 def directory(request: Request, q: str = ""):
     q = (q or "").strip()
@@ -850,6 +1059,7 @@ def api_booked_cancel(token: str):
             (now_iso(), a["id"]),
         )
         cancel_pending(conn, a["id"])
+        delete_appointment_event(conn, a)
         start = parse_iso(a["start_iso"])
         client = conn.execute("SELECT * FROM clients WHERE id=?", (a["client_id"],)).fetchone() if a["client_id"] else None
         who = (client["name"] if client else "A client")
@@ -887,8 +1097,9 @@ async def api_booked_reschedule(token: str, request: Request):
             return json_err("That time has already passed.")
         if day.isoweekday() not in user_workdays(provider):
             return json_err("The office is closed that day.")
-        if is_taken(conn, provider["id"], start, minutes, ignore_id=a["id"]):
-            return json_err("That time was just taken. Please pick another.", taken=True)
+        busy = reject_if_busy(conn, provider, start, minutes, ignore_id=a["id"])
+        if busy:
+            return busy
         old = parse_iso(a["start_iso"])
         if not can_accept_visit(conn, provider, day, minutes):
             # Allow moving within the same week without double-counting this visit.
@@ -902,6 +1113,7 @@ async def api_booked_reschedule(token: str, request: Request):
             (new_iso, a["id"]),
         )
         after_reschedule(conn, a["id"])
+        push_appointment(conn, a["id"])
         client = conn.execute("SELECT * FROM clients WHERE id=?", (a["client_id"],)).fetchone() if a["client_id"] else None
         who = (client["name"] if client else "A client")
         notify(
@@ -989,13 +1201,15 @@ def setup_page(request: Request):
         return RedirectResponse("/login?next=/setup", status_code=303)
     with db() as conn:
         u = user_by_id(conn, user["id"])
+        gctx = google_setup_context(u)
     workdays = user_workdays(u)
     return tpl(
         request, "setup.html",
-        me=row(u),
+        me=safe_user_row(u),
         first=first_name(u["name"]),
         workdays=workdays,
         editing=not needs_setup(u),
+        **gctx,
     )
 
 
@@ -1008,7 +1222,7 @@ def dashboard(request: Request):
         return RedirectResponse("/setup", status_code=303)
     with db() as conn:
         u = user_by_id(conn, user["id"])
-        maybe_sync_ical(conn, u, timeout=2.0)
+        sync_busy_calendars(conn, u, timeout=2.0)
         u = user_by_id(conn, user["id"])
         week = start_of_week(today())
         info = projected_hours(conn, u, week, 0)
@@ -1184,6 +1398,7 @@ def dashboard(request: Request):
             "recommend_max": MAX_RECOMMENDATIONS,
             "recommend_count": outgoing_recommend_count(conn, u["id"]),
             "overflow_to": overflow_to,
+            **google_setup_context(u),
         }
     return tpl(request, "dashboard.html", **ctx)
 
@@ -1298,7 +1513,7 @@ def api_availability(
         u = user_by_slug(conn, slug)
         if not u:
             return json_err("Calendar not found", 404)
-        maybe_sync_ical(conn, u, timeout=2.0)
+        sync_busy_calendars(conn, u, timeout=2.0)
         kind = (visit_kind or "session").lower()
         if minutes is None:
             if kind == "consult" and int(uget(u, "consult_enabled", 1) or 0):
@@ -1365,8 +1580,9 @@ async def api_book(slug: str, request: Request):
             return json_err("That time has already passed.")
         if day.isoweekday() not in user_workdays(u):
             return json_err("The office is closed that day.")
-        if is_taken(conn, u["id"], start, minutes):
-            return json_err("That time was just taken. Please pick another.", taken=True)
+        busy = reject_if_busy(conn, u, start, minutes)
+        if busy:
+            return busy
         if not can_accept_visit(conn, u, day, minutes):
             wanted = normalize_category(data.get("category") or data.get("need") or "general")
             recs = referral_candidates(conn, u, day, hhmm, minutes, category=wanted)
@@ -1391,6 +1607,7 @@ async def api_book(slug: str, request: Request):
             f"{name} booked {format_long(day)} at {format_time(hhmm)} ({minutes} min, {visit_kind}) on your public link.",
         )
         after_book(conn, appt_id)
+        push_appointment(conn, appt_id)
         print(f"[book] {name} <{email}> with {u['slug']} on {day} {hhmm} {visit_kind}", flush=True)
         portal = "" if returning else (uget(u, "portal_url", "") or "").strip()
         return {
@@ -1426,8 +1643,9 @@ async def api_book_referral(slug: str, request: Request):
             return json_err("That professional is not in this referral network.")
         minutes = int(peer["session_minutes"] or 50)
         start = at_local(day, hhmm)
-        if is_taken(conn, peer["id"], start, minutes):
-            return json_err("That time was just taken.", taken=True)
+        busy = reject_if_busy(conn, peer, start, minutes)
+        if busy:
+            return busy
         if not can_accept_visit(conn, peer, day, minutes):
             return json_err("That professional just reached their weekly cap.")
         cid = get_or_create_client(conn, peer["id"], name, email, data.get("phone") or "")
@@ -1443,6 +1661,7 @@ async def api_book_referral(slug: str, request: Request):
             f"{name} is on {first_name(peer['name'])}'s calendar {format_long(day)} at {format_time(hhmm)}.",
         )
         after_book(conn, appt_id)
+        push_appointment(conn, appt_id)
         print(f"[book-referral] {name} {origin['slug']} → {peer['slug']} {day} {hhmm}", flush=True)
         return {"ok": True, "appointmentId": appt_id, "redirect": confirm_url(conn, appt_id)}
 
@@ -1535,12 +1754,12 @@ def api_me(request: Request):
         return {
             "ok": True,
             "user": {
-                **row(u),
-                "password_hash": None,
+                **safe_user_row(u),
                 "workdays": user_workdays(u),
                 "first": first_name(u["name"]),
             },
             "capacity": {**info, "status": status_for(info["projected"], info["target"])},
+            "google": google_public_status(u),
         }
 
 
@@ -1639,6 +1858,72 @@ async def api_me_password(request: Request):
     return {"ok": True, "message": "Your password is updated."}
 
 
+@app.get("/api/me/google")
+def api_me_google(request: Request):
+    user, err = _auth(request)
+    if err:
+        return err
+    with db() as conn:
+        u = user_by_id(conn, user["id"])
+        ctx = google_setup_context(u)
+        status = google_public_status(u)
+    return {
+        "ok": True,
+        **status,
+        "calendars": ctx["google_calendars"],
+        "error": ctx["google_cal_error"] or None,
+    }
+
+
+@app.post("/api/me/google")
+async def api_me_google_save(request: Request):
+    user, err = _auth(request)
+    if err:
+        return err
+    data = await _body(request)
+    busy = data.get("busyCalendarIds") or data.get("busy_calendar_ids") or []
+    if isinstance(busy, str):
+        try:
+            busy = json.loads(busy)
+        except Exception:
+            busy = [ln.strip() for ln in busy.split(",") if ln.strip()]
+    if not isinstance(busy, list):
+        return json_err("Pick which calendars count as busy.")
+    write = (data.get("writeCalendarId") or data.get("write_calendar_id") or "primary").strip()
+    if not write:
+        return json_err("Pick where new visits should appear.")
+    with db() as conn:
+        u = user_by_id(conn, user["id"])
+        if not google_is_connected(u):
+            return json_err("Connect Google Calendar first.")
+        save_calendar_prefs(conn, user["id"], [str(x) for x in busy], write)
+        u2 = user_by_id(conn, user["id"])
+        maybe_sync_google(conn, u2, timeout=4.0, force=True)
+        u2 = user_by_id(conn, user["id"])
+        return {
+            "ok": True,
+            **google_public_status(u2),
+            "message": "Saved. Those calendars now fill busy time here.",
+        }
+
+
+@app.post("/api/me/google/disconnect")
+def api_me_google_disconnect(request: Request):
+    user, err = _auth(request)
+    if err:
+        return err
+    with db() as conn:
+        clear_google_connection(conn, user["id"])
+        notify(
+            conn,
+            user["id"],
+            "calendar",
+            "Google Calendar disconnected",
+            "We stopped reading and writing that Google account. iCal links you pasted still work.",
+        )
+    return {"ok": True, "connected": False}
+
+
 @app.get("/api/me/clients")
 def api_clients(request: Request):
     user, err = _auth(request)
@@ -1671,12 +1956,19 @@ def api_dismiss(request: Request, client_id: int):
         if not c:
             return json_err("Client not found", 404)
         conn.execute("UPDATE clients SET dismissed_at=? WHERE id=?", (now_iso(), client_id))
+        future = conn.execute(
+            """SELECT * FROM appointments
+               WHERE client_id=? AND status='booked' AND start_iso>=?""",
+            (client_id, now_iso()),
+        ).fetchall()
         # Cancel future visits so the slots actually open.
         conn.execute(
             """UPDATE appointments SET status='cancelled', cancelled_at=?
                WHERE client_id=? AND status='booked' AND start_iso>=?""",
             (now_iso(), client_id, now_iso()),
         )
+        for ap in future:
+            delete_appointment_event(conn, ap)
         cancel_pending_for_client(conn, client_id)
         notify(conn, user["id"], "client", f"{c['name']} dismissed",
                "Their future visits were cancelled. Inferred weekly load no longer includes them.")
@@ -1756,6 +2048,7 @@ def api_cancel(request: Request, appt_id: int):
             (now_iso(), appt_id),
         )
         cancel_pending(conn, appt_id)
+        delete_appointment_event(conn, a)
         start = parse_iso(a["start_iso"])
         notify(conn, user["id"], "cancel", "Visit cancelled",
                f"The {format_time(start.strftime('%H:%M'))} time on {format_long(start.date())} "
@@ -1787,8 +2080,9 @@ async def api_reschedule(request: Request, appt_id: int):
             return json_err("That visit is not on the calendar.")
         minutes = a["duration_minutes"]
         start = at_local(day, hhmm)
-        if is_taken(conn, u["id"], start, minutes, ignore_id=appt_id):
-            return json_err("That time is already booked.")
+        busy = reject_if_busy(conn, u, start, minutes, ignore_id=appt_id)
+        if busy:
+            return busy
         old = parse_iso(a["start_iso"])
         if not can_accept_visit(conn, u, day, minutes):
             # Allow moving within the same week without double-counting this visit.
@@ -1800,6 +2094,7 @@ async def api_reschedule(request: Request, appt_id: int):
             (new_iso, appt_id),
         )
         after_reschedule(conn, appt_id)
+        push_appointment(conn, appt_id)
         notify(conn, user["id"], "reschedule", "Visit moved",
                f"{format_long(old.date())} {format_time(old.strftime('%H:%M'))} → "
                f"{format_long(day)} {format_time(hhmm)}. Hours stay with this visit.")
@@ -2055,9 +2350,9 @@ async def api_setup(request: Request):
                 user["id"],
             ),
         )
-        if ical_url:
+        if ical_url or google_is_connected(u):
             u2 = user_by_id(conn, user["id"])
-            maybe_sync_ical(conn, u2, timeout=2.0)
+            sync_busy_calendars(conn, u2, timeout=2.0)
     return {"ok": True, "redirect": "/dashboard"}
 
 
@@ -2073,24 +2368,30 @@ def _month_span(year: int, month: int):
     return grid_start, grid_end
 
 
-def _is_ical_sourced(a) -> bool:
+def _is_imported_busy(a) -> bool:
     via = a["booked_via"] or ""
     kind = uget(a, "visit_kind", "") or ""
-    return via == "ical" or kind == "external"
+    return via in ("ical", "google") or kind == "external"
+
+
+def _is_ical_sourced(a) -> bool:
+    return _is_imported_busy(a)
 
 
 def _calendar_block(a) -> dict:
     start = parse_iso(a["start_iso"])
     via = a["booked_via"] or "direct"
     kind = uget(a, "visit_kind", "session") or "session"
-    if via == "ical" or kind == "external":
+    if via == "google":
+        source = "google"
+    elif via == "ical" or kind == "external":
         source = "ical"
     elif via == "manual" or kind == "manual":
         source = "manual"
     else:
         source = "booked"
     client_name = uget(a, "client_name", "") or ""
-    calendar_title = note_summary(uget(a, "note", "") or "") if source == "ical" else ""
+    calendar_title = note_summary(uget(a, "note", "") or "") if source in ("ical", "google") else ""
     return {
         "id": a["id"],
         "date": start.date().isoformat(),
@@ -2120,7 +2421,7 @@ def api_calendar(request: Request, year: Optional[int] = None, month: Optional[i
         return json_err("Use a real year and month.")
     with db() as conn:
         u = user_by_id(conn, user["id"])
-        maybe_sync_ical(conn, u, timeout=2.0)
+        sync_busy_calendars(conn, u, timeout=2.0)
         grid_start, grid_end = _month_span(year, month)
         rows = conn.execute(
             """SELECT a.*, c.name AS client_name
@@ -2183,6 +2484,7 @@ async def api_calendar_block(request: Request):
         appt_id = create_appointment(
             conn, u["id"], cid, start, minutes, "manual", visit_kind="manual", note=name,
         )
+        push_appointment(conn, appt_id)
         return {"ok": True, "id": appt_id, "clientId": cid}
 
 
@@ -2228,6 +2530,7 @@ async def api_calendar_update(request: Request, appt_id: int):
                WHERE id=?""",
             (start.isoformat(timespec="seconds"), minutes, cid, name or uget(a, "note", ""), appt_id),
         )
+        push_appointment(conn, appt_id)
         return {"ok": True}
 
 
@@ -2252,6 +2555,7 @@ def api_calendar_delete(request: Request, appt_id: int):
             (now_iso(), appt_id),
         )
         cancel_pending(conn, appt_id)
+        delete_appointment_event(conn, a)
         return {"ok": True}
 
 

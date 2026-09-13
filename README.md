@@ -35,8 +35,10 @@ Open `http://127.0.0.1:8080`. SQLite lives at `data/app.db` (or `$SAV_DB`).
 
 ## What this is / is not
 
-**Is:** capacity math on the server, month calendar with click-to-add clients, optional iCal busy import, consult vs full session, referral invites, waitlist capture.
+**Is:** capacity math on the server, month calendar with click-to-add clients, optional Google Calendar (two-way) plus iCal busy import, consult vs full session, referral invites, waitlist capture.
 
 **Is not:** HIPAA / BAA, payments, insurance, real email/SMS, Uber API keys, or scheduleavisit.com DNS.
+
+Google Calendar needs three environment variables (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`). Setup steps: [docs/google-calendar.md](docs/google-calendar.md). Without them, therapists still see an honest “not set up yet” note and can paste an iCal link.
 
 Stack: Python 3, FastAPI, SQLite, Jinja2, vanilla JS.
