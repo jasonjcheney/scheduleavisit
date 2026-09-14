@@ -272,6 +272,7 @@ p { margin: 0 0 0.8em; }
   overflow: hidden;
   padding: 0;
   background: var(--paper-2);
+  flex: 0 0 auto;
 }
 .avatar.has-photo img {
   width: 100%;
@@ -299,9 +300,11 @@ p { margin: 0 0 0.8em; }
   letter-spacing: 0.1em;
   margin-bottom: 8px;
 }
-.getting-started .checklist .flow-step {
+.getting-started .checklist .flow-step,
+.getting-started .checklist li.done .flow-step {
   display: inline;
   margin: 0 6px 0 0;
+  color: #c41e1e;
 }
 .av-elena { background: #2d5a4a; }
 .av-james { background: #2f5f73; }
@@ -380,7 +383,10 @@ input:focus { outline: 3px solid rgba(45,90,74,0.25); border-color: var(--sage);
 .provider-hero {
   display: flex; gap: 16px; align-items: flex-start; margin-bottom: 8px;
 }
-.provider-hero > div { min-width: 0; flex: 1; }
+.provider-hero > div:not(.avatar) { min-width: 0; flex: 1; }
+.provider-hero > .avatar {
+  flex: 0 0 auto;
+}
 .provider-hero .page-title { overflow-wrap: anywhere; }
 .date-strip {
   display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px 12px;
@@ -971,7 +977,7 @@ input[type="url"]:focus { outline: 3px solid rgba(45,90,74,0.25); border-color: 
   font-size: 0.95rem;
   color: var(--ink-soft);
 }
-.getting-started .checklist li span {
+.getting-started .checklist li span:not(.flow-step) {
   flex: 0 0 auto;
   width: 22px; height: 22px;
   border-radius: 50%;
@@ -984,7 +990,7 @@ input[type="url"]:focus { outline: 3px solid rgba(45,90,74,0.25); border-color: 
 .getting-started .checklist li.done {
   color: var(--sage-deep);
 }
-.getting-started .checklist li.done span {
+.getting-started .checklist li.done span:not(.flow-step) {
   background: var(--sage);
   color: #fff;
 }

@@ -209,6 +209,7 @@ def main() -> None:
     expect(".week-grid { grid-template-columns: repeat(2" in css, "missing week-grid 2-col mobile rule")
     expect(".flow-step" in css and ".flow-step-lg" in css, "missing flow-step CSS")
     expect("#c41e1e" in css, "missing STEP emphasis color")
+    expect("span:not(.flow-step)" in css, "checklist circle styles should spare STEP labels")
     print("OK mobile 480px CSS guards")
 
     print("ALL PUBLIC PATH SMOKES PASSED")
