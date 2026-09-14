@@ -65,7 +65,7 @@ def main() -> None:
             'href="/terms"',
         ]),
         ("/book", 200, ["Book a visit", "Elena Vasquez", 'name="q"',
-                         "Find someone to see",
+                         "Find someone to see", "STEP 1", "STEP 2",
                          "Scheduling tool for independent counselors", "clinical judgment", "no BAA"]),
         ("/login", 200, ["Welcome back", "jasoncheney", "Continue with Google",
                          "Scheduling tool for independent counselors", "Not HIPAA-compliant yet",
@@ -74,7 +74,8 @@ def main() -> None:
                           'data-next="/setup"',
                           "Not a substitute for clinical judgment"]),
         ("/p/jason-cheney", 200, ["Jason Cheney", "Pick a day", "Pick a time"]),
-        ("/p/elena-vasquez-lpc", 200, ["Elena Vasquez", "Free consultation", "Full session"]),
+        ("/p/elena-vasquez-lpc", 200, ["Elena Vasquez", "Free consultation", "Full session",
+                                         "STEP 1", "STEP 2", "STEP 3"]),
         ("/privacy", 200, ["We only keep what we need", "jasonjcheney@gmail.com",
                            "clinical notes", "hosted on Render", "do not sell",
                            "Google Calendar", "refresh token",
@@ -126,6 +127,7 @@ def main() -> None:
     expect('class="provider-door"' not in landing.text, "landing still has provider-door box in hero")
     expect("Find a provider" not in landing.text, "landing still has duplicate Find a provider CTA")
     expect("Clinician login" not in landing.text, "landing still has Clinician login in hero")
+    expect("STEP 1" not in landing.text, "landing hero should not get booking STEP labels")
     expect("I am a provider" in landing.text, "landing missing I am a provider header link")
     expect('href="/login"' in landing.text, "landing missing provider /login")
     expect('src="/static/logo.png"' in landing.text, "landing missing header logo")
@@ -205,6 +207,9 @@ def main() -> None:
     expect("@media (max-width: 480px)" in css, "missing 480px mobile breakpoint")
     expect("minmax(0, 1fr)" in css, "missing minmax slot/calendar overflow guard")
     expect(".week-grid { grid-template-columns: repeat(2" in css, "missing week-grid 2-col mobile rule")
+    expect(".flow-step" in css and ".flow-step-lg" in css, "missing flow-step CSS")
+    expect("#c41e1e" in css, "missing STEP emphasis color")
+    expect("span:not(.flow-step)" in css, "checklist circle styles should spare STEP labels")
     print("OK mobile 480px CSS guards")
 
     print("ALL PUBLIC PATH SMOKES PASSED")

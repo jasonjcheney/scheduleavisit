@@ -104,6 +104,8 @@ CREATE TABLE IF NOT EXISTS users (
   google_write_calendar_id TEXT DEFAULT 'primary',
   google_busy_calendar_ids TEXT DEFAULT '["primary"]',
   google_synced_at TEXT,
+  photo_path TEXT DEFAULT '',
+  profile_page_url TEXT DEFAULT '',
   created_at TEXT NOT NULL
 );
 
@@ -284,6 +286,8 @@ def migrate(conn: sqlite3.Connection) -> None:
         ("google_write_calendar_id", "TEXT DEFAULT 'primary'"),
         ("google_busy_calendar_ids", "TEXT DEFAULT '[\"primary\"]'"),
         ("google_synced_at", "TEXT"),
+        ("photo_path", "TEXT DEFAULT ''"),
+        ("profile_page_url", "TEXT DEFAULT ''"),
     ]
     for name, decl in user_cols:
         if not _has_column(conn, "users", name):

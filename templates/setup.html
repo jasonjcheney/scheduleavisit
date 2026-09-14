@@ -55,6 +55,37 @@
           <textarea name="about" placeholder="A few sentences about how you work.">{{ me.about }}</textarea>
         </label>
       </div>
+      <div class="photo-setup" id="photo-setup" data-has-photo="{{ '1' if me.photo_path else '0' }}" data-photo-url="{% if me.photo_path %}/media/avatar/{{ me.slug }}{% endif %}" data-initials="{{ initials }}">
+        <p class="field" style="margin-top:16px">Your photo</p>
+        <p class="muted">Shown on your public booking page and in the directory. JPEG, PNG, or WebP, under 3 MB.</p>
+        <div class="photo-preview-row">
+          <div class="avatar lg{% if me.photo_path %} has-photo{% endif %}" id="photo-preview" aria-hidden="true">
+            {% if me.photo_path %}
+            <img src="/media/avatar/{{ me.slug }}" alt="">
+            {% else %}
+            {{ initials }}
+            {% endif %}
+          </div>
+          <div class="fields" style="flex:1;min-width:0">
+            <label class="field">Upload a photo
+              <input type="file" id="photo-file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp">
+            </label>
+            <div class="hero-actions" style="margin-top:4px">
+              <button type="button" class="btn btn-sage btn-sm" id="photo-upload">Save photo</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="photo-remove"{% if not me.photo_path %} hidden{% endif %}>Remove photo</button>
+            </div>
+          </div>
+        </div>
+        <label class="field" style="margin-top:14px">Psychology Today or personal site
+          <input type="url" id="profile-page-url" name="profile_page_url" value="{{ me.profile_page_url or '' }}" placeholder="https://www.psychologytoday.com/…">
+          <span class="field-help">We only open the address you paste — we do not search other therapists.</span>
+        </label>
+        <div class="hero-actions" style="margin-top:4px">
+          <button type="button" class="btn btn-ghost btn-sm" id="photo-pull">Pull photo</button>
+        </div>
+        <p class="ok-msg hidden" id="photo-ok" role="status"></p>
+        <p class="err hidden" id="photo-err" role="alert"></p>
+      </div>
     </section>
 
     <section class="card setup-section" id="your-hours">
