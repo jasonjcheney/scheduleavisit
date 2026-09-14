@@ -233,21 +233,6 @@ def main() -> None:
         expect(state, "calendar start missing state")
         print("OK connect redirects to Google with calendar scopes")
 
-        for host in ("scheduleavisit.com", "www.scheduleavisit.com"):
-            start_com = c.get(
-                "/auth/google/calendar?next=/setup#calendar-ical",
-                follow_redirects=False,
-                headers={"Host": host, "X-Forwarded-Proto": "https", "X-Forwarded-Host": host},
-            )
-            expect(start_com.status_code in (302, 303), f"{host} calendar start {start_com.status_code}")
-            loc_com = start_com.headers.get("location") or ""
-            redir_com = (parse_qs(urlparse(loc_com).query).get("redirect_uri") or [""])[0]
-            expect(
-                redir_com == "https://scheduleavisit.com/auth/google/calendar/callback",
-                f"{host} should use .com calendar callback, got {redir_com}",
-            )
-        print("OK custom-domain calendar redirect stays on scheduleavisit.com")
-
         orig_exchange = gcal.exchange_code
         orig_userinfo = gcal.fetch_userinfo
         orig_cals = gcal.fetch_calendar_list
@@ -299,6 +284,21 @@ def main() -> None:
         expect(me.get("google", {}).get("connected") is True, f"google status {me.get('google')}")
         expect("rt-live-value" not in json.dumps(me), "/api/me body leaked raw refresh token")
         print("OK connect stores encrypted refresh token and hides it from /api/me")
+
+        for host in ("scheduleavisit.com", "www.scheduleavisit.com"):
+            start_com = c.get(
+                "/auth/google/calendar?next=/setup#calendar-ical",
+                follow_redirects=False,
+                headers={"Host": host, "X-Forwarded-Proto": "https", "X-Forwarded-Host": host},
+            )
+            expect(start_com.status_code in (302, 303), f"{host} calendar start {start_com.status_code}")
+            loc_com = start_com.headers.get("location") or ""
+            redir_com = (parse_qs(urlparse(loc_com).query).get("redirect_uri") or [""])[0]
+            expect(
+                redir_com == "https://scheduleavisit.com/auth/google/calendar/callback",
+                f"{host} should use .com calendar callback, got {redir_com}",
+            )
+        print("OK custom-domain calendar redirect stays on scheduleavisit.com")
 
         gcal.access_token_for = lambda user: "at-test"
         appmod.access_token_for = gcal.access_token_for
