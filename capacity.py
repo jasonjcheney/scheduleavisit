@@ -18,6 +18,14 @@ from db import (
     today,
 )
 
+
+def photo_url(user) -> str:
+    slug = (uget(user, "slug", "") or "").strip()
+    path = (uget(user, "photo_path", "") or "").strip()
+    if not slug or not path:
+        return ""
+    return f"/media/avatar/{slug}"
+
 WEEKLY_HORIZON = 8
 MILES = {
     frozenset({"elena-vasquez-lpc", "james-okonkwo-lcsw"}): 4,
@@ -119,6 +127,7 @@ def public_provider(user, from_slug: str | None = None) -> dict[str, Any]:
         "portal_kind": uget(user, "portal_kind", "none") or "none",
         "initials": initials(user["name"]),
         "avatar": avatar_class(slug),
+        "photo_url": photo_url(user),
         "miles": miles_between(from_slug, slug) if from_slug else 0,
     }
 

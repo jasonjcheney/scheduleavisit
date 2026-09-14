@@ -227,9 +227,26 @@ def main() -> None:
         redir = (q.get("redirect_uri") or [""])[0]
         expect(redir.endswith("/auth/google/calendar/callback"), f"redirect_uri {redir}")
         expect("test-cal-not-a-real-secret" not in loc, "client secret leaked into authorize URL")
+        expect(redir == "https://scheduleavisit.onrender.com/auth/google/calendar/callback",
+               f"default host should keep env redirect, got {redir}")
         state = (q.get("state") or [""])[0]
         expect(state, "calendar start missing state")
         print("OK connect redirects to Google with calendar scopes")
+
+        for host in ("scheduleavisit.com", "www.scheduleavisit.com"):
+            start_com = c.get(
+                "/auth/google/calendar?next=/setup#calendar-ical",
+                follow_redirects=False,
+                headers={"Host": host, "X-Forwarded-Proto": "https", "X-Forwarded-Host": host},
+            )
+            expect(start_com.status_code in (302, 303), f"{host} calendar start {start_com.status_code}")
+            loc_com = start_com.headers.get("location") or ""
+            redir_com = (parse_qs(urlparse(loc_com).query).get("redirect_uri") or [""])[0]
+            expect(
+                redir_com == "https://scheduleavisit.com/auth/google/calendar/callback",
+                f"{host} should use .com calendar callback, got {redir_com}",
+            )
+        print("OK custom-domain calendar redirect stays on scheduleavisit.com")
 
         orig_exchange = gcal.exchange_code
         orig_userinfo = gcal.fetch_userinfo

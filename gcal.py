@@ -58,8 +58,28 @@ def request_origin(request) -> str:
     return f"{proto}://{host}".rstrip("/")
 
 
+CUSTOM_CALENDAR_HOSTS = {"scheduleavisit.com", "www.scheduleavisit.com"}
+CUSTOM_CALENDAR_REDIRECT = "https://scheduleavisit.com/auth/google/calendar/callback"
+
+
+def request_host(request) -> str:
+    host = (
+        (request.headers.get("x-forwarded-host") or "").split(",")[0].strip()
+        or request.headers.get("host")
+        or getattr(getattr(request, "url", None), "netloc", "")
+        or ""
+    )
+    return host.split(":")[0].strip().lower()
+
+
 def calendar_redirect_uri(request) -> str:
-    """Honor GOOGLE_REDIRECT_URI. If it points at sign-in, map to the calendar callback."""
+    """Match the live hostname so Connect does not bounce .com logins to onrender.
+
+    scheduleavisit.com (and www) always use the custom-domain callback. Other
+    hosts keep GOOGLE_REDIRECT_URI / the current request origin (usually onrender).
+    """
+    if request_host(request) in CUSTOM_CALENDAR_HOSTS:
+        return CUSTOM_CALENDAR_REDIRECT
     explicit = (os.environ.get("GOOGLE_REDIRECT_URI") or "").strip()
     if explicit:
         trimmed = explicit.rstrip("/")

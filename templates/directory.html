@@ -7,6 +7,7 @@
     <p class="eyebrow">Book a visit</p>
     <h1 class="page-title">Find someone to see</h1>
     <p class="sub find-lede">Search by the name you already have, or a city you can get to.</p>
+    <p class="flow-step">STEP 1</p>
     <form class="find-form" method="get" action="/book" role="search">
       <label class="sr-only" for="book-q">Name or city</label>
       <input id="book-q" class="find-input" type="search" name="q" value="{{ q }}"
@@ -25,6 +26,7 @@
     </p>
   </section>
   {% else %}
+    <p class="flow-step">STEP 2</p>
     {% if not searched %}
     <p class="find-hint muted">You can look up a specific person, or a town you can get to.</p>
     {% if cards %}
@@ -37,7 +39,11 @@
     <div class="directory" id="directory-results">
       {% for c in cards %}
       <a class="person-card" href="/p/{{ c.slug }}" data-search="{{ c.search_text }}">
+        {% if c.photo_url %}
+        <div class="avatar {{ c.avatar }} has-photo" aria-hidden="true"><img src="{{ c.photo_url }}" alt=""></div>
+        {% else %}
         <div class="avatar {{ c.avatar }}" aria-hidden="true">{{ c.initials }}</div>
+        {% endif %}
         <div class="person-card-copy">
           <strong>{{ c.name }}</strong>
           {% if c.credentials %}<div class="person-cred">{{ c.credentials }}</div>{% endif %}

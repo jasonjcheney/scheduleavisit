@@ -11,8 +11,8 @@ from pathlib import Path
 from typing import Optional
 from urllib.parse import quote, urlencode
 
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
+from fastapi import FastAPI, File, Request, UploadFile
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -39,6 +39,15 @@ from db import (
     verify_password,
 )
 from icalutil import build_appointment_ics, maybe_sync_ical, normalize_ical_urls, note_summary
+from photos import (
+    PhotoError,
+    clear_user_photo,
+    import_photo_from_url,
+    media_type_for,
+    resolve_avatar_file,
+    save_user_photo,
+    slug_ok,
+)
 from gcal import (
     STATE_COOKIE as GOOGLE_CAL_STATE_COOKIE,
     build_connect_url as build_google_calendar_connect_url,
@@ -641,6 +650,7 @@ def rec_payload(item: dict, minutes: int) -> dict:
         "rideUrl": item["rideUrl"],
         "initials": item["initials"],
         "avatar": item["avatar"],
+        "photoUrl": item.get("photo_url") or "",
         "specialty": item["specialty"],
         "category": item.get("category") or item.get("wantedCategory") or "general",
         "categoryLabel": item.get("categoryLabel") or category_label(item.get("category") or "general"),
@@ -939,6 +949,25 @@ def directory(request: Request, q: str = ""):
     return tpl(request, "directory.html", cards=cards, q=q, searched=bool(q))
 
 
+@app.get("/media/avatar/{slug}")
+def media_avatar(slug: str):
+    """Public headshot by booking slug. Filename comes from the user row — never from the URL."""
+    if not slug_ok(slug):
+        return Response(status_code=404)
+    with db() as conn:
+        u = user_by_slug(conn, slug)
+        if not u:
+            return Response(status_code=404)
+        path = resolve_avatar_file(uget(u, "photo_path", "") or "")
+    if not path:
+        return Response(status_code=404)
+    return FileResponse(
+        path,
+        media_type=media_type_for(path),
+        headers={"Cache-Control": "public, max-age=300"},
+    )
+
+
 @app.get("/p/{slug}", response_class=HTMLResponse)
 def booking_page(request: Request, slug: str):
     with db() as conn:
@@ -1207,6 +1236,7 @@ def setup_page(request: Request):
         request, "setup.html",
         me=safe_user_row(u),
         first=first_name(u["name"]),
+        initials=initials(u["name"]),
         workdays=workdays,
         editing=not needs_setup(u),
         **gctx,
@@ -1760,7 +1790,61 @@ def api_me(request: Request):
             },
             "capacity": {**info, "status": status_for(info["projected"], info["target"])},
             "google": google_public_status(u),
+            "photoUrl": public_provider(u).get("photo_url") or "",
         }
+
+
+@app.post("/api/me/photo")
+async def api_me_photo(request: Request, photo: UploadFile = File(...)):
+    user, err = _auth(request)
+    if err:
+        return err
+    data = await photo.read()
+    try:
+        with db() as conn:
+            save_user_photo(conn, user["id"], data, photo.filename, photo.content_type)
+            u = user_by_id(conn, user["id"])
+    except PhotoError as exc:
+        return json_err(exc.message)
+    except Exception:
+        return json_err("We could not save that photo. Try another JPEG, PNG, or WebP.")
+    return {"ok": True, "photoUrl": public_provider(u).get("photo_url") or "", "message": "Photo saved."}
+
+
+@app.post("/api/me/photo/import")
+async def api_me_photo_import(request: Request):
+    user, err = _auth(request)
+    if err:
+        return err
+    data = await _body(request)
+    page_url = (data.get("url") or data.get("profile_page_url") or "").strip()
+    try:
+        image = import_photo_from_url(page_url)
+        with db() as conn:
+            save_user_photo(conn, user["id"], image, None, None)
+            if page_url:
+                conn.execute("UPDATE users SET profile_page_url=? WHERE id=?", (page_url, user["id"]))
+            u = user_by_id(conn, user["id"])
+    except PhotoError as exc:
+        return json_err(exc.message)
+    except Exception:
+        return json_err("We could not pull a photo from that page. Try uploading a picture instead.")
+    return {
+        "ok": True,
+        "photoUrl": public_provider(u).get("photo_url") or "",
+        "profilePageUrl": page_url,
+        "message": "Photo pulled from that page.",
+    }
+
+
+@app.post("/api/me/photo/remove")
+def api_me_photo_remove(request: Request):
+    user, err = _auth(request)
+    if err:
+        return err
+    with db() as conn:
+        clear_user_photo(conn, user["id"])
+    return {"ok": True, "photoUrl": "", "message": "Photo removed."}
 
 
 @app.patch("/api/me")
@@ -2297,6 +2381,9 @@ async def api_setup(request: Request):
     if portal_kind not in ("none", "headway", "sondermind", "custom"):
         return json_err("Pick how clients start intake.")
     portal_url = (data.get("portal_url") or "").strip()
+    profile_page_url = (data.get("profile_page_url") or "").strip()
+    if profile_page_url and not profile_page_url.lower().startswith(("http://", "https://")):
+        return json_err("Profile page link should start with https://")
     ical_url, ical_err = normalize_ical_urls(data.get("ical_url") or "")
     if ical_err:
         return json_err(ical_err)
@@ -2332,6 +2419,7 @@ async def api_setup(request: Request):
                  weekly_target_hours=?, buffer_hours=?, workdays=?, slot_start=?, slot_end=?,
                  lunch=?, session_minutes=?, consult_minutes=?, consult_enabled=?,
                  portal_kind=?, portal_url=?, ical_url=?, phone=?, reminders_opt_in=?,
+                 profile_page_url=?,
                  ical_synced_at=CASE WHEN ? THEN NULL ELSE ical_synced_at END,
                  setup_complete=1
                WHERE id=?""",
@@ -2346,6 +2434,7 @@ async def api_setup(request: Request):
                 weekly, buffer, json.dumps(days), slot_start, slot_end, lunch,
                 session_minutes, consult_minutes, consult_enabled,
                 portal_kind, portal_url, ical_url, phone, reminders_opt_in,
+                profile_page_url,
                 1 if ical_changed else 0,
                 user["id"],
             ),

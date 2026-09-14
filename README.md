@@ -39,6 +39,8 @@ Open `http://127.0.0.1:8080`. SQLite lives at `data/app.db` (or `$SAV_DB`).
 
 **Is not:** HIPAA / BAA, payments, insurance, real email/SMS, Uber API keys, or scheduleavisit.com DNS.
 
-Google Calendar needs three environment variables (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`). Setup steps: [docs/google-calendar.md](docs/google-calendar.md). Without them, therapists still see an honest “not set up yet” note and can paste an iCal link.
+Therapists can upload a JPEG/PNG/WebP photo (or pull one from a Psychology Today / personal page they paste) on setup. Photos live on the Render disk under `data/uploads/avatars/` and show on the public booking page, directory, and referral cards. Initials stay as the fallback.
+
+Google Calendar needs three environment variables (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`). Setup steps: [docs/google-calendar.md](docs/google-calendar.md). The Google OAuth client must list **both** `scheduleavisit.com` and `scheduleavisit.onrender.com` origins plus redirect URIs. Connect on `.com` stays on `.com` so login cookies are not dropped. Without the env vars, therapists still see an honest “not set up yet” note and can paste an iCal link.
 
 Stack: Python 3, FastAPI, SQLite, Jinja2, vanilla JS.

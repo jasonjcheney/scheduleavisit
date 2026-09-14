@@ -518,6 +518,7 @@
       var kindLabel = visitKind === "consult" ? "free consultation" : "full session";
       $("#book-result").innerHTML =
         '<section class="card">' +
+          '<p class="flow-step">' + (consultEnabled ? "STEP 4" : "STEP 3") + "</p>" +
           "<h2>Confirm with " + escapeHtml(first) + "</h2>" +
           "<p>" + formatLong(d) + " at " + formatTime(state.time) + " · " + currentMinutes() + " minutes · " + kindLabel + "</p>" +
           '<form id="visit-form" class="fields">' +
@@ -662,11 +663,14 @@
             '<span class="tiny">' + r.minutes + " minutes with " + escapeHtml(peerFirst) + "</span>" +
           "</div>"
         : "<p style=\"margin:0\"><strong>" + escapeHtml(r.displayWhen) + "</strong> · " + r.minutes + " minutes</p>";
+      var avatarHtml = r.photoUrl
+        ? '<div class="avatar ' + escapeHtml(r.avatar) + ' has-photo" aria-hidden="true"><img src="' + escapeHtml(r.photoUrl) + '" alt=""></div>'
+        : '<div class="avatar ' + escapeHtml(r.avatar) + '" aria-hidden="true">' + escapeHtml(r.initials) + "</div>";
       return (
         '<div class="rec-card' + (featured ? " featured" : "") + '">' +
           (featured ? '<p class="eyebrow rec-eyebrow">Trusted peer has room</p>' : "") +
           '<div class="person">' +
-            '<div class="avatar ' + escapeHtml(r.avatar) + '" aria-hidden="true">' + escapeHtml(r.initials) + "</div>" +
+            avatarHtml +
             "<div><strong>" + escapeHtml(r.name) + "</strong>" +
             trustPrimary +
             hopSecondary +
@@ -1607,6 +1611,7 @@
           workdays: days,
           portal_kind: kindEl ? kindEl.value : "none",
           portal_url: setupForm.portal_url.value.trim(),
+          profile_page_url: setupForm.profile_page_url ? setupForm.profile_page_url.value.trim() : "",
           ical_url: setupForm.ical_url.value.trim(),
           phone: setupForm.phone ? setupForm.phone.value.trim() : "",
           reminders_opt_in: setupForm.reminders_opt_in && setupForm.reminders_opt_in.checked ? 1 : 0
@@ -1655,6 +1660,99 @@
       }
       window.addEventListener("scroll", markActive, { passive: true });
       markActive();
+    }
+
+    var photoBox = $("#photo-setup");
+    if (photoBox) {
+      var photoFile = $("#photo-file");
+      var photoPreview = $("#photo-preview");
+      var photoOk = $("#photo-ok");
+      var photoErr = $("#photo-err");
+      var photoRemove = $("#photo-remove");
+      var initials = photoBox.getAttribute("data-initials") || "";
+
+      function showPhotoMsg(okText, errText) {
+        if (photoOk) {
+          photoOk.classList.toggle("hidden", !okText);
+          photoOk.textContent = okText || "";
+        }
+        if (photoErr) {
+          photoErr.classList.toggle("hidden", !errText);
+          photoErr.textContent = errText || "";
+        }
+      }
+
+      function setPhotoPreview(url) {
+        if (!photoPreview) return;
+        if (url) {
+          photoPreview.classList.add("has-photo");
+          photoPreview.innerHTML = '<img src="' + escapeHtml(url) + '" alt="">';
+          if (photoRemove) photoRemove.hidden = false;
+        } else {
+          photoPreview.classList.remove("has-photo");
+          photoPreview.textContent = initials;
+          if (photoRemove) photoRemove.hidden = true;
+        }
+      }
+
+      async function postPhotoFile(file) {
+        showPhotoMsg("", "");
+        var fd = new FormData();
+        fd.append("photo", file);
+        var res = await fetch("/api/me/photo", { method: "POST", credentials: "same-origin", body: fd });
+        var data = {};
+        try { data = await res.json(); } catch (e) { data = { ok: false, error: "Could not save that photo." }; }
+        if (!data.ok) {
+          showPhotoMsg("", data.error || "Could not save that photo.");
+          return;
+        }
+        setPhotoPreview(data.photoUrl || "");
+        showPhotoMsg(data.message || "Photo saved.", "");
+      }
+
+      if (photoFile) {
+        photoFile.addEventListener("change", function () {
+          if (photoFile.files && photoFile.files[0]) postPhotoFile(photoFile.files[0]);
+        });
+      }
+      var photoUpload = $("#photo-upload");
+      if (photoUpload) {
+        photoUpload.addEventListener("click", function () {
+          if (photoFile && photoFile.files && photoFile.files[0]) {
+            postPhotoFile(photoFile.files[0]);
+            return;
+          }
+          showPhotoMsg("", "Please choose a JPEG, PNG, or WebP photo first.");
+        });
+      }
+      var photoPull = $("#photo-pull");
+      if (photoPull) {
+        photoPull.addEventListener("click", async function () {
+          showPhotoMsg("", "");
+          var field = $("#profile-page-url");
+          var url = field ? field.value.trim() : "";
+          var data = await api("/api/me/photo/import", { method: "POST", body: { url: url } });
+          if (!data.ok) {
+            showPhotoMsg("", data.error || "We could not pull a photo from that page.");
+            return;
+          }
+          setPhotoPreview(data.photoUrl || "");
+          showPhotoMsg(data.message || "Photo pulled from that page.", "");
+        });
+      }
+      if (photoRemove) {
+        photoRemove.addEventListener("click", async function () {
+          showPhotoMsg("", "");
+          var data = await api("/api/me/photo/remove", { method: "POST" });
+          if (!data.ok) {
+            showPhotoMsg("", data.error || "Could not remove that photo.");
+            return;
+          }
+          if (photoFile) photoFile.value = "";
+          setPhotoPreview("");
+          showPhotoMsg(data.message || "Photo removed.", "");
+        });
+      }
     }
   }
 

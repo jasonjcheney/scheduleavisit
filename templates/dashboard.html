@@ -25,10 +25,10 @@
       </div>
     </div>
     <ul class="checklist">
-      <li class="done"><span aria-hidden="true">✓</span> Finish setup and open your public link</li>
-      <li class="{% if upcoming or clients %}done{% endif %}"><span aria-hidden="true">{% if upcoming or clients %}✓{% else %}○{% endif %}</span> Add a client on the month calendar <a href="#month-cal-card">jump down</a></li>
-      <li class="{% if peers %}done{% endif %}"><span aria-hidden="true">{% if peers %}✓{% else %}○{% endif %}</span> Invite a trusted peer for overflow <a href="#referral-network">jump down</a></li>
-      <li class="{% if google_cal_connected or me.ical_url %}done{% endif %}"><span aria-hidden="true">{% if google_cal_connected or me.ical_url %}✓{% else %}○{% endif %}</span> Optional: connect Google Calendar (or paste a feed) under <a href="/setup#calendar-ical">Edit my page</a></li>
+      <li class="done"><span aria-hidden="true">✓</span> <span class="flow-step">STEP 1</span> Finish setup and open your public link</li>
+      <li class="{% if upcoming or clients %}done{% endif %}"><span aria-hidden="true">{% if upcoming or clients %}✓{% else %}○{% endif %}</span> <span class="flow-step">STEP 2</span> Add a client on the month calendar <a href="#month-cal-card">jump down</a></li>
+      <li class="{% if peers %}done{% endif %}"><span aria-hidden="true">{% if peers %}✓{% else %}○{% endif %}</span> <span class="flow-step">STEP 3</span> Invite a trusted peer for overflow <a href="#referral-network">jump down</a></li>
+      <li class="{% if google_cal_connected or me.ical_url %}done{% endif %}"><span aria-hidden="true">{% if google_cal_connected or me.ical_url %}✓{% else %}○{% endif %}</span> <span class="flow-step">STEP 4</span> Optional: connect Google Calendar (or paste a feed) under <a href="/setup#calendar-ical">Edit my page</a></li>
     </ul>
     <p class="help-tip">Tip: clients never see your hour cap. They either get a time with you, or a recommended peer.</p>
   </section>
@@ -394,7 +394,11 @@
       <div class="peer" data-peer-id="{{ p.id }}">
         <div class="row">
           <div class="person">
+            {% if p.photo_url %}
+            <div class="avatar sm {{ p.avatar }} has-photo" aria-hidden="true"><img src="{{ p.photo_url }}" alt=""></div>
+            {% else %}
             <div class="avatar sm {{ p.avatar }}" aria-hidden="true">{{ p.initials }}</div>
+            {% endif %}
             <div>
               <strong>{{ p.name }}</strong>
               <div class="tiny">{{ p.specialty.split('—')[0].strip() }}{% if p.miles %} · {{ p.miles }} mi{% endif %} · {{ p.category_label }}</div>

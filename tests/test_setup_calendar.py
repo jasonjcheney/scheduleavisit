@@ -140,6 +140,7 @@ def main():
     init_db(conn)
     cols = {r["name"] for r in conn.execute("PRAGMA table_info(users)").fetchall()}
     expect("username" in cols and "setup_complete" in cols and "ical_url" in cols, "migrate missing users columns")
+    expect("photo_path" in cols and "profile_page_url" in cols, "migrate missing photo columns")
     acols = {r["name"] for r in conn.execute("PRAGMA table_info(appointments)").fetchall()}
     expect("visit_kind" in acols and "note" in acols and "public_token" in acols, "migrate missing appointment columns")
     migrated = conn.execute("SELECT public_token FROM appointments WHERE id=1").fetchone()
@@ -266,11 +267,15 @@ def main():
 
         r = client.get("/setup")
         expect(r.status_code == 200 and "After they book" in r.text and "Headway" in r.text, "setup page missing")
+        expect("Pull photo" in r.text and "Your photo" in r.text, "setup missing photo controls")
+        expect("Psychology Today or personal site" in r.text, "setup missing profile URL field")
+        expect("Remove photo" in r.text, "setup missing remove photo control")
 
         dash = client.get("/dashboard")
         expect(dash.status_code == 200, f"dashboard {dash.status_code}")
         expect("Reschedule" in dash.text, "dashboard missing Reschedule")
         expect("opens the time immediately" in dash.text, "dashboard missing cancel copy")
+        expect("STEP 1" in dash.text and "STEP 4" in dash.text, "dashboard missing getting-started STEP labels")
 
         # Cancel frees the slot immediately; weekly hours drop with the visit.
         r = client.post(f"/api/me/appointments/{consult_id}/cancel")

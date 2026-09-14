@@ -12,7 +12,11 @@
 <main class="app-wrap" id="booking-page" data-slug="{{ provider.slug }}" data-minutes="{{ provider.session_minutes }}" data-consult-minutes="{{ provider.consult_minutes }}" data-consult-enabled="{{ provider.consult_enabled }}" data-first="{{ provider.first }}">
   <section class="card">
     <div class="provider-hero">
+      {% if provider.photo_url %}
+      <div class="avatar lg {{ provider.avatar }} has-photo" aria-hidden="true"><img src="{{ provider.photo_url }}" alt=""></div>
+      {% else %}
       <div class="avatar lg {{ provider.avatar }}" aria-hidden="true">{{ provider.initials }}</div>
+      {% endif %}
       <div>
         {% if provider.clinic %}<p class="eyebrow">{{ provider.clinic }}</p>{% endif %}
         <h1 class="page-title">{{ provider.name }}</h1>
@@ -24,6 +28,7 @@
   </section>
   {% if provider.consult_enabled %}
   <section class="card" id="visit-kind-card">
+    <p class="flow-step flow-step-lg">STEP 1</p>
     <h2>What kind of visit?</h2>
     <p class="muted">New here? Start with a consult. Already working together? Book a session. Times below update for the length you pick.</p>
     <div class="choice-grid two visit-chips" id="visit-kind" role="group" aria-label="Visit type">
@@ -42,6 +47,7 @@
   </section>
   {% endif %}
   <section class="card" id="schedule-card">
+    <p class="flow-step{% if not provider.consult_enabled %} flow-step-lg{% endif %}">{% if provider.consult_enabled %}STEP 2{% else %}STEP 1{% endif %}</p>
     <h2>Pick a day</h2>
     <p class="tiny" style="margin-top:-4px">We open on the soonest day with room. Swipe or tap to change — times update for the visit length you chose.</p>
     <div class="date-strip" id="date-strip" role="listbox" aria-label="Available days"></div>
@@ -54,6 +60,7 @@
     </div>
   </section>
   <section class="card" id="need-card">
+    <p class="flow-step">{% if provider.consult_enabled %}STEP 3{% else %}STEP 2{% endif %}</p>
     <h2>What are you hoping to work on?</h2>
     <p class="muted">One optional question so we can match you if {{ provider.first }}’s week is full. Pick the closest fit — no need to get it perfect.</p>
     <div class="choice-grid need-chips" id="need-kind" role="group" aria-label="What you want help with">
