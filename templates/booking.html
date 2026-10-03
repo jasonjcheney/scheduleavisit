@@ -9,7 +9,7 @@
 {% block og_url %}https://scheduleavisit.onrender.com/p/{{ provider.slug }}{% endblock %}
 {% block canonical %}https://scheduleavisit.onrender.com/p/{{ provider.slug }}{% endblock %}
 {% block content %}
-<main class="app-wrap" id="booking-page" data-slug="{{ provider.slug }}" data-minutes="{{ provider.session_minutes }}" data-consult-minutes="{{ provider.consult_minutes }}" data-consult-enabled="{{ provider.consult_enabled }}" data-first="{{ provider.first }}">
+<main class="app-wrap" id="booking-page" data-slug="{{ provider.slug }}" data-minutes="{{ provider.session_minutes }}" data-consult-minutes="{{ provider.consult_minutes }}" data-consult-enabled="{{ provider.consult_enabled }}" data-first="{{ provider.first }}"{% if sample_profile %} data-sample="1"{% endif %}>
   <section class="card">
     <div class="provider-hero">
       {% if provider.photo_url %}
@@ -25,7 +25,11 @@
     </div>
     {% if provider.about %}<p>{{ provider.about }}</p>{% endif %}
     {% if provider.address %}<p class="tiny">{{ provider.address }}</p>{% endif %}
+    {% if sample_profile %}
+    <p class="err" role="status" id="sample-profile">This is a sample profile</p>
+    {% endif %}
   </section>
+  {% if not sample_profile %}
   {% if provider.consult_enabled %}
   <section class="card" id="visit-kind-card">
     <p class="flow-step flow-step-lg">STEP 1</p>
@@ -72,5 +76,6 @@
     </div>
   </section>
   <div id="book-result" aria-live="polite"></div>
+  {% endif %}
 </main>
 {% endblock %}

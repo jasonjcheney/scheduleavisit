@@ -123,6 +123,7 @@
           username: signupForm.username.value,
           email: signupForm.email.value,
           password: signupForm.password.value,
+          company_website: signupForm.company_website ? signupForm.company_website.value : "",
           next: signupForm.getAttribute("data-next") || "/setup"
         }
       });
@@ -137,7 +138,7 @@
 
   /* ——— Booking ——— */
   var bookPage = $("#booking-page");
-  if (bookPage) {
+  if (bookPage && bookPage.getAttribute("data-sample") !== "1") {
     var slug = bookPage.getAttribute("data-slug");
     var sessionMinutes = Number(bookPage.getAttribute("data-minutes") || 50);
     var consultMinutes = Number(bookPage.getAttribute("data-consult-minutes") || 15);

@@ -12,6 +12,7 @@ from db import (
     at_local,
     category_label,
     date_on_weekday,
+    is_hidden_demo,
     normalize_category,
     parse_iso,
     start_of_week,
@@ -501,7 +502,7 @@ def referral_candidates(
         seen.add(p["id"])
 
         slot = next_open_slot(conn, p, when, prefer_time, minutes)
-        if slot:
+        if slot and not is_hidden_demo(p):
             rem = remaining_hours(conn, p, start_of_week(when))
             miles = miles_between(from_user["slug"], p["slug"])
             pub = public_provider(p, from_user["slug"])

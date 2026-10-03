@@ -17,8 +17,8 @@ Plain-language snapshot of what ScheduleAVisit does **now**. Detail entries belo
 - Landing **FAQ** accordion (full / hour cap / referrals / HIPAA / booking link)
 
 ### Demo logins
-- Jason: `jasoncheney` / `123456` → `/setup` then `/p/jason-cheney`
-- Elena: `Elena` / `demo1234` → near-cap demo with James / Maya peers
+- Jason: `jasoncheney` → `/setup` then `/p/jason-cheney` (password is `SAV_JASON_PASSWORD`, not stored here)
+- Elena: `Elena` → near-cap demo with James / Maya peers (password is `SAV_DEMO_PASSWORD`, not stored here)
 
 ### Ship note
 Local overnight commits after waitlist/OG deploy are **not pushed** until Jason is awake. Smoke path: `SMOKE.md`. Suites: `tests/test_public_paths.py`, `test_live_paths.py`, `test_setup_calendar.py`, `test_multihop_referral.py`.
@@ -239,7 +239,7 @@ Jason asleep. **Local only — not pushed; pending morning deploy.** No GitHub /
 - `/setup` Account card: current / new / confirm password fields
 - `POST /api/me/password`: auth required; current must match; new min 6 chars; new must match confirm
 - Success message on the form; light `.ok-msg` CSS aligned with existing `.err`
-- `jasoncheney` / `123456` left untouched until he changes it (`ensure_jason` already does not reset)
+- Founder login left untouched until he changes it (`ensure_jason` already does not reset the password)
 
 ### Tests
 - `tests/test_setup_calendar.py`: wrong current → 401; short/mismatch fail; correct update; login with new password; Jason default still works (disposable user)
@@ -333,7 +333,7 @@ Jason asleep. **Local only — not pushed; pending morning deploy.** No GitHub /
 - Visible skip-link (slides in on focus) and broader `:focus-visible` coverage
 
 ### Docs
-- README shortened into plain language for Jason: live URL, jasoncheney/123456 + Elena demo1234, one paragraph each for referral and waitlist
+- README shortened into plain language for Jason: live URL, founder and sample logins (passwords stay in env, not in the doc), one paragraph each for referral and waitlist
 
 ### Tests
 - `python3 tests/test_public_paths.py` — green
@@ -401,7 +401,7 @@ Overnight QA pass (WebFetch + TestClient; no browser MCP). Jason asleep — no c
 4. **Mobile overflow at ~390px** — Added `@media (max-width: 390px)` for booking slots, referral card CTA stack, month calendar cells/legend, share-strip code; `overflow-x: hidden` on `body`; `.person > div { min-width: 0 }` so long names wrap.
 
 ### Tests
-- Added `tests/test_live_paths.py` — TestClient smokes for `/`, `/book`, `/p/jason-cheney`, `/p/elena-vasquez-lpc`, `/login`, `/signup`, auth gates, jasoncheney/123456 → setup/dashboard, mobile CSS guards.
+- Added `tests/test_live_paths.py` — TestClient smokes for `/`, `/book`, `/p/jason-cheney`, `/p/elena-vasquez-lpc`, `/login`, `/signup`, auth gates, founder login → setup/dashboard, mobile CSS guards.
 - `python3 tests/test_live_paths.py` — green
 - `python3 tests/test_setup_calendar.py` — green
 - `python3 tests/test_multihop_referral.py` — green

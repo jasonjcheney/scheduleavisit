@@ -13,6 +13,9 @@ sys.path.insert(0, str(ROOT))
 fd, DBFILE = tempfile.mkstemp(suffix="-public-paths.db")
 os.close(fd)
 os.environ["SAV_DB"] = DBFILE
+os.environ.setdefault("SAV_JASON_PASSWORD", "123456")
+os.environ.setdefault("SAV_DEMO_PASSWORD", "demo1234")
+os.environ.setdefault("SHOW_DEMO_COUNSELORS", "1")
 
 
 def fail(msg: str) -> None:
@@ -99,9 +102,11 @@ def main() -> None:
 
     jason = c.get("/book?q=jason")
     expect(jason.status_code == 200, f"/book?q=jason got {jason.status_code}")
-    expect("Jason Cheney" in jason.text, "/book?q=jason missing Jason Cheney")
-    expect("/p/jason-cheney" in jason.text, "/book?q=jason missing /p/jason-cheney")
-    print("OK /book?q=jason")
+    expect("Jason Cheney" not in jason.text, "unfinished Jason should stay out of /book")
+    expect(c.get("/p/jason-cheney").status_code == 200, "Jason /p/ should still open")
+    named = c.get("/book?q=Elena")
+    expect("Elena Vasquez" in named.text, "/book?q=Elena missing Elena")
+    print("OK /book hides an unfinished profile and still finds Elena by name")
 
     boulder = c.get("/book?q=Boulder")
     expect(boulder.status_code == 200, f"/book?q=Boulder got {boulder.status_code}")

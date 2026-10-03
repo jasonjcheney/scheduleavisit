@@ -16,6 +16,9 @@ sys.path.insert(0, str(ROOT))
 fd, DBFILE = tempfile.mkstemp(suffix=".db")
 os.close(fd)
 os.environ["SAV_DB"] = DBFILE
+os.environ.setdefault("SAV_JASON_PASSWORD", "123456")
+os.environ.setdefault("SAV_DEMO_PASSWORD", "demo1234")
+os.environ.setdefault("SHOW_DEMO_COUNSELORS", "1")
 
 TZ = ZoneInfo("America/Denver")
 
@@ -337,7 +340,7 @@ def main():
         expect("Pending invites" in dash.text, "dashboard missing pending invites heading")
         expect("colleague@example.com" in dash.text, "dashboard missing pending invite email")
 
-        # —— Change password (disposable user; leave jasoncheney/123456 alone) ——
+        # —— Change password (disposable user; leave the founder login alone) ——
         r = client.get("/setup")
         expect(r.status_code == 200 and "Change password" in r.text, "setup missing Change password section")
 

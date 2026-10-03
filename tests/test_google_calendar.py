@@ -18,6 +18,9 @@ sys.path.insert(0, str(ROOT))
 fd, DBFILE = tempfile.mkstemp(suffix="-google-cal.db")
 os.close(fd)
 os.environ["SAV_DB"] = DBFILE
+os.environ.setdefault("SAV_JASON_PASSWORD", "123456")
+os.environ.setdefault("SAV_DEMO_PASSWORD", "demo1234")
+os.environ.setdefault("SHOW_DEMO_COUNSELORS", "1")
 os.environ.pop("GOOGLE_CLIENT_ID", None)
 os.environ.pop("GOOGLE_CLIENT_SECRET", None)
 os.environ.pop("GOOGLE_REDIRECT_URI", None)
@@ -310,12 +313,15 @@ def main() -> None:
         dash_broken = c.get("/dashboard")
         expect(dash_broken.status_code == 200, f"dashboard {dash_broken.status_code}")
         expect("Connect Google Calendar again" in dash_broken.text, "dashboard missing reconnect button")
-        expect("not blocking bookings" in dash_broken.text, "dashboard missing plain reconnect warning")
+        expect("We can't reach your calendar. Reconnect it in Setup." in dash_broken.text,
+               "dashboard missing calendar reconnect sentence")
         expect("Busy time from the calendars you picked fills the grid" not in dash_broken.text,
                "dashboard still claims Google is connected and working")
         setup_broken = c.get("/setup")
         expect("Connect Google Calendar again" in setup_broken.text, "setup missing reconnect button")
-        expect("Google is not answering" in setup_broken.text, "setup still says plain Connected")
+        expect("We can't reach your calendar. Reconnect it in Setup." in setup_broken.text,
+               "setup missing calendar reconnect sentence")
+        expect("Connected as" not in setup_broken.text, "setup still says plain Connected")
         status_broken = c.get("/api/me/google").json()
         expect(status_broken.get("needsReconnect") is True, f"needsReconnect {status_broken}")
         print("OK expired Google login shows a clear reconnect state")

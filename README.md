@@ -8,12 +8,14 @@ One public booking link for counselors and therapists. Providers set a weekly cl
 
 ## Demo logins
 
-| Who | Username | Password | Public page |
-|---|---|---|---|
-| Jason Cheney | `jasoncheney` | `123456` | `/p/jason-cheney` |
-| Elena Vasquez, LPC | `Elena` | `demo1234` | `/p/elena-vasquez-lpc` |
+Seeded accounts are created on first boot. Passwords are not written in this repo. Set `SAV_JASON_PASSWORD` for the founder account and `SAV_DEMO_PASSWORD` for the sample counselors before starting the app. If either variable is unset, that account gets a random password that is not printed. An account that already exists keeps its password.
 
-Login also accepts email or first name (`jason` works for Jason). Elena’s peers James and Maya use `demo1234` too.
+| Who | Username | Public page |
+|---|---|---|
+| Jason Cheney | `jasoncheney` | `/p/jason-cheney` |
+| Elena Vasquez, LPC | `Elena` | `/p/elena-vasquez-lpc` |
+
+Login also accepts email or first name (`jason` works for Jason). James and Maya use `SAV_DEMO_PASSWORD` as well. Sample counselors stay off the public directory unless `SHOW_DEMO_COUNSELORS` is set.
 
 ## Referral
 

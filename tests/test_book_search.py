@@ -13,6 +13,9 @@ sys.path.insert(0, str(ROOT))
 fd, DBFILE = tempfile.mkstemp(suffix="-book-search.db")
 os.close(fd)
 os.environ["SAV_DB"] = DBFILE
+os.environ.setdefault("SAV_JASON_PASSWORD", "123456")
+os.environ.setdefault("SAV_DEMO_PASSWORD", "demo1234")
+os.environ.setdefault("SHOW_DEMO_COUNSELORS", "1")
 
 
 def fail(msg: str) -> None:
@@ -48,11 +51,21 @@ def main() -> None:
     expect("Elena is near her weekly cap" not in book.text, "/book still has tester copy")
     print("OK /book shows a search input")
 
+    # Seed Jason still has placeholder bio, so he stays off the directory until that is real.
     jason = c.get("/book?q=jason")
     expect(jason.status_code == 200, f"/book?q=jason got {jason.status_code}")
-    expect("Jason Cheney" in jason.text, "/book?q=jason missing Jason Cheney")
+    expect("Jason Cheney" not in jason.text, "placeholder bio should keep Jason off /book")
+    expect(c.get("/p/jason-cheney").status_code == 200, "Jason's own /p link should still open")
+    with connect() as conn:
+        conn.execute(
+            "UPDATE users SET specialty=? WHERE slug='jason-cheney'",
+            ("Counseling — anxiety and life transitions",),
+        )
+        conn.commit()
+    jason = c.get("/book?q=jason")
+    expect("Jason Cheney" in jason.text, "/book?q=jason missing Jason Cheney after a real specialty")
     expect('href="/p/jason-cheney"' in jason.text, "/book?q=jason missing link to /p/jason-cheney")
-    print("OK /book?q=jason includes Jason Cheney")
+    print("OK /book?q=jason includes Jason Cheney once his page is filled in")
 
     boulder = c.get("/book?q=Boulder")
     expect(boulder.status_code == 200, f"/book?q=Boulder got {boulder.status_code}")
@@ -70,28 +83,58 @@ def main() -> None:
            "/book?q=zzzzzz missing Elena demo CTA")
     print("OK /book?q=zzzzzz empty state, not a 500")
 
-    # An empty, unfinished sign-up (the kind bots leave) stays out of the directory,
-    # but its own /p/ link still works. Once setup is done it is listed.
+    # A random-letter name stays hidden even after setup is marked done and a bio is filled in.
+    # A readable name with no bio (QA Empty Signup) stays hidden too. /p/ still opens.
     bot = TestClient(app)
     r = bot.post("/api/auth/signup", json={
-        "name": "QxZvBnMkLpWrTy",
+        "name": "BtVpNzsZmOHPKWZp",
         "email": "singingpunter+dirbot@gmail.com",
         "password": "demo12345",
         "username": "dirbot_test",
-    })
+    }, headers={"X-Forwarded-For": "203.0.113.21"})
     expect(r.json().get("ok"), f"signup failed: {r.text}")
     with connect() as conn:
         row = conn.execute("SELECT slug FROM users WHERE email=?", ("singingpunter+dirbot@gmail.com",)).fetchone()
     bot_slug = row["slug"]
     listing = c.get("/book")
-    expect(f'href="/p/{bot_slug}"' not in listing.text, "empty unfinished sign-up should not be in /book")
-    expect(f'href="/p/{bot_slug}"' not in c.get("/book?q=qxzv").text, "empty unfinished sign-up found by search")
-    expect(c.get(f"/p/{bot_slug}").status_code == 200, "unfinished sign-up /p/ link should still open")
+    expect(f'href="/p/{bot_slug}"' not in listing.text, "random-letter sign-up should not be in /book")
+    expect("BtVpNzsZmOHPKWZp" not in listing.text, "random-letter name visible in /book")
+    expect(c.get(f"/p/{bot_slug}").status_code == 200, "hidden sign-up /p/ link should still open")
     with connect() as conn:
-        conn.execute("UPDATE users SET setup_complete=1 WHERE slug=?", (bot_slug,))
+        conn.execute(
+            """UPDATE users SET setup_complete=1, specialty=?, about=?
+               WHERE slug=?""",
+            ("Anxiety therapy", "I see adults.", bot_slug),
+        )
         conn.commit()
-    expect(f'href="/p/{bot_slug}"' in c.get("/book").text, "finished account should be listed")
-    print("OK empty unfinished sign-ups stay out of the public directory")
+    expect(f'href="/p/{bot_slug}"' not in c.get("/book").text, "random-letter name should stay hidden")
+
+    empty = TestClient(app)
+    r = empty.post("/api/auth/signup", json={
+        "name": "QA Empty Signup",
+        "email": "singingpunter+qaempty@gmail.com",
+        "password": "demo12345",
+        "username": "qa_empty_signup",
+    }, headers={"X-Forwarded-For": "203.0.113.22"})
+    expect(r.json().get("ok"), f"empty signup failed: {r.text}")
+    with connect() as conn:
+        empty_slug = conn.execute(
+            "SELECT slug FROM users WHERE email=?", ("singingpunter+qaempty@gmail.com",)
+        ).fetchone()["slug"]
+        conn.execute("UPDATE users SET setup_complete=1 WHERE slug=?", (empty_slug,))
+        conn.commit()
+    book_empty = c.get("/book")
+    expect("QA Empty Signup" not in book_empty.text, "QA Empty Signup should stay off /book")
+    expect(f'href="/p/{empty_slug}"' not in book_empty.text, "QA Empty Signup link should stay off /book")
+    expect(c.get(f"/p/{empty_slug}").status_code == 200, "QA Empty Signup /p/ should still open")
+    with connect() as conn:
+        conn.execute(
+            "UPDATE users SET specialty=? WHERE slug=?",
+            ("Adult therapy — anxiety and burnout", empty_slug),
+        )
+        conn.commit()
+    expect(f'href="/p/{empty_slug}"' in c.get("/book").text, "name, bio, and hours should list the page")
+    print("OK empty and random-letter sign-ups stay out of the public directory")
 
     print("ALL BOOK SEARCH TESTS PASSED")
 

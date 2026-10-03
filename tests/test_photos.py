@@ -14,6 +14,9 @@ sys.path.insert(0, str(ROOT))
 fd, DBFILE = tempfile.mkstemp(suffix="-photos.db")
 os.close(fd)
 os.environ["SAV_DB"] = DBFILE
+os.environ.setdefault("SAV_JASON_PASSWORD", "123456")
+os.environ.setdefault("SAV_DEMO_PASSWORD", "demo1234")
+os.environ.setdefault("SHOW_DEMO_COUNSELORS", "1")
 
 TINY_PNG = (
     b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
@@ -115,6 +118,12 @@ def main() -> None:
     expect("/media/avatar/jason-cheney" in page.text, "booking page missing photo url")
     expect("has-photo" in page.text, "booking page missing photo avatar")
 
+    with connect() as conn:
+        conn.execute(
+            "UPDATE users SET specialty=? WHERE slug='jason-cheney'",
+            ("Counseling — anxiety and life transitions",),
+        )
+        conn.commit()
     directory = client.get("/book?q=jason")
     expect("/media/avatar/jason-cheney" in directory.text, "directory card missing photo")
 

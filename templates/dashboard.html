@@ -120,17 +120,23 @@
   </section>
 
   <section class="card gcal-dash" id="google-calendar">
+    {% if calendar_unreachable_message %}
+    <p class="err" role="alert" id="calendar-unreachable">{{ calendar_unreachable_message }}</p>
+    {% endif %}
     <div class="row">
       <div>
         <h2>Google Calendar</h2>
         {% if not google_cal_ready %}
         <p class="tiny" style="margin:0">Google Calendar is not set up on this server yet. You can still paste an iCal feed under <a href="/setup#calendar-ical">Edit my page</a>.</p>
         {% elif google_cal_connected and google_cal_needs_reconnect %}
-        <p class="err" role="alert" style="margin:0" id="gcal-dash-reconnect">{{ google_cal_error }}</p>
+        <p class="tiny" style="margin:0">Google needs to be connected again before it can block busy time.</p>
         {% elif google_cal_connected %}
         <p class="tiny" style="margin:0">Connected{% if google_cal_email %} as {{ google_cal_email }}{% endif %}. Busy time from the calendars you picked fills the grid below. New visits here also appear on Google.</p>
+        {% if google_cal_error %}
+        <p class="err" role="alert" style="margin:8px 0 0">{{ google_cal_error }}</p>
+        {% endif %}
         {% else %}
-        <p class="tiny" style="margin:0">Connect once so clients cannot book over your Google events, and new visits show up in Google everywhere.</p>
+        <p id="gcal-not-connected" style="margin:0">Google Calendar: not connected</p>
         {% endif %}
       </div>
       <div class="hero-actions">

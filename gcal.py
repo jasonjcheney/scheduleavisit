@@ -12,6 +12,7 @@ import httpx
 
 from capacity import uget
 from db import TZ, at_local, now_iso, new_public_token, parse_iso, today
+from icalutil import CALENDAR_UNREACHABLE
 
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
@@ -397,7 +398,8 @@ def clear_connection(conn, user_id: int) -> None:
         """UPDATE users SET
              google_refresh_token='',
              google_connected_email='',
-             google_synced_at=NULL
+             google_synced_at=NULL,
+             google_sync_error=''
            WHERE id=?""",
         (user_id,),
     )
@@ -519,6 +521,21 @@ def _should_import_event(ev: dict, known_event_ids: set[str]) -> bool:
     return True
 
 
+def _mark_google_sync(conn, user_id: int, error: str | None) -> None:
+    """Stamp the attempt. error=None leaves a previous hard failure in place (a short blip)."""
+    try:
+        if error is None:
+            conn.execute("UPDATE users SET google_synced_at=? WHERE id=?", (now_iso(), user_id))
+        else:
+            conn.execute(
+                "UPDATE users SET google_synced_at=?, google_sync_error=? WHERE id=?",
+                (now_iso(), error, user_id),
+            )
+        conn.commit()
+    except Exception:
+        pass
+
+
 def maybe_sync_google(conn, user, timeout: float = 2.0, force: bool = False) -> None:
     """Pull busy events into appointments. Same idea as iCal. Never raise into the page."""
     try:
@@ -533,23 +550,19 @@ def maybe_sync_google(conn, user, timeout: float = 2.0, force: bool = False) -> 
             except Exception:
                 pass
         _sync_google(conn, user, timeout=timeout)
-    except Exception:
-        try:
-            conn.execute("UPDATE users SET google_synced_at=? WHERE id=?", (now_iso(), user["id"]))
-            conn.commit()
-        except Exception:
-            pass
+    except Exception as exc:
+        network = isinstance(exc, (OSError, TimeoutError))
+        _mark_google_sync(conn, user["id"], None if network else CALENDAR_UNREACHABLE)
 
 
 def _sync_google(conn, user, timeout: float = 2.0) -> None:
     provider_id = user["id"]
     access = access_token_for(user)
-    try:
-        conn.execute("UPDATE users SET google_synced_at=? WHERE id=?", (now_iso(), provider_id))
-        conn.commit()
-    except Exception:
-        pass
     if not access:
+        if token_problem(user) == "temporary":
+            _mark_google_sync(conn, provider_id, None)
+        else:
+            _mark_google_sync(conn, provider_id, CALENDAR_UNREACHABLE)
         return
 
     cals = busy_calendar_ids(user)
@@ -579,11 +592,13 @@ def _sync_google(conn, user, timeout: float = 2.0) -> None:
 
     events: list[dict] = []
     got = False
+    any_failed = False
     fetched_cals: set[str] = set()
     for cal_id in cals:
         try:
             raw = list_busy_events(access, cal_id, time_min, time_max)
         except Exception:
+            any_failed = True
             continue
         got = True
         fetched_cals.add(cal_id)
@@ -602,7 +617,9 @@ def _sync_google(conn, user, timeout: float = 2.0) -> None:
                 "end": end,
             })
     if not got:
+        _mark_google_sync(conn, provider_id, CALENDAR_UNREACHABLE)
         return
+    _mark_google_sync(conn, provider_id, CALENDAR_UNREACHABLE if any_failed else "")
 
     existing = conn.execute(
         """SELECT * FROM appointments

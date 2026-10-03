@@ -5,6 +5,8 @@ import json
 import os
 import re
 import secrets
+import threading
+import time
 from contextlib import contextmanager
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -27,18 +29,26 @@ from db import (
     connect,
     hash_password,
     init_db,
+    is_hidden_demo,
     normalize_category,
     now_iso,
     notify,
     new_public_token,
     outgoing_recommend_count,
     parse_iso,
+    SAMPLE_PROFILE_MESSAGE,
     set_link_category,
     start_of_week,
     today,
     verify_password,
 )
-from icalutil import build_appointment_ics, maybe_sync_ical, normalize_ical_urls, note_summary
+from icalutil import (
+    CALENDAR_UNREACHABLE,
+    build_appointment_ics,
+    maybe_sync_ical,
+    note_summary,
+    verify_ical_urls,
+)
 from photos import (
     PhotoError,
     clear_user_photo,
@@ -92,6 +102,7 @@ from capacity import (
     format_long,
     format_short,
     format_time,
+    hide_setup_placeholder,
     hours_label,
     infer_label,
     infer_pattern,
@@ -122,6 +133,10 @@ LOGIN_ALIASES = {
     "jason": "jasoncheney@scheduleavisit.example",
 }
 USERNAME_RE = re.compile(r"^[a-z0-9_]{3,32}$")
+SIGNUP_LIMIT = 5
+SIGNUP_WINDOW_SEC = 3600
+_signup_lock = threading.Lock()
+_signup_hits: dict[str, list[float]] = {}
 
 app = FastAPI(title="ScheduleAVisit", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory=str(ROOT / "static")), name="static")
@@ -247,21 +262,27 @@ def google_setup_context(u) -> dict:
     calendars = []
     load_error = ""
     needs_reconnect = False
+    temporary = False
+    list_failed = False
     if connected and google_configured():
         token = access_token_for(u)
         if token:
             try:
                 calendars = fetch_calendar_list(token)
             except Exception:
-                load_error = "We could not load your Google calendars just now. Try again in a minute."
+                list_failed = True
         elif google_token_problem(u) == "temporary":
+            temporary = True
             load_error = "Google Calendar is not answering just now. Try again in a minute."
         else:
             needs_reconnect = True
-            load_error = (
-                "Google stopped letting ScheduleAVisit see this calendar, so your Google busy "
-                "time is not blocking bookings right now. Tap Connect Google Calendar again to fix it."
-            )
+    ical_bad = bool((uget(u, "ical_sync_error", "") or "").strip())
+    g_bad = bool((uget(u, "google_sync_error", "") or "").strip())
+    # A short Google blip keeps the "try again in a minute" line. A dead login,
+    # a failed sync, or an iCal feed we cannot read uses the reconnect sentence.
+    unreachable = needs_reconnect or list_failed or ical_bad or (g_bad and not temporary)
+    if temporary:
+        unreachable = ical_bad
     return {
         "google_cal_ready": google_configured(),
         "google_cal_connected": connected,
@@ -271,6 +292,7 @@ def google_setup_context(u) -> dict:
         "google_busy_calendar_ids": busy_calendar_ids(u),
         "google_calendars": calendars,
         "google_cal_error": load_error,
+        "calendar_unreachable_message": CALENDAR_UNREACHABLE if unreachable else "",
     }
 
 
@@ -949,19 +971,85 @@ def google_calendar_callback(request: Request):
     return resp
 
 
-def listed_in_directory(user) -> bool:
-    """Hide brand-new, empty sign-ups (often bots) from the public directory.
+_CREDENTIAL_RE = re.compile(
+    r",?\s*\b(LPC|LCSW|LMFT|LMHC|LCPC|PhD|PsyD|MD|NP|RN|MA|MS|MSW|MFT)\b\.?",
+    re.I,
+)
 
-    Someone shows up once they finish setup or fill in anything a client
-    would recognize (credentials, clinic, address, title, or focus).
-    Their /p/{slug} link still works either way.
-    """
-    if not needs_setup(user):
+
+def _random_letter_token(token: str) -> bool:
+    """True for a signup name that is a random letter blob, like BtVpNzsZmOHPKWZp."""
+    if not re.fullmatch(r"[A-Za-z]{8,}", token or ""):
+        return False
+    flips = 0
+    for a, b in zip(token, token[1:]):
+        if a.isalpha() and b.isalpha() and (a.isupper() != b.isupper()):
+            flips += 1
+    if flips >= 4:
         return True
-    for field in ("credentials", "clinic", "address", "title", "specialty"):
-        if (uget(user, field, "") or "").strip():
-            return True
+    vowels = sum(1 for ch in token.lower() if ch in "aeiou")
+    if vowels == 0:
+        return True
+    if len(token) >= 12 and (vowels / len(token)) < 0.2:
+        return True
     return False
+
+
+def real_display_name(name: str) -> bool:
+    """A name a client would recognize, not a random-letter signup."""
+    text = (name or "").strip()
+    if len(text) < 2 or not re.search(r"[A-Za-z]", text):
+        return False
+    core = _CREDENTIAL_RE.sub("", text).strip(" ,.-")
+    if len(core) < 2 or not re.search(r"[A-Za-z]", core):
+        return False
+    parts = [p.strip(".,") for p in core.split() if p.strip(".,")]
+    if not parts:
+        return False
+    return not any(_random_letter_token(p) for p in parts)
+
+
+def has_public_bio(user) -> bool:
+    specialty = hide_setup_placeholder(uget(user, "specialty", "") or "")
+    about = hide_setup_placeholder(uget(user, "about", "") or "")
+    return bool((specialty or "").strip() or (about or "").strip())
+
+
+def has_weekly_hours(user) -> bool:
+    """At least one workday with a start hour before the end hour."""
+    raw = uget(user, "workdays", None)
+    if raw is None or str(raw).strip() in ("", "[]", "null"):
+        return False
+    try:
+        days = json.loads(raw) if isinstance(raw, str) else list(raw)
+        days = [int(d) for d in days if int(d) in (1, 2, 3, 4, 5, 6, 7)]
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return False
+    if not days:
+        return False
+    try:
+        start = int(uget(user, "slot_start", 0) or 0)
+        end = int(uget(user, "slot_end", 0) or 0)
+    except (TypeError, ValueError):
+        return False
+    return end > start
+
+
+def listed_in_directory(user) -> bool:
+    """Public directory only after a real name, a bio or specialty, and weekly hours.
+
+    Empty sign-ups and random-letter names stay hidden. Sample counselors stay hidden
+    unless SHOW_DEMO_COUNSELORS is on. Their /p/{slug} link still opens. Nothing is deleted.
+    """
+    if is_hidden_demo(user):
+        return False
+    if not real_display_name(uget(user, "name", "") or ""):
+        return False
+    if not has_public_bio(user):
+        return False
+    if not has_weekly_hours(user):
+        return False
+    return True
 
 
 @app.get("/book", response_class=HTMLResponse)
@@ -1011,7 +1099,13 @@ def booking_page(request: Request, slug: str):
         if not u:
             return tpl(request, "notfound.html", message="We could not find that calendar.")
         provider = public_provider(u)
-    resp = tpl(request, "booking.html", provider=provider, categories=CATEGORY_CHOICES)
+        sample_profile = is_hidden_demo(u)
+    resp = tpl(
+        request, "booking.html",
+        provider=provider,
+        categories=CATEGORY_CHOICES,
+        sample_profile=sample_profile,
+    )
     return resp
 
 
@@ -1266,6 +1360,9 @@ def setup_page(request: Request):
         return RedirectResponse("/login?next=/setup", status_code=303)
     with db() as conn:
         u = user_by_id(conn, user["id"])
+        if (uget(u, "ical_url", "") or "").strip() or google_is_connected(u):
+            sync_busy_calendars(conn, u, timeout=2.0)
+            u = user_by_id(conn, user["id"])
         gctx = google_setup_context(u)
     workdays = user_workdays(u)
     return tpl(
@@ -1495,9 +1592,34 @@ async def api_login(request: Request):
         return resp
 
 
+def _client_ip(request: Request) -> str:
+    forwarded = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
+    if forwarded and forwarded.lower() != "unknown":
+        return forwarded[:80]
+    if request.client and request.client.host:
+        return request.client.host
+    return "unknown"
+
+
+def _signup_rate_limited(ip: str) -> bool:
+    """True when this IP already used its 5 signups for the hour. Counts the attempt."""
+    now = time.time()
+    with _signup_lock:
+        hits = [t for t in _signup_hits.get(ip, []) if now - t < SIGNUP_WINDOW_SEC]
+        if len(hits) >= SIGNUP_LIMIT:
+            _signup_hits[ip] = hits
+            return True
+        hits.append(now)
+        _signup_hits[ip] = hits
+        return False
+
+
 @app.post("/api/auth/signup")
 async def api_signup(request: Request):
     data = await _body(request)
+    # Hidden field. People never see it; a bot that fills every input does.
+    if (data.get("company_website") or "").strip():
+        return json_err("Could not create the account.")
     email = (data.get("email") or "").strip().lower()
     password = data.get("password") or ""
     name = (data.get("name") or "").strip()
@@ -1511,6 +1633,8 @@ async def api_signup(request: Request):
         return json_err("Please enter the name clients will see.")
     if not USERNAME_RE.match(username):
         return json_err("Pick a username: 3–32 letters, numbers, or underscores.")
+    if _signup_rate_limited(_client_ip(request)):
+        return json_err("Too many signups from this network. Please try again in about an hour.", 429)
     if credentials and credentials not in name:
         display = f"{name}, {credentials}"
     else:
@@ -1640,6 +1764,8 @@ async def api_book(slug: str, request: Request):
         u = user_by_slug(conn, slug)
         if not u:
             return json_err("Calendar not found", 404)
+        if is_hidden_demo(u):
+            return json_err(SAMPLE_PROFILE_MESSAGE)
         requested = (data.get("visitKind") or data.get("visit_kind") or "session")
         visit_kind, minutes, returning = resolve_visit(conn, u, requested, email)
         start = at_local(day, hhmm)
@@ -1675,7 +1801,10 @@ async def api_book(slug: str, request: Request):
         )
         after_book(conn, appt_id)
         push_appointment(conn, appt_id)
-        print(f"[book] {name} <{email}> with {u['slug']} on {day} {hhmm} {visit_kind}", flush=True)
+        print(
+            f"[book] provider_id={u['id']} appointment_id={appt_id} client_id={cid}",
+            flush=True,
+        )
         portal = "" if returning else (uget(u, "portal_url", "") or "").strip()
         return {
             "ok": True,
@@ -1706,6 +1835,8 @@ async def api_book_referral(slug: str, request: Request):
         peer = user_by_slug(conn, peer_slug)
         if not origin or not peer:
             return json_err("Calendar not found", 404)
+        if is_hidden_demo(origin) or is_hidden_demo(peer):
+            return json_err(SAMPLE_PROFILE_MESSAGE)
         if not network_reachable(conn, origin["id"], peer["id"]):
             return json_err("That professional is not in this referral network.")
         minutes = int(peer["session_minutes"] or 50)
@@ -1729,7 +1860,10 @@ async def api_book_referral(slug: str, request: Request):
         )
         after_book(conn, appt_id)
         push_appointment(conn, appt_id)
-        print(f"[book-referral] {name} {origin['slug']} → {peer['slug']} {day} {hhmm}", flush=True)
+        print(
+            f"[book-referral] origin_id={origin['id']} peer_id={peer['id']} appointment_id={appt_id} client_id={cid}",
+            flush=True,
+        )
         return {"ok": True, "appointmentId": appt_id, "redirect": confirm_url(conn, appt_id)}
 
 
@@ -1753,6 +1887,8 @@ async def api_waitlist(slug: str, request: Request):
         u = user_by_slug(conn, slug)
         if not u:
             return json_err("Calendar not found", 404)
+        if is_hidden_demo(u):
+            return json_err(SAMPLE_PROFILE_MESSAGE)
         existing = conn.execute(
             """SELECT id, name, email, requested_minutes FROM waitlist_requests
                WHERE provider_id=? AND lower(email)=lower(?) AND dismissed_at IS NULL
@@ -1767,7 +1903,7 @@ async def api_waitlist(slug: str, request: Request):
                 (name, minutes, int(existing["id"])),
             )
             print(
-                f"[waitlist] already {name} <{email}> → {u['slug']} {minutes}min id={existing['id']}",
+                f"[waitlist] provider_id={u['id']} waitlist_id={int(existing['id'])}",
                 flush=True,
             )
             return {
@@ -1791,7 +1927,7 @@ async def api_waitlist(slug: str, request: Request):
             f"Waitlist — {name}",
             f"{name} ({email}) asked to be notified when you or your network have room for a {minutes}-minute visit.",
         )
-        print(f"[waitlist] {name} <{email}> → {u['slug']} {minutes}min id={wid}", flush=True)
+        print(f"[waitlist] provider_id={u['id']} waitlist_id={wid}", flush=True)
         return {
             "ok": True,
             "waitlistId": wid,
@@ -1929,7 +2065,7 @@ async def api_me_patch(request: Request):
         if key == "portal_url" and val and not str(val).lower().startswith(("http://", "https://")):
             return json_err("portal url should start with https://")
         if key == "ical_url":
-            val, ical_err = normalize_ical_urls(str(val) if val else "")
+            val, ical_err = verify_ical_urls(str(val) if val else "")
             if ical_err:
                 return json_err(ical_err)
         if key == "consult_enabled":
@@ -1938,6 +2074,9 @@ async def api_me_patch(request: Request):
             val = 1 if val else 0
         sets.append(f"{key}=?")
         args.append(val)
+        if key == "ical_url":
+            sets.append("ical_sync_error=?")
+            args.append("")
     if "workdays" in data:
         days = data["workdays"]
         if isinstance(days, str):
@@ -2422,7 +2561,7 @@ async def api_setup(request: Request):
     profile_page_url = with_https((data.get("profile_page_url") or "").strip())
     if profile_page_url and not profile_page_url.lower().startswith(("http://", "https://")):
         return json_err("Your Psychology Today or website link should look like https://www.psychologytoday.com/…")
-    ical_url, ical_err = normalize_ical_urls(data.get("ical_url") or "")
+    ical_url, ical_err = verify_ical_urls(data.get("ical_url") or "")
     if ical_err:
         return json_err(ical_err)
     if portal_url and not portal_url.lower().startswith(("http://", "https://")):
@@ -2458,6 +2597,7 @@ async def api_setup(request: Request):
                  lunch=?, session_minutes=?, consult_minutes=?, consult_enabled=?,
                  portal_kind=?, portal_url=?, ical_url=?, phone=?, reminders_opt_in=?,
                  profile_page_url=?,
+                 ical_sync_error='',
                  ical_synced_at=CASE WHEN ? THEN NULL ELSE ical_synced_at END,
                  setup_complete=1
                WHERE id=?""",

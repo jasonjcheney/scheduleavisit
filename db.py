@@ -95,8 +95,10 @@ CREATE TABLE IF NOT EXISTS users (
   consult_minutes INTEGER DEFAULT 15,
   consult_enabled INTEGER DEFAULT 1,
   setup_complete INTEGER DEFAULT 0,
+  is_demo INTEGER NOT NULL DEFAULT 0,
   ical_url TEXT DEFAULT '',
   ical_synced_at TEXT,
+  ical_sync_error TEXT DEFAULT '',
   phone TEXT DEFAULT '',
   reminders_opt_in INTEGER NOT NULL DEFAULT 0,
   google_refresh_token TEXT DEFAULT '',
@@ -104,6 +106,7 @@ CREATE TABLE IF NOT EXISTS users (
   google_write_calendar_id TEXT DEFAULT 'primary',
   google_busy_calendar_ids TEXT DEFAULT '["primary"]',
   google_synced_at TEXT,
+  google_sync_error TEXT DEFAULT '',
   photo_path TEXT DEFAULT '',
   profile_page_url TEXT DEFAULT '',
   created_at TEXT NOT NULL
@@ -243,6 +246,43 @@ def hash_password(password: str) -> str:
     return f"pbkdf2${salt}${dk.hex()}"
 
 
+SAMPLE_PROFILE_MESSAGE = "This is a sample profile"
+DEMO_SLUGS = (
+    "elena-vasquez-lpc",
+    "james-okonkwo-lcsw",
+    "maya-chen-lmft",
+)
+
+
+def seed_password(env_name: str) -> str:
+    """Password for a first-boot seed account. Never log the value."""
+    raw = (os.environ.get(env_name) or "").strip()
+    if raw:
+        return raw
+    return secrets.token_urlsafe(18)
+
+
+def show_demo_counselors() -> bool:
+    """Public directory and booking stay off for sample accounts unless this is on."""
+    raw = (os.environ.get("SHOW_DEMO_COUNSELORS") or "").strip().lower()
+    return raw in {"1", "true", "yes", "on"}
+
+
+def is_hidden_demo(user) -> bool:
+    """Seeded sample profiles stay out of public booking when the toggle is off."""
+    if user is None:
+        return False
+    try:
+        flag = user["is_demo"]
+    except (KeyError, IndexError, TypeError):
+        return False
+    try:
+        flagged = int(flag or 0) == 1
+    except (TypeError, ValueError):
+        return False
+    return flagged and not show_demo_counselors()
+
+
 def verify_password(password: str, stored: str) -> bool:
     try:
         algo, salt, hexhash = stored.split("$", 2)
@@ -277,8 +317,10 @@ def migrate(conn: sqlite3.Connection) -> None:
         ("consult_minutes", "INTEGER DEFAULT 15"),
         ("consult_enabled", "INTEGER DEFAULT 1"),
         ("setup_complete", "INTEGER DEFAULT 0"),
+        ("is_demo", "INTEGER NOT NULL DEFAULT 0"),
         ("ical_url", "TEXT DEFAULT ''"),
         ("ical_synced_at", "TEXT"),
+        ("ical_sync_error", "TEXT DEFAULT ''"),
         ("phone", "TEXT DEFAULT ''"),
         ("reminders_opt_in", "INTEGER NOT NULL DEFAULT 0"),
         ("google_refresh_token", "TEXT DEFAULT ''"),
@@ -286,6 +328,7 @@ def migrate(conn: sqlite3.Connection) -> None:
         ("google_write_calendar_id", "TEXT DEFAULT 'primary'"),
         ("google_busy_calendar_ids", "TEXT DEFAULT '[\"primary\"]'"),
         ("google_synced_at", "TEXT"),
+        ("google_sync_error", "TEXT DEFAULT ''"),
         ("photo_path", "TEXT DEFAULT ''"),
         ("profile_page_url", "TEXT DEFAULT ''"),
     ]
@@ -354,15 +397,19 @@ def migrate(conn: sqlite3.Connection) -> None:
 
 
 def ensure_demo_usernames(conn: sqlite3.Connection) -> None:
-    for slug, uname in (
-        ("elena-vasquez-lpc", "elena"),
-        ("james-okonkwo-lcsw", "james"),
-        ("maya-chen-lmft", "maya"),
-    ):
+    """Mark seeded sample counselors. Does not change password_hash or delete rows."""
+    usernames = {
+        "elena-vasquez-lpc": "elena",
+        "james-okonkwo-lcsw": "james",
+        "maya-chen-lmft": "maya",
+    }
+    for slug in DEMO_SLUGS:
+        uname = usernames[slug]
         conn.execute(
             """UPDATE users SET
                  username = CASE WHEN username IS NULL OR username = '' THEN ? ELSE username END,
-                 setup_complete = 1
+                 setup_complete = 1,
+                 is_demo = 1
                WHERE slug=?""",
             (uname, slug),
         )
@@ -398,7 +445,7 @@ def ensure_jason(conn: sqlite3.Connection) -> None:
                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 "jasoncheney@scheduleavisit.example",
-                hash_password("123456"),
+                hash_password(seed_password("SAV_JASON_PASSWORD")),
                 "Jason Cheney",
                 "Therapist",
                 "Counselor",
@@ -425,7 +472,7 @@ def ensure_jason(conn: sqlite3.Connection) -> None:
             ),
         )
         jason_id = int(cur.lastrowid)
-        print("[seed] Jason Cheney ready. Username: jasoncheney  Password: 123456", flush=True)
+        print("[seed] Jason Cheney account created.", flush=True)
 
     for slug in ("elena-vasquez-lpc", "james-okonkwo-lcsw", "maya-chen-lmft"):
         peer = conn.execute("SELECT id FROM users WHERE slug=?", (slug,)).fetchone()
@@ -441,16 +488,17 @@ def init_db(conn: sqlite3.Connection) -> None:
     if elena is None:
         seed(conn)
         conn.commit()
+    ensure_demo_usernames(conn)
     ensure_jason(conn)
     conn.commit()
 
 
 def notify(conn: sqlite3.Connection, user_id: int, kind: str, title: str, body: str) -> None:
-    conn.execute(
+    cur = conn.execute(
         "INSERT INTO notifications (user_id, kind, title, body, created_at) VALUES (?,?,?,?,?)",
         (user_id, kind, title, body, now_iso()),
     )
-    print(f"[notify] user_id={user_id} kind={kind} | {title} — {body}", flush=True)
+    print(f"[notify] id={int(cur.lastrowid)} user_id={user_id} kind={kind}", flush=True)
 
 
 def add_link(conn: sqlite3.Connection, a: int, b: int, category: str = "general") -> None:
@@ -552,7 +600,7 @@ def add_appt(conn, provider_id: int, client_id: int | None, d: date, hhmm: str, 
 
 def seed(conn: sqlite3.Connection) -> None:
     """Three demo providers. Elena is nearly full this week so a 50-min visit overflows."""
-    pw = hash_password("demo1234")
+    pw = hash_password(seed_password("SAV_DEMO_PASSWORD"))
     created = now_iso()
     week = start_of_week(today())
 
@@ -782,5 +830,6 @@ def seed(conn: sqlite3.Connection) -> None:
         "Your week is nearly full",
         "Projected hours this week sit just under your 25-hour cap. A new 50-minute visit will overflow — the booking page will offer James or Maya.",
     )
-    print("[seed] Demo providers ready: Elena, James, Maya. Password: demo1234", flush=True)
+    ensure_demo_usernames(conn)
+    print("[seed] Demo providers ready.", flush=True)
     ensure_jason(conn)

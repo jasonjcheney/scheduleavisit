@@ -5,7 +5,7 @@
 **Tester window:** Thu Sep 3, 2026 evening MT  
 **Method:** local `tests/*.py` + live HTTP/API (no browser automation; no counselor outreach)
 
-Founder login verified via `POST /api/auth/login` (`jasoncheney` / `123456`) → cookie `sav_session` → `/dashboard` 200.  
+Founder login verified via `POST /api/auth/login` (founder username) → cookie `sav_session` → `/dashboard` 200.  
 QA booking emails used `singingpunter+qa-<unique>@gmail.com` only.
 
 ---
@@ -29,7 +29,7 @@ QA booking emails used `singingpunter+qa-<unique>@gmail.com` only.
 | Home | `GET /` | 200, client-first hero + provider door | 200; “Find a time…”, Book a visit, I am a provider / Provider login | — | **PASS** |
 | Directory | `GET /book` | 200, search | 200; Elena + Jason listed; Boulder appears for real Boulder demos | — | **PASS** |
 | Boulder search | `GET /book?q=Boulder` | Elena/Maya; not Superior James; Jason not as a card | Elena + Maya cards; James absent; “Jason Cheney” only in search placeholder | — | **PASS** |
-| Login page | `GET /login` | 200; no demo passwords | 200; Welcome back; `jasoncheney` placeholder; **no** `demo1234` / `123456` | — | **PASS** |
+| Login page | `GET /login` | 200; no demo passwords | 200; Welcome back; `jasoncheney` placeholder; page does not show a demo or default password | — | **PASS** |
 | Signup / legal | `GET /signup`, `/privacy`, `/terms` | 200 | 200 | — | **PASS** |
 | Elena public | `GET /p/elena-vasquez-lpc` | 200; consult + session | 200; Free consultation / Full session; Boulder in her real address (OK) | — | **PASS** |
 | Jason public | `GET /p/jason-cheney` | 200; **no** Boulder / setup placeholders; do not invent specialty/about | 200; no Boulder / “edit this in setup” / “rewrite in setup”; specialty/about blanked in public API | — | **PASS** |

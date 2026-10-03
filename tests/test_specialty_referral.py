@@ -14,6 +14,9 @@ def main() -> None:
     tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
     tmp.close()
     os.environ["SAV_DB"] = tmp.name
+    os.environ.setdefault("SAV_JASON_PASSWORD", "123456")
+    os.environ.setdefault("SAV_DEMO_PASSWORD", "demo1234")
+    os.environ.setdefault("SHOW_DEMO_COUNSELORS", "1")
 
     import sys
 
