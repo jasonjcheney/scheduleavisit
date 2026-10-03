@@ -20,11 +20,23 @@ from db import (
 
 
 def photo_url(user) -> str:
+    """Public headshot URL, or "" so pages fall back to initials.
+
+    Returns "" when the saved file is gone from disk (so no broken image icon),
+    and adds ?v=<file token> so a replaced photo shows right away instead of
+    the cached old one.
+    """
     slug = (uget(user, "slug", "") or "").strip()
     path = (uget(user, "photo_path", "") or "").strip()
     if not slug or not path:
         return ""
-    return f"/media/avatar/{slug}"
+    from photos import resolve_avatar_file  # local import: photos imports capacity
+
+    found = resolve_avatar_file(path)
+    if not found:
+        return ""
+    version = found.stem.rsplit("_", 1)[-1]
+    return f"/media/avatar/{slug}?v={version}" if version else f"/media/avatar/{slug}"
 
 WEEKLY_HORIZON = 8
 MILES = {

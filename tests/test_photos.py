@@ -102,7 +102,8 @@ def main() -> None:
     )
     body = up.json()
     expect(up.status_code == 200 and body.get("ok"), f"upload failed: {up.text}")
-    expect(body.get("photoUrl") == "/media/avatar/jason-cheney", f"photoUrl {body}")
+    expect((body.get("photoUrl") or "").startswith("/media/avatar/jason-cheney?v="), f"photoUrl {body}")
+    first_url = body.get("photoUrl")
 
     served = client.get("/media/avatar/jason-cheney")
     expect(served.status_code == 200, f"serve photo {served.status_code}")
@@ -144,7 +145,8 @@ def main() -> None:
         photos.http_get = orig_get
     pulled_body = pulled.json()
     expect(pulled.status_code == 200 and pulled_body.get("ok"), f"import failed: {pulled.text}")
-    expect(pulled_body.get("photoUrl") == "/media/avatar/jason-cheney", f"import photoUrl {pulled_body}")
+    expect((pulled_body.get("photoUrl") or "").startswith("/media/avatar/jason-cheney?v="), f"import photoUrl {pulled_body}")
+    expect(pulled_body.get("photoUrl") != first_url, "replaced photo should get a new URL so browsers do not show the old one")
 
     served2 = client.get("/media/avatar/jason-cheney")
     expect(served2.content.startswith(b"\xff\xd8\xff"), "imported photo should be the jpeg")
@@ -169,6 +171,49 @@ def main() -> None:
 
     empty = client.post("/api/me/photo/import", json={"url": ""})
     expect(not empty.json().get("ok"), f"empty url should fail: {empty.text}")
+    # A pasted link without https:// still works.
+    seen_urls = []
+
+    def fake_get2(url, **kwargs):
+        seen_urls.append(url)
+        if url.endswith(".jpg"):
+            return TINY_JPEG, "image/jpeg", url
+        return b"<html><head><meta property='og:image' content='https://cdn.example.com/me.jpg'></head></html>", "text/html", url
+
+    photos.http_get = fake_get2
+    try:
+        bare = client.post("/api/me/photo/import", json={"url": "www.psychologytoday.com/us/therapists/jason"})
+    finally:
+        photos.http_get = orig_get
+    expect(bare.json().get("ok"), f"scheme-less link should work: {bare.text}")
+    expect(seen_urls and seen_urls[0].startswith("https://www.psychologytoday.com"), f"fetched {seen_urls}")
+    expect(bare.json().get("profilePageUrl", "").startswith("https://"), f"saved link {bare.json()}")
+
+    # A public page that redirects to a private address is refused before we connect.
+    import httpx as _httpx
+
+    hops = []
+
+    def handler(request):
+        hops.append(str(request.url))
+        if request.url.host == "public.example.com":
+            return _httpx.Response(302, headers={"location": "http://127.0.0.1/admin"})
+        return _httpx.Response(200, content=b"secret", headers={"content-type": "text/html"})
+
+    orig_client = photos.httpx.Client
+    orig_host_ok = photos._host_ok
+    photos._host_ok = lambda host: host not in ("127.0.0.1", "localhost")
+    photos.httpx.Client = lambda **kw: orig_client(transport=_httpx.MockTransport(handler), **kw)
+    try:
+        try:
+            photos.http_get("https://public.example.com/me")
+            fail("redirect to a private address should be refused")
+        except photos.PhotoError:
+            pass
+    finally:
+        photos.httpx.Client = orig_client
+        photos._host_ok = orig_host_ok
+    expect(hops == ["https://public.example.com/me"], f"should never connect to the private hop: {hops}")
     print("OK import failures are plain language")
 
     with connect() as conn:
@@ -187,7 +232,21 @@ def main() -> None:
         recs = referral_candidates(conn, elena, today(), None, 50, limit=4, category="general")
     james = next((r for r in recs if r.get("slug") == "james-okonkwo-lcsw"), None)
     expect(james is not None, f"james not in referrals: {recs}")
-    expect(james.get("photo_url") == "/media/avatar/james-okonkwo-lcsw", f"referral photo_url {james}")
+    expect((james.get("photo_url") or "").startswith("/media/avatar/james-okonkwo-lcsw"), f"referral photo_url {james}")
+
+    # Photo saved in the database but the file is gone from disk: show initials, not a broken image.
+    with connect() as conn:
+        saved = conn.execute("SELECT photo_path FROM users WHERE slug='jason-cheney'").fetchone()["photo_path"]
+    (photos.avatar_dir() / saved).rename(photos.avatar_dir() / (saved + ".bak"))
+    try:
+        page_missing = client.get("/p/jason-cheney")
+        expect("has-photo" not in page_missing.text, "missing file should fall back to initials on booking page")
+        expect(">JC<" in page_missing.text.replace(" ", "").replace("\n", ""), "booking page missing initials fallback")
+        setup_missing = client.get("/setup")
+        expect('id="photo-remove" hidden' in setup_missing.text, "setup should not offer Remove for a missing file")
+    finally:
+        (photos.avatar_dir() / (saved + ".bak")).rename(photos.avatar_dir() / saved)
+    print("OK missing photo file falls back to initials")
 
     removed = client.post("/api/me/photo/remove")
     expect(removed.json().get("ok"), f"remove failed: {removed.text}")

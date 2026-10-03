@@ -70,11 +70,9 @@ def avatar_dir() -> Path:
 
 
 def public_photo_url(user) -> str:
-    slug = (uget(user, "slug", "") or "").strip()
-    path = (uget(user, "photo_path", "") or "").strip()
-    if not slug or not path:
-        return ""
-    return f"/media/avatar/{slug}"
+    from capacity import photo_url
+
+    return photo_url(user)
 
 
 def sniff_image(data: bytes) -> str | None:
@@ -219,6 +217,8 @@ def normalize_http_url(raw: str) -> str:
     url = (raw or "").strip()
     if not url:
         raise PhotoError("Please paste a Psychology Today or personal website link first.")
+    if "://" not in url and re.match(r"^(www\.)?[a-z0-9-]+(\.[a-z0-9-]+)+(/|$)", url, re.I):
+        url = "https://" + url
     parsed = urlparse(url)
     if parsed.scheme not in ("http", "https") or not parsed.netloc:
         raise PhotoError("That link doesn’t look like a web page. Use an address that starts with https://")
@@ -228,31 +228,47 @@ def normalize_http_url(raw: str) -> str:
 
 
 def http_get(url: str, *, timeout: float = FETCH_TIMEOUT, max_bytes: int = MAX_BYTES) -> tuple[bytes, str, str]:
-    """Single HTTP seam so tests can mock fetches. Returns (body, content_type, final_url)."""
-    safe = normalize_http_url(url)
+    """Single HTTP seam so tests can mock fetches. Returns (body, content_type, final_url).
+
+    Redirects are followed by hand so every hop is checked as a public address
+    before we connect to it (a public page cannot bounce us to a private one).
+    """
+    current = normalize_http_url(url)
     with httpx.Client(
         timeout=timeout,
-        follow_redirects=True,
-        max_redirects=MAX_REDIRECTS,
+        follow_redirects=False,
         headers=FETCH_HEADERS,
     ) as client:
-        with client.stream("GET", safe) as resp:
-            if resp.status_code >= 400:
-                raise PhotoError("We could not open that page. Check the address and try again.")
-            final = str(resp.url)
-            try:
-                normalize_http_url(final)
-            except PhotoError:
-                raise PhotoError("We could not open that page. Check the address and try again.")
-            ctype = (resp.headers.get("content-type") or "").split(";")[0].strip().lower()
-            chunks: list[bytes] = []
-            total = 0
-            for chunk in resp.iter_bytes():
-                total += len(chunk)
-                if total > max_bytes:
-                    raise PhotoError("That photo is too large. Please use a JPEG, PNG, or WebP under 3 MB.")
-                chunks.append(chunk)
-            return b"".join(chunks), ctype, final
+        for _hop in range(MAX_REDIRECTS + 1):
+            with client.stream("GET", current) as resp:
+                if resp.status_code in (301, 302, 303, 307, 308):
+                    location = (resp.headers.get("location") or "").strip()
+                    if not location:
+                        raise PhotoError("We could not open that page. Check the address and try again.")
+                    try:
+                        current = normalize_http_url(urljoin(current, location))
+                    except PhotoError:
+                        raise PhotoError("We could not open that page. Check the address and try again.")
+                    continue
+                if resp.status_code in (401, 403):
+                    raise PhotoError(
+                        "That site would not let us in. Right-click your photo there, save it, "
+                        "and use Choose a photo instead."
+                    )
+                if resp.status_code == 404:
+                    raise PhotoError("That page was not found. Check the address and try again.")
+                if resp.status_code >= 400:
+                    raise PhotoError("We could not open that page. Check the address and try again.")
+                ctype = (resp.headers.get("content-type") or "").split(";")[0].strip().lower()
+                chunks: list[bytes] = []
+                total = 0
+                for chunk in resp.iter_bytes():
+                    total += len(chunk)
+                    if total > max_bytes:
+                        raise PhotoError("That photo is too large. Please use a JPEG, PNG, or WebP under 3 MB.")
+                    chunks.append(chunk)
+                return b"".join(chunks), ctype, current
+    raise PhotoError("That page kept redirecting. Try the address your browser shows once the page loads.")
 
 
 class _HeadshotParser(HTMLParser):

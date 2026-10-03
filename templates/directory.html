@@ -40,7 +40,7 @@
       {% for c in cards %}
       <a class="person-card" href="/p/{{ c.slug }}" data-search="{{ c.search_text }}">
         {% if c.photo_url %}
-        <div class="avatar {{ c.avatar }} has-photo" aria-hidden="true"><img src="{{ c.photo_url }}" alt=""></div>
+        <div class="avatar {{ c.avatar }} has-photo" aria-hidden="true" data-initials="{{ c.initials }}"><img src="{{ c.photo_url }}" alt="" loading="lazy"></div>
         {% else %}
         <div class="avatar {{ c.avatar }}" aria-hidden="true">{{ c.initials }}</div>
         {% endif %}

@@ -13,7 +13,7 @@
   <section class="card">
     <div class="provider-hero">
       {% if provider.photo_url %}
-      <div class="avatar lg {{ provider.avatar }} has-photo" aria-hidden="true"><img src="{{ provider.photo_url }}" alt=""></div>
+      <div class="avatar lg {{ provider.avatar }} has-photo" aria-hidden="true" data-initials="{{ provider.initials }}"><img src="{{ provider.photo_url }}" alt=""></div>
       {% else %}
       <div class="avatar lg {{ provider.avatar }}" aria-hidden="true">{{ provider.initials }}</div>
       {% endif %}

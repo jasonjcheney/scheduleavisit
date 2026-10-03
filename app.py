@@ -958,6 +958,14 @@ def directory(request: Request, q: str = ""):
     return tpl(request, "directory.html", cards=cards, q=q, searched=bool(q))
 
 
+def with_https(url: str) -> str:
+    """Add https:// to a pasted link like psychologytoday.com/… so it just works."""
+    url = (url or "").strip()
+    if url and "://" not in url and re.match(r"^(www\.)?[a-z0-9-]+(\.[a-z0-9-]+)+(/|$)", url, re.I):
+        return "https://" + url
+    return url
+
+
 @app.get("/media/avatar/{slug}")
 def media_avatar(slug: str):
     """Public headshot by booking slug. Filename comes from the user row — never from the URL."""
@@ -1246,6 +1254,7 @@ def setup_page(request: Request):
         me=safe_user_row(u),
         first=first_name(u["name"]),
         initials=initials(u["name"]),
+        photo_url=public_provider(u).get("photo_url") or "",
         workdays=workdays,
         editing=not needs_setup(u),
         **gctx,
@@ -1826,7 +1835,7 @@ async def api_me_photo_import(request: Request):
     if err:
         return err
     data = await _body(request)
-    page_url = (data.get("url") or data.get("profile_page_url") or "").strip()
+    page_url = with_https((data.get("url") or data.get("profile_page_url") or "").strip())
     try:
         image = import_photo_from_url(page_url)
         with db() as conn:
@@ -2391,9 +2400,9 @@ async def api_setup(request: Request):
     if portal_kind not in ("none", "headway", "sondermind", "custom"):
         return json_err("Pick how clients start intake.")
     portal_url = (data.get("portal_url") or "").strip()
-    profile_page_url = (data.get("profile_page_url") or "").strip()
+    profile_page_url = with_https((data.get("profile_page_url") or "").strip())
     if profile_page_url and not profile_page_url.lower().startswith(("http://", "https://")):
-        return json_err("Profile page link should start with https://")
+        return json_err("Your Psychology Today or website link should look like https://www.psychologytoday.com/…")
     ical_url, ical_err = normalize_ical_urls(data.get("ical_url") or "")
     if ical_err:
         return json_err(ical_err)
