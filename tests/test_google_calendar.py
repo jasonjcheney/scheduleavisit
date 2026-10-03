@@ -350,6 +350,34 @@ def main() -> None:
                 expect(imported is not None, "Google busy was not imported")
                 expect((imported["visit_kind"] or "") == "external", f"kind {imported['visit_kind']}")
                 expect("Dentist" in (imported["note"] or ""), f"note {imported['note']}")
+
+                # One busy calendar fails to answer while another answers fine.
+                # The busy block from the calendar that failed must stay put.
+                conn.execute(
+                    "UPDATE users SET google_busy_calendar_ids=? WHERE id=?",
+                    (json.dumps(["primary", "work@group.calendar.google.com"]), u["id"]),
+                )
+                conn.commit()
+
+                def flaky_list(_token, cal, _t0, _t1):
+                    if cal == "primary":
+                        raise gcal.GoogleAPIError(503, "google-http-error")
+                    return []
+
+                gcal.list_busy_events = flaky_list
+                u = conn.execute("SELECT * FROM users WHERE username='jasoncheney'").fetchone()
+                gcal.maybe_sync_google(conn, u, timeout=2.0, force=True)
+                still = conn.execute(
+                    "SELECT status FROM appointments WHERE id=?", (imported["id"],)
+                ).fetchone()
+                expect(still["status"] == "booked", f"busy block dropped when one calendar failed: {still['status']}")
+                conn.execute(
+                    "UPDATE users SET google_busy_calendar_ids=? WHERE id=?",
+                    (json.dumps(["primary"]), u["id"]),
+                )
+                conn.commit()
+                gcal.list_busy_events = fake_list
+                print("OK a Google calendar that fails to load keeps its busy blocks")
         finally:
             gcal.list_busy_events = orig_list
         avail = c.get("/api/p/jason-cheney/availability", params={"date": day.isoformat(), "minutes": 50})

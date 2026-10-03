@@ -560,12 +560,14 @@ def _sync_google(conn, user, timeout: float = 2.0) -> None:
 
     events: list[dict] = []
     got = False
+    fetched_cals: set[str] = set()
     for cal_id in cals:
         try:
             raw = list_busy_events(access, cal_id, time_min, time_max)
         except Exception:
             continue
         got = True
+        fetched_cals.add(cal_id)
         for ev in raw:
             if not _should_import_event(ev, known):
                 continue
@@ -640,11 +642,17 @@ def _sync_google(conn, user, timeout: float = 2.0) -> None:
             )
             keep_ids.add(int(cur.lastrowid))
     for row in existing:
-        if row["id"] not in keep_ids:
-            conn.execute(
-                "UPDATE appointments SET status='cancelled', cancelled_at=? WHERE id=?",
-                (now_iso(), row["id"]),
-            )
+        if row["id"] in keep_ids:
+            continue
+        row_cal, _eid = note_gcal_ids(row["note"] if "note" in row.keys() else "")
+        if row_cal and row_cal not in fetched_cals and row_cal in cals:
+            # Google did not answer for that calendar this round. Keep its busy
+            # blocks so clients cannot book over them until the next good sync.
+            continue
+        conn.execute(
+            "UPDATE appointments SET status='cancelled', cancelled_at=? WHERE id=?",
+            (now_iso(), row["id"]),
+        )
     try:
         conn.commit()
     except Exception:
