@@ -6,6 +6,7 @@ import json
 import os
 import sqlite3
 import sys
+from html import unescape
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -313,13 +314,13 @@ def main() -> None:
         dash_broken = c.get("/dashboard")
         expect(dash_broken.status_code == 200, f"dashboard {dash_broken.status_code}")
         expect("Connect Google Calendar again" in dash_broken.text, "dashboard missing reconnect button")
-        expect("We can't reach your calendar. Reconnect it in Setup." in dash_broken.text,
+        expect("We can't reach your calendar. Reconnect it in Setup." in unescape(dash_broken.text),
                "dashboard missing calendar reconnect sentence")
         expect("Busy time from the calendars you picked fills the grid" not in dash_broken.text,
                "dashboard still claims Google is connected and working")
         setup_broken = c.get("/setup")
         expect("Connect Google Calendar again" in setup_broken.text, "setup missing reconnect button")
-        expect("We can't reach your calendar. Reconnect it in Setup." in setup_broken.text,
+        expect("We can't reach your calendar. Reconnect it in Setup." in unescape(setup_broken.text),
                "setup missing calendar reconnect sentence")
         expect("Connected as" not in setup_broken.text, "setup still says plain Connected")
         status_broken = c.get("/api/me/google").json()

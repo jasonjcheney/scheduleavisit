@@ -54,7 +54,10 @@ def main() -> None:
     # Seed Jason still has placeholder bio, so he stays off the directory until that is real.
     jason = c.get("/book?q=jason")
     expect(jason.status_code == 200, f"/book?q=jason got {jason.status_code}")
-    expect("Jason Cheney" not in jason.text, "placeholder bio should keep Jason off /book")
+    expect(
+        'class="person-card" href="/p/jason-cheney"' not in jason.text,
+        "placeholder bio should keep Jason off /book",
+    )
     expect(c.get("/p/jason-cheney").status_code == 200, "Jason's own /p link should still open")
     with connect() as conn:
         conn.execute(

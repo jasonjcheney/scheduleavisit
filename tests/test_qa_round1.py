@@ -8,6 +8,7 @@ import os
 import re
 import subprocess
 import sys
+from html import unescape
 import tempfile
 from contextlib import redirect_stdout
 from datetime import datetime, timedelta
@@ -344,9 +345,9 @@ def main() -> None:
             dash = client.get("/dashboard")
             expect(setup_page.status_code == 200, f"setup page {setup_page.status_code}")
             expect(dash.status_code == 200, f"dashboard {dash.status_code} {dash.headers.get('location')}")
-            expect(UNREACHABLE in setup_page.text, "setup missing calendar reconnect sentence")
+            expect(UNREACHABLE in unescape(setup_page.text), "setup missing calendar reconnect sentence")
             expect('id="calendar-unreachable"' in setup_page.text, "setup missing calendar alert")
-            expect(UNREACHABLE in dash.text, "dashboard missing calendar reconnect sentence")
+            expect(UNREACHABLE in unescape(dash.text), "dashboard missing calendar reconnect sentence")
             expect('id="calendar-unreachable"' in dash.text, "dashboard missing calendar alert")
             print("OK calendar links must be reachable https feeds")
         finally:

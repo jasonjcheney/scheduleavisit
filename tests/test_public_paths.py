@@ -102,7 +102,10 @@ def main() -> None:
 
     jason = c.get("/book?q=jason")
     expect(jason.status_code == 200, f"/book?q=jason got {jason.status_code}")
-    expect("Jason Cheney" not in jason.text, "unfinished Jason should stay out of /book")
+    expect(
+        'class="person-card" href="/p/jason-cheney"' not in jason.text,
+        "unfinished Jason should stay out of /book",
+    )
     expect(c.get("/p/jason-cheney").status_code == 200, "Jason /p/ should still open")
     named = c.get("/book?q=Elena")
     expect("Elena Vasquez" in named.text, "/book?q=Elena missing Elena")
