@@ -286,6 +286,8 @@ p { margin: 0 0 0.8em; }
   gap: 16px;
   flex-wrap: wrap;
 }
+.photo-preview-row > .fields { flex: 1 1 200px; min-width: 0; max-width: 100%; }
+.photo-setup .hero-actions { flex-wrap: wrap; }
 .flow-step {
   font-family: var(--font);
   font-weight: 800;

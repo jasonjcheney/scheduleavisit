@@ -67,11 +67,11 @@
             {% endif %}
           </div>
           <div class="fields" style="flex:1;min-width:0">
-            <label class="field">Upload a photo <span class="tiny">(it saves as soon as you pick it)</span>
-              <input type="file" id="photo-file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp">
-            </label>
+            <label class="sr-only" for="photo-file">Upload a photo</label>
+            <input type="file" id="photo-file" class="sr-only" tabindex="-1" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp">
+            <p class="tiny" style="margin:0">Pick a photo from your computer or phone. It saves as soon as you pick it.</p>
             <div class="hero-actions" style="margin-top:4px">
-              <button type="button" class="btn btn-sage btn-sm" id="photo-upload">Choose a photo</button>
+              <button type="button" class="btn btn-sage btn-sm" id="photo-upload">{% if photo_url %}Change photo{% else %}Choose a photo{% endif %}</button>
               <button type="button" class="btn btn-ghost btn-sm" id="photo-remove"{% if not photo_url %} hidden{% endif %}>Remove photo</button>
             </div>
           </div>

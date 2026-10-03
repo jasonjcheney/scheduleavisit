@@ -1703,6 +1703,12 @@
       }
 
       function setPhotoPreview(url) {
+        var pickBtn = $("#photo-upload");
+        if (pickBtn) {
+          var label = url ? "Change photo" : "Choose a photo";
+          pickBtn.textContent = label;
+          pickBtn.setAttribute("data-label", label);
+        }
         if (!photoPreview) return;
         if (url) {
           photoPreview.classList.add("has-photo");
