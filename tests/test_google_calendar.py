@@ -300,6 +300,44 @@ def main() -> None:
             )
         print("OK custom-domain calendar redirect stays on scheduleavisit.com")
 
+        # Google revoked or expired the login: dashboard must not say "Connected".
+        appmod.access_token_for = lambda user: None
+        appmod.google_token_problem = lambda user: "temporary"
+        dash_blip = c.get("/dashboard")
+        expect("Connect Google Calendar again" not in dash_blip.text, "network blip should not ask to reconnect")
+        expect("not answering just now" in c.get("/setup").text, "setup missing temporary Google message")
+        appmod.google_token_problem = lambda user: "revoked"
+        dash_broken = c.get("/dashboard")
+        expect(dash_broken.status_code == 200, f"dashboard {dash_broken.status_code}")
+        expect("Connect Google Calendar again" in dash_broken.text, "dashboard missing reconnect button")
+        expect("not blocking bookings" in dash_broken.text, "dashboard missing plain reconnect warning")
+        expect("Busy time from the calendars you picked fills the grid" not in dash_broken.text,
+               "dashboard still claims Google is connected and working")
+        setup_broken = c.get("/setup")
+        expect("Connect Google Calendar again" in setup_broken.text, "setup missing reconnect button")
+        expect("Google is not answering" in setup_broken.text, "setup still says plain Connected")
+        status_broken = c.get("/api/me/google").json()
+        expect(status_broken.get("needsReconnect") is True, f"needsReconnect {status_broken}")
+        print("OK expired Google login shows a clear reconnect state")
+
+        orig_refresh = gcal.refresh_access_token
+        with connect() as conn:
+            u_tok = conn.execute("SELECT * FROM users WHERE username='jasoncheney'").fetchone()
+        try:
+            def refused(_rt):
+                raise gcal.GoogleAPIError(400, "invalid_grant")
+
+            def offline(_rt):
+                raise OSError("network down")
+
+            gcal.refresh_access_token = refused
+            expect(gcal.token_problem(u_tok) == "revoked", "400 from Google should read as revoked")
+            gcal.refresh_access_token = offline
+            expect(gcal.token_problem(u_tok) == "temporary", "network error should read as temporary")
+        finally:
+            gcal.refresh_access_token = orig_refresh
+        print("OK token_problem tells revoked from a network blip")
+
         gcal.access_token_for = lambda user: "at-test"
         appmod.access_token_for = gcal.access_token_for
         gcal.fetch_calendar_list = fake_cals

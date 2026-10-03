@@ -308,6 +308,25 @@ def access_token_for(user) -> str | None:
     return access or None
 
 
+def token_problem(user) -> str:
+    """Why we could not get a Google access token.
+
+    "revoked"   – Google refused the saved login (expired, revoked, or unreadable).
+    "temporary" – network hiccup or Google error; the saved login may still be fine.
+    """
+    blob = uget(user, "google_refresh_token", "") or ""
+    refresh = decrypt_refresh_token(blob)
+    if not refresh:
+        return "revoked"
+    try:
+        token = refresh_access_token(refresh)
+    except GoogleAPIError as exc:
+        return "revoked" if exc.status in (400, 401, 403) else "temporary"
+    except Exception:
+        return "temporary"
+    return "" if (token.get("access_token") or "").strip() else "revoked"
+
+
 def _cal_can_write(item: dict) -> bool:
     role = (item.get("accessRole") or "").lower()
     return role in ("owner", "writer")

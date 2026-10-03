@@ -59,6 +59,7 @@ from gcal import (
     fetch_calendar_list,
     finish_connect as finish_google_calendar_connect,
     access_token_for,
+    token_problem as google_token_problem,
     is_connected as google_is_connected,
     load_connect_state,
     maybe_sync_google,
@@ -245,6 +246,7 @@ def google_setup_context(u) -> dict:
     connected = google_is_connected(u)
     calendars = []
     load_error = ""
+    needs_reconnect = False
     if connected and google_configured():
         token = access_token_for(u)
         if token:
@@ -252,11 +254,18 @@ def google_setup_context(u) -> dict:
                 calendars = fetch_calendar_list(token)
             except Exception:
                 load_error = "We could not load your Google calendars just now. Try again in a minute."
+        elif google_token_problem(u) == "temporary":
+            load_error = "Google Calendar is not answering just now. Try again in a minute."
         else:
-            load_error = "Google Calendar needs to be connected again."
+            needs_reconnect = True
+            load_error = (
+                "Google stopped letting ScheduleAVisit see this calendar, so your Google busy "
+                "time is not blocking bookings right now. Tap Connect Google Calendar again to fix it."
+            )
     return {
         "google_cal_ready": google_configured(),
         "google_cal_connected": connected,
+        "google_cal_needs_reconnect": needs_reconnect,
         "google_cal_email": connected_email(u),
         "google_write_calendar_id": write_calendar_id(u),
         "google_busy_calendar_ids": busy_calendar_ids(u),
@@ -1956,6 +1965,7 @@ def api_me_google(request: Request):
         **status,
         "calendars": ctx["google_calendars"],
         "error": ctx["google_cal_error"] or None,
+        "needsReconnect": bool(ctx["google_cal_needs_reconnect"]),
     }
 
 

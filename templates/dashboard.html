@@ -125,6 +125,8 @@
         <h2>Google Calendar</h2>
         {% if not google_cal_ready %}
         <p class="tiny" style="margin:0">Google Calendar is not set up on this server yet. You can still paste an iCal feed under <a href="/setup#calendar-ical">Edit my page</a>.</p>
+        {% elif google_cal_connected and google_cal_needs_reconnect %}
+        <p class="err" role="alert" style="margin:0" id="gcal-dash-reconnect">{{ google_cal_error }}</p>
         {% elif google_cal_connected %}
         <p class="tiny" style="margin:0">Connected{% if google_cal_email %} as {{ google_cal_email }}{% endif %}. Busy time from the calendars you picked fills the grid below. New visits here also appear on Google.</p>
         {% else %}
@@ -134,6 +136,9 @@
       <div class="hero-actions">
         {% if google_cal_ready and not google_cal_connected %}
         <a class="btn btn-google btn-sm" href="/auth/google/calendar?next=/dashboard#google-calendar">Connect Google Calendar</a>
+        {% elif google_cal_connected and google_cal_needs_reconnect %}
+        <a class="btn btn-google btn-sm" href="/auth/google/calendar?next=/dashboard#google-calendar">Connect Google Calendar again</a>
+        <button type="button" class="btn btn-ghost btn-sm" id="gcal-disconnect">Disconnect</button>
         {% elif google_cal_connected %}
         <a class="btn btn-ghost btn-sm" href="/setup#calendar-ical">Choose calendars</a>
         <button type="button" class="btn btn-ghost btn-sm" id="gcal-disconnect">Disconnect</button>
