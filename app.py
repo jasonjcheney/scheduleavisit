@@ -949,12 +949,31 @@ def google_calendar_callback(request: Request):
     return resp
 
 
+def listed_in_directory(user) -> bool:
+    """Hide brand-new, empty sign-ups (often bots) from the public directory.
+
+    Someone shows up once they finish setup or fill in anything a client
+    would recognize (credentials, clinic, address, title, or focus).
+    Their /p/{slug} link still works either way.
+    """
+    if not needs_setup(user):
+        return True
+    for field in ("credentials", "clinic", "address", "title", "specialty"):
+        if (uget(user, field, "") or "").strip():
+            return True
+    return False
+
+
 @app.get("/book", response_class=HTMLResponse)
 def directory(request: Request, q: str = ""):
     q = (q or "").strip()
     with db() as conn:
         users = conn.execute("SELECT * FROM users ORDER BY name").fetchall()
-        cards = [directory_card(u) for u in users if provider_matches_query(u, q)]
+        cards = [
+            directory_card(u)
+            for u in users
+            if listed_in_directory(u) and provider_matches_query(u, q)
+        ]
     return tpl(request, "directory.html", cards=cards, q=q, searched=bool(q))
 
 

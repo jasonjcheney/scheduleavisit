@@ -3355,7 +3355,7 @@ input[type="search"].find-input:focus {
 .find-page .directory {
   display: grid;
   gap: 14px;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
 }
 .person-card {
   display: flex;
@@ -3380,7 +3380,8 @@ input[type="search"].find-input:focus {
   border-radius: 50%;
   flex: 0 0 64px;
 }
-.person-card-copy { min-width: 0; }
+.person-card { min-width: 0; }
+.person-card-copy { min-width: 0; overflow-wrap: anywhere; }
 .person-card strong {
   font-family: var(--serif);
   font-size: 1.22rem;
