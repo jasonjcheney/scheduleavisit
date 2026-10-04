@@ -45,7 +45,7 @@ def main() -> None:
 
     cases = [
         ("/", 200, [
-            "Find a time — even when your clinician is full.",
+            "Book a therapist today even if your first choice is unavailable.",
             "No account needed",
             "I am a provider",
             "Get your booking link",

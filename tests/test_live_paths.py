@@ -46,7 +46,7 @@ def main() -> None:
 
     # —— Public pages ——
     cases = [
-        ("/", 200, ["Find a time — even when your clinician is full.", "I am a provider", "Get your booking link", "Provider login", 'src="/static/logo.png"', 'property="og:title"', "og:description"]),
+        ("/", 200, ["Book a therapist today even if your first choice is unavailable.", "I am a provider", "Get your booking link", "Provider login", 'src="/static/logo.png"', 'property="og:title"', "og:description"]),
         ("/book", 200, ["Book a visit", "Elena Vasquez", 'name="q"', "Find someone to see"]),
         ("/p/jason-cheney", 200, ["Jason Cheney", "Pick a day", "Pick a time", 'property="og:title"', "Book with Jason Cheney"]),
         ("/p/elena-vasquez-lpc", 200, ["Elena Vasquez", "Free consultation", "Full session"]),
