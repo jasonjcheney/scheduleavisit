@@ -50,6 +50,16 @@ def expect(cond: bool, msg: str) -> None:
         fail(msg)
 
 
+def expect_calendar_banner_at_top(html: str) -> None:
+    banner = html.find('id="calendar-unreachable"')
+    hello = html.find("Hello,")
+    expect(banner != -1 and hello != -1 and banner < hello,
+           "calendar banner is not at the top of the dashboard")
+    chunk = html[banner:banner + 500]
+    expect('href="/setup#calendar-ical"' in chunk, "dashboard calendar banner missing Setup link")
+    expect(html.count('id="calendar-unreachable"') == 1, "dashboard should show one calendar banner")
+
+
 def comment_text(line: str) -> str:
     stripped = re.sub(r"(\".*?\"|'.*?')", "", line)
     if stripped.lstrip().startswith("#"):
@@ -279,6 +289,8 @@ def main() -> None:
             expect('id="gcal-not-connected"' in dash.text, "missing not-connected marker")
             expect("Google Calendar: not connected" in dash.text, "missing not-connected sentence")
             expect("Connect Google Calendar" in dash.text, "missing Connect Google Calendar")
+            expect('id="calendar-unreachable"' not in dash.text,
+                   "healthy dashboard should not show the calendar banner")
             print("OK dashboard says Google Calendar is not connected")
         finally:
             os.environ.pop("GOOGLE_CLIENT_ID", None)
@@ -349,6 +361,28 @@ def main() -> None:
             expect('id="calendar-unreachable"' in setup_page.text, "setup missing calendar alert")
             expect(UNREACHABLE in unescape(dash.text), "dashboard missing calendar reconnect sentence")
             expect('id="calendar-unreachable"' in dash.text, "dashboard missing calendar alert")
+            expect_calendar_banner_at_top(dash.text)
+            with connect() as conn:
+                conn.execute(
+                    """UPDATE users
+                       SET ical_synced_at=?, ical_sync_error='', google_sync_error=?
+                       WHERE username='jasoncheney'""",
+                    (now_iso(), UNREACHABLE),
+                )
+                conn.commit()
+            gsync = client.get("/dashboard")
+            expect(UNREACHABLE in unescape(gsync.text), "Google sync failure missing the dashboard banner")
+            expect_calendar_banner_at_top(gsync.text)
+            expect(UNREACHABLE in unescape(client.get("/setup").text),
+                   "Google sync failure missing the setup banner")
+            with connect() as conn:
+                conn.execute(
+                    "UPDATE users SET google_sync_error='' WHERE username='jasoncheney'"
+                )
+                conn.commit()
+            recovered = client.get("/dashboard")
+            expect('id="calendar-unreachable"' not in recovered.text,
+                   "dashboard banner stayed after the calendar recovered")
             print("OK calendar links must be reachable https feeds")
         finally:
             icalutil.fetch_ics = orig_fetch
@@ -362,8 +396,33 @@ def main() -> None:
         searched = client.get("/book?q=Elena")
         expect(not listed(searched.text, "elena-vasquez-lpc"), "Elena search still returns her card")
         home = client.get("/")
-        expect("elena-vasquez-lpc" in home.text, "landing hero lost the sample calendar link")
+        expect("hero-photo-collage" in home.text, "landing hero illustration changed")
+        expect("Elena → James → Maya" in home.text, "landing lost the Elena, James, and Maya story")
         expect("James" in home.text and "Maya" in home.text, "landing hero lost the sample names")
+        expect('href="/p/elena-vasquez-lpc"' not in home.text, "landing still links to Elena")
+        expect('href="/p/james-okonkwo-lcsw"' not in home.text, "landing still links to James")
+        expect('href="/p/maya-chen-lmft"' not in home.text, "landing still links to Maya")
+        sample_hrefs = (
+            'href="/p/elena-vasquez-lpc"',
+            'href="/p/james-okonkwo-lcsw"',
+            'href="/p/maya-chen-lmft"',
+        )
+        for path in sorted((ROOT / "templates").glob("*.html")):
+            text = path.read_text(encoding="utf-8")
+            for href in sample_hrefs:
+                expect(href not in text, f"{path.name} still links to a sample profile")
+        miss = client.get("/book?q=zzzz")
+        expect("No one matched that search" in miss.text, "empty search copy missing")
+        expect('href="/book">Browse everyone</a>' in miss.text, "empty search missing Browse everyone")
+        expect("elena-vasquez-lpc" not in miss.text, "empty search still points at Elena")
+        expect("james-okonkwo-lcsw" not in miss.text, "empty search still points at James")
+        expect("maya-chen-lmft" not in miss.text, "empty search still points at Maya")
+        expect("Try Elena" not in miss.text, "empty search still offers Elena's demo")
+        live_at = hidden.text.find('id="find-live-empty"')
+        expect(live_at != -1, "directory missing the no-match line")
+        live = hidden.text[live_at:live_at + 400]
+        expect('href="/book">Browse everyone</a>' in live, "typed search with no match missing Browse everyone")
+        expect("elena" not in live.lower(), "typed search with no match still offers Elena")
 
         page = client.get("/p/elena-vasquez-lpc")
         expect(page.status_code == 200, f"sample page {page.status_code}")

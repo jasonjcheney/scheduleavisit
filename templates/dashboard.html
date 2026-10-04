@@ -3,6 +3,9 @@
 {% block title %}Dashboard — ScheduleAVisit{% endblock %}
 {% block content %}
 <main class="app-wrap" id="dashboard-page" data-slug="{{ me.slug }}">
+  {% if calendar_unreachable_message %}
+  <p class="err" role="alert" id="calendar-unreachable"><a href="/setup#calendar-ical">{{ calendar_unreachable_message }}</a></p>
+  {% endif %}
   <div class="row" style="margin-bottom:8px">
     <div>
       <p class="eyebrow">Provider dashboard</p>
@@ -120,9 +123,6 @@
   </section>
 
   <section class="card gcal-dash" id="google-calendar">
-    {% if calendar_unreachable_message %}
-    <p class="err" role="alert" id="calendar-unreachable">{{ calendar_unreachable_message }}</p>
-    {% endif %}
     <div class="row">
       <div>
         <h2>Google Calendar</h2>

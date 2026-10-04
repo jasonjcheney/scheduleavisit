@@ -82,8 +82,11 @@ def main() -> None:
     expect("No one matched that search" in miss.text, "/book?q=zzzzzz missing empty state")
     expect('href="/p/jason-cheney"' not in miss.text, "/book?q=zzzzzz listed Jason")
     expect("person-card" not in miss.text, "/book?q=zzzzzz still rendered result cards")
-    expect('href="/p/elena-vasquez-lpc"' in miss.text and "demo" in miss.text.lower(),
-           "/book?q=zzzzzz missing Elena demo CTA")
+    expect('href="/book">Browse everyone</a>' in miss.text, "/book?q=zzzzzz missing Browse everyone")
+    expect("elena-vasquez-lpc" not in miss.text, "/book?q=zzzzzz still links to Elena")
+    expect("james-okonkwo-lcsw" not in miss.text, "/book?q=zzzzzz still links to James")
+    expect("maya-chen-lmft" not in miss.text, "/book?q=zzzzzz still links to Maya")
+    expect("Try Elena" not in miss.text, "/book?q=zzzzzz still offers Elena's demo")
     print("OK /book?q=zzzzzz empty state, not a 500")
 
     # A random-letter name stays hidden even after setup is marked done and a bio is filled in.

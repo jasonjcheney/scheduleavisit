@@ -309,6 +309,8 @@ def main() -> None:
         appmod.google_token_problem = lambda user: "temporary"
         dash_blip = c.get("/dashboard")
         expect("Connect Google Calendar again" not in dash_blip.text, "network blip should not ask to reconnect")
+        expect('id="calendar-unreachable"' not in dash_blip.text,
+               "a short Google blip should not show the reconnect banner")
         expect("not answering just now" in c.get("/setup").text, "setup missing temporary Google message")
         appmod.google_token_problem = lambda user: "revoked"
         dash_broken = c.get("/dashboard")
@@ -316,6 +318,14 @@ def main() -> None:
         expect("Connect Google Calendar again" in dash_broken.text, "dashboard missing reconnect button")
         expect("We can't reach your calendar. Reconnect it in Setup." in unescape(dash_broken.text),
                "dashboard missing calendar reconnect sentence")
+        banner = dash_broken.text.find('id="calendar-unreachable"')
+        hello = dash_broken.text.find("Hello,")
+        expect(banner != -1 and hello != -1 and banner < hello,
+               "calendar banner is not at the top of the dashboard")
+        expect('href="/setup#calendar-ical"' in dash_broken.text[banner:banner + 500],
+               "dashboard calendar banner missing Setup link")
+        expect(dash_broken.text.count('id="calendar-unreachable"') == 1,
+               "dashboard should show one calendar banner")
         expect("Busy time from the calendars you picked fills the grid" not in dash_broken.text,
                "dashboard still claims Google is connected and working")
         setup_broken = c.get("/setup")
