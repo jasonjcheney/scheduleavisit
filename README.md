@@ -39,7 +39,9 @@ Open `http://127.0.0.1:8080`. SQLite lives at `data/app.db` (or `$SAV_DB`).
 
 **Is:** capacity math on the server, month calendar with click-to-add clients, optional Google Calendar (two-way) plus iCal busy import, consult vs full session, referral invites, waitlist capture.
 
-**Is not:** HIPAA / BAA, payments, insurance, real email/SMS, Uber API keys, or scheduleavisit.com DNS.
+**Is not:** HIPAA / BAA, payments, insurance, SMS unless Twilio env vars are set, Uber API keys, or scheduleavisit.com DNS.
+
+Email goes out through [Resend](docs/email.md) when `RESEND_API_KEY` and `EMAIL_FROM` are set on the server. If they are missing, or Resend returns an error, booking and invites still succeed and the email is skipped.
 
 Therapists can upload a JPEG/PNG/WebP photo (or pull one from a Psychology Today / personal page they paste) on setup. Photos live on the Render disk under `data/uploads/avatars/` and show on the public booking page, directory, and referral cards. Initials stay as the fallback.
 

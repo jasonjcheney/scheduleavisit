@@ -520,9 +520,29 @@ def main() -> None:
 
             api_calls.clear()
             ref_day, ref_time = future_weekday(11)
-            # Book on James via Elena-style referral from Jason's network (Jason is linked to James).
+            # A real colleague with no Google login. Sample profiles are not Jason's peers.
+            from db import add_link, hash_password, now_iso
+            with connect() as conn:
+                conn.execute(
+                    """INSERT INTO users (
+                         email, password_hash, name, slug, created_at, setup_complete, is_demo,
+                         weekly_target_hours, buffer_hours, workdays, slot_start, slot_end,
+                         session_minutes, timezone
+                       ) VALUES (?,?,?,?,?,1,0,25,0,'[1,2,3,4,5]',9,17,50,'America/Denver')""",
+                    (
+                        "casey.nogoogle@example.com",
+                        hash_password("longpass1"),
+                        "Casey NoGoogle",
+                        "casey-nogoogle",
+                        now_iso(),
+                    ),
+                )
+                casey_id = conn.execute("SELECT id FROM users WHERE slug='casey-nogoogle'").fetchone()["id"]
+                jason_id = conn.execute("SELECT id FROM users WHERE username='jasoncheney'").fetchone()["id"]
+                add_link(conn, jason_id, casey_id)
+                conn.commit()
             referred = c.post("/api/p/jason-cheney/book-referral", json={
-                "peerSlug": "james-okonkwo-lcsw",
+                "peerSlug": "casey-nogoogle",
                 "date": ref_day.isoformat(),
                 "time": ref_time,
                 "name": "Ref Google",

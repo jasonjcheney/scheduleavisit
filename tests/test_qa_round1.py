@@ -451,6 +451,16 @@ def main() -> None:
         })
         expect(refused_ref.json().get("error") == SAMPLE, refused_ref.text)
 
+        # Startup drops sample/real links. Put the hop back so a real colleague
+        # behind a sample profile can still be offered, while the sample is not.
+        with connect() as conn:
+            quinn = conn.execute("SELECT id FROM users WHERE slug='quinn-real'").fetchone()
+            james = conn.execute("SELECT id FROM users WHERE slug='james-okonkwo-lcsw'").fetchone()
+            riley = conn.execute("SELECT id FROM users WHERE slug='riley-open'").fetchone()
+            add_link(conn, quinn["id"], james["id"])
+            add_link(conn, james["id"], riley["id"])
+            conn.commit()
+
         overflow = client.post("/api/p/quinn-real/book", json={
             "date": day,
             "time": "10:00",

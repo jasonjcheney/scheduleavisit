@@ -21,7 +21,7 @@ Today is Saturday 22 Aug 2026. Elena’s week is Mon 17 – Sun 23 Aug. Friday 2
 - **Notifications mark-read** — per note or mark all; GET no longer auto-reads
 - **Visit reminders** — a successful book (including referral) creates `booked`, `day_before` (~24h before start, America/Denver), and `morning_of` (8:00am Denver) rows; send is attempted inline and via `POST /internal/reminders/tick` (`X-Reminder-Secret`). Email/SMS adapters no-op without env, so booking still returns 200. Therapists opt in on the dashboard (default off); optional client and therapist phones enable SMS. Cancel drops leftover pending rows; reschedule writes a new set.
 
-No SMTP, no paid ride keys, no HIPAA claims.
+Email sends through Resend when `RESEND_API_KEY` and `EMAIL_FROM` are set; otherwise booking still succeeds and mail is skipped. No paid ride keys. No HIPAA claims.
 
 ## 1. Fresh provider can take a booking
 

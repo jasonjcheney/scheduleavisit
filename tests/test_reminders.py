@@ -126,9 +126,13 @@ def main() -> None:
         rows = reminders_for(conn, appt_id)
         kinds = [row["kind"] for row in rows]
         audiences = {row["audience"] for row in rows}
-        expect(len(rows) == 3, f"expected 3 client rows, got {len(rows)} {kinds}")
+        pairs = {(row["kind"], row["audience"]) for row in rows}
+        expect(len(rows) == 4, f"expected client reminders plus a therapist booking note, got {len(rows)} {kinds}")
         expect(set(kinds) == {"booked", "day_before", "morning_of"}, f"kinds {kinds}")
-        expect(audiences == {"client"}, f"default should be client-only, got {audiences}")
+        expect(pairs == {
+            ("booked", "client"), ("day_before", "client"), ("morning_of", "client"),
+            ("booked", "therapist"),
+        }, f"default should email the therapist about the new booking only, got {pairs}")
         by_kind = {row["kind"]: row for row in rows}
         db_start = parse_iso(
             conn.execute("SELECT start_iso FROM appointments WHERE id=?", (appt_id,)).fetchone()["start_iso"]
@@ -161,7 +165,7 @@ def main() -> None:
     expect(setup.status_code == 200 and setup.json().get("ok"), f"setup failed: {setup.text}")
     dash = c.get("/dashboard")
     expect(dash.status_code == 200, f"dashboard {dash.status_code}")
-    expect("Email me when clients book and before visits" in dash.text, "dashboard missing opt-in checkbox")
+    expect("Email me the day before and the morning of" in dash.text, "dashboard missing opt-in checkbox")
     expect('id="reminders-form"' in dash.text, "dashboard missing reminders form")
 
     me = c.get("/api/me").json()["user"]
@@ -246,9 +250,11 @@ def main() -> None:
     ref_id = r.json()["appointmentId"]
     with connect() as conn:
         rows = reminders_for(conn, ref_id)
-        kinds = [row["kind"] for row in rows]
-        expect(set(kinds) == {"booked", "day_before", "morning_of"}, f"referral kinds {kinds}")
-        expect(all(row["audience"] == "client" for row in rows), "James default opt-in should be off")
+        pairs = {(row["kind"], row["audience"]) for row in rows}
+        expect(pairs == {
+            ("booked", "client"), ("day_before", "client"), ("morning_of", "client"),
+            ("booked", "therapist"),
+        }, f"referral kinds {pairs}")
 
     # Tick endpoint: secret header required; no-op senders still 200
     bare = c.post("/internal/reminders/tick")

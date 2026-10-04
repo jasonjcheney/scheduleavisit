@@ -108,11 +108,11 @@
 
   <section class="card" id="reminders-card">
     <h2>Visit reminders</h2>
-    <p class="muted">Clients get a scheduling reminder when they book, the day before, and the morning of — by email, and by text if they leave a phone. You can get the same notes. Off by default so demo accounts stay quiet.</p>
+    <p class="muted">Clients get an email when they book, the day before, and the morning of — and a text if they leave a phone. You get an email when someone books. Turn this on for the day-before and morning-of notes too.</p>
     <form id="reminders-form" class="fields">
       <label class="field check-line">
         <input type="checkbox" name="reminders_opt_in" value="1" {% if me.reminders_opt_in %}checked{% endif %}>
-        Email me when clients book and before visits
+        Email me the day before and the morning of
       </label>
       <label class="field">Your phone <span class="tiny">(optional, for text reminders)</span>
         <input type="tel" name="phone" value="{{ me.phone or '' }}" placeholder="303-555-0100" autocomplete="tel">
@@ -450,13 +450,13 @@
       {% if pending_invites %}
       <div class="pending-invites" id="pending-invites">
         <h3 class="pending-invites-heading">Pending invites</h3>
-        <p class="tiny" style="margin:0 0 10px">We do not send email — copy the link and share it yourself.</p>
+        <p class="tiny" style="margin:0 0 10px">Copy the link if you also want to share it yourself.</p>
         <div class="list" role="list" id="pending-invites-list">
           {% for inv in pending_invites %}
           <div class="waitlist-row invite-pending-row" role="listitem">
             <div>
               <strong>{{ inv.to_email }}</strong>
-              <div class="meta">{% if inv.sent_label %}{{ inv.sent_label }} · {% endif %}Waiting for them to accept</div>
+              <div class="meta">{% if inv.email_sent %}We emailed them · {% endif %}{% if inv.sent_label %}{{ inv.sent_label }} · {% endif %}Waiting for them to accept</div>
             </div>
             <button type="button" class="btn btn-ghost btn-sm" data-copy-invite="{{ inv.url }}">Copy link</button>
           </div>

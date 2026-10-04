@@ -30,8 +30,10 @@ from db import (
     connect,
     hash_password,
     init_db,
+    is_demo_account,
     is_hidden_demo,
     is_unlisted,
+    sample_peer_mismatch,
     normalize_category,
     page_is_hidden,
     now_iso,
@@ -91,6 +93,7 @@ from reminders import (
     cancel_pending,
     cancel_pending_for_client,
     send_due,
+    send_invite_email,
 )
 from capacity import (
     WEEKLY_HORIZON,
@@ -201,6 +204,16 @@ def user_by_slug(conn, slug: str):
 
 def user_by_email(conn, email: str):
     return conn.execute("SELECT * FROM users WHERE lower(email)=?", (email.lower().strip(),)).fetchone()
+
+
+def visible_peers(conn, viewer):
+    """Referral colleagues to show. Real accounts do not list sample profiles."""
+    out = []
+    for p in peers_of(conn, viewer["id"]):
+        if is_demo_account(p) and not is_demo_account(viewer):
+            continue
+        out.append(p)
+    return out
 
 
 def current_user(request: Request):
@@ -1340,6 +1353,11 @@ def invite_page(request: Request, token: str):
                 invite=row(inv), from_name=from_user["name"], expected=inv["to_email"],
             )
         inv_cat = normalize_category(inv["category"] if "category" in inv.keys() else "general")
+        if sample_peer_mismatch(conn, inv["from_user_id"], user["id"]):
+            return tpl(
+                request, "invite.html", state="sample",
+                invite=row(inv), from_name=from_user["name"] if from_user else "",
+            )
         add_link(conn, inv["from_user_id"], user["id"], category=inv_cat)
         set_link_category(conn, inv["from_user_id"], user["id"], inv_cat)
         conn.execute(
@@ -1439,7 +1457,7 @@ def dashboard(request: Request):
         upcoming, other_events = _dashboard_visit_lists(conn, u)
 
         peer_rows = []
-        for p in peers_of(conn, u["id"]):
+        for p in visible_peers(conn, u):
             rem = remaining_hours(conn, p, week)
             pinfo = projected_hours(conn, p, week, 0)
             pst = status_for(pinfo["projected"], pinfo["target"])
@@ -1481,7 +1499,7 @@ def dashboard(request: Request):
         booking_url = f"{host}p/{u['slug']}"
         base = str(host).rstrip("/")
         pending = conn.execute(
-            """SELECT id, to_email, token, created_at FROM network_invites
+            """SELECT id, to_email, token, created_at, email_sent FROM network_invites
                WHERE from_user_id=? AND status='pending' ORDER BY id DESC""",
             (u["id"],),
         ).fetchall()
@@ -1494,6 +1512,10 @@ def dashboard(request: Request):
             except Exception:
                 ir["sent_label"] = ""
             ir["url"] = f"{base}/invite/{inv['token']}"
+            try:
+                ir["email_sent"] = int(inv["email_sent"] or 0)
+            except (KeyError, IndexError, TypeError, ValueError):
+                ir["email_sent"] = 0
             pending_invites.append(ir)
 
         overflow_to = None
@@ -1825,6 +1847,8 @@ async def api_book_referral(slug: str, request: Request):
         if not origin or not peer:
             return json_err("Calendar not found", 404)
         if is_hidden_demo(origin) or is_hidden_demo(peer):
+            return json_err(SAMPLE_PROFILE_MESSAGE)
+        if is_demo_account(peer) and not is_demo_account(origin):
             return json_err(SAMPLE_PROFILE_MESSAGE)
         if page_is_hidden(origin):
             return json_err(f"{first_name(origin['name'])} isn't taking bookings right now.")
@@ -2414,20 +2438,51 @@ async def api_invite(request: Request):
                 (user["id"], email, token, now_iso(), category),
             )
         invite_url = str(request.base_url).rstrip("/") + f"/invite/{token}"
-        print(f"[invite] {user['email']} → {email}  {invite_url}", flush=True)
+        print(f"[invite] user_id={user['id']} token_ready", flush=True)
+        email_status = "skipped"
+        try:
+            email_status = send_invite_email(
+                email,
+                user["name"],
+                invite_url,
+                clinic=uget(user, "clinic", "") or "",
+                address=uget(user, "address", "") or "",
+            )
+        except Exception as exc:
+            email_status = "failed"
+            print(f"[email] invite failed ({type(exc).__name__})", flush=True)
+        emailed = email_status == "sent"
+        if emailed:
+            conn.execute(
+                "UPDATE network_invites SET email_sent=1 WHERE from_user_id=? AND token=?",
+                (user["id"], token),
+            )
         if not already:
-            notify(conn, user["id"], "invite", f"Invite sent to {email}",
-                   f"They can accept at {invite_url}. No email was sent — share the link.")
+            if emailed:
+                notify(conn, user["id"], "invite", f"Invite emailed to {email}",
+                       f"We emailed them. They can also accept at {invite_url}.")
+            else:
+                notify(conn, user["id"], "invite", f"Invite ready for {email}",
+                       f"They can accept at {invite_url}. The email did not go out — share the link.")
             target = user_by_email(conn, email)
             if target:
                 notify(conn, target["id"], "invite", f"{first_name(user['name'])} invited you",
                        f"Open {invite_url} while logged in as {email} to join their referral network.")
-        message = (
-            f"You already have a pending invite for {email}. Share the link again — we do not send email."
-            if already
-            else f"Invite ready for {email}. Share the link — we do not send email."
-        )
-        return {"ok": True, "token": token, "url": invite_url, "email": email, "already": already, "message": message}
+        if emailed:
+            message = f"We emailed {email}. You can also copy the link and share it."
+        elif already:
+            message = f"You already have a pending invite for {email}. Copy the link and share it."
+        else:
+            message = f"Invite ready for {email}. Copy the link and share it."
+        return {
+            "ok": True,
+            "token": token,
+            "url": invite_url,
+            "email": email,
+            "already": already,
+            "emailed": emailed,
+            "message": message,
+        }
 
 
 @app.get("/api/me/network")
@@ -2438,7 +2493,7 @@ def api_network(request: Request):
     with db() as conn:
         week = start_of_week(today())
         peers = []
-        for p in peers_of(conn, user["id"]):
+        for p in visible_peers(conn, user):
             rem = remaining_hours(conn, p, week)
             pcat = normalize_category(uget(p, "referral_category", "general"))
             peers.append({

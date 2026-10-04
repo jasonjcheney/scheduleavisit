@@ -1254,16 +1254,22 @@
           toast(data.error || "Could not invite");
           return;
         }
-                out.className = "tiny invite-ok";
+        out.className = "tiny invite-ok";
+        var who = "<strong>" + escapeHtml(data.email || email) + "</strong>";
+        var lead = data.emailed
+          ? "We emailed " + who + ". "
+          : (data.already
+            ? "You already have a pending invite for " + who + ". "
+            : "Invite ready for " + who + ". ");
+        var share = data.emailed
+          ? "You can also copy the link:<br>"
+          : "Copy the link and share it:<br>";
         out.innerHTML =
-          (data.already
-            ? "You already have a pending invite for <strong>" + escapeHtml(data.email || email) + "</strong>. "
-            : "Invite ready for <strong>" + escapeHtml(data.email || email) + "</strong>. ") +
-          "Copy and share — we do not send email:<br><code class=\"invite-link-code\">" +
-          escapeHtml(data.url) + "</code> " +
+          lead + share +
+          "<code class=\"invite-link-code\">" + escapeHtml(data.url) + "</code> " +
           "<button type=\"button\" class=\"btn btn-ghost btn-sm\" data-copy-invite=\"" +
           escapeHtml(data.url) + "\">Copy link</button>";
-        toast(data.message || "Invite link ready — share it with your colleague");
+        toast(data.emailed ? "We emailed them" : (data.message || "Invite link ready — share it with your colleague"));
         invite.email.value = "";
         var fresh = out.querySelector("[data-copy-invite]");
         if (fresh) {
@@ -1271,11 +1277,11 @@
             copyInviteLink(fresh.getAttribute("data-copy-invite"), fresh);
           });
         }
-        upsertPendingInviteRow(data.email || email, data.url);
+        upsertPendingInviteRow(data.email || email, data.url, !!data.emailed);
       });
     }
 
-    function upsertPendingInviteRow(email, url) {
+    function upsertPendingInviteRow(email, url, emailed) {
       if (!email || !url) return;
       var section = document.getElementById("pending-invites");
       var list = document.getElementById("pending-invites-list");
@@ -1286,7 +1292,7 @@
         section.id = "pending-invites";
         section.innerHTML =
           "<h3 class=\"pending-invites-heading\">Pending invites</h3>" +
-          "<p class=\"tiny\" style=\"margin:0 0 10px\">We do not send email — copy the link and share it yourself.</p>" +
+          "<p class=\"tiny\" style=\"margin:0 0 10px\">Copy the link if you also want to share it yourself.</p>" +
           "<div class=\"list\" role=\"list\" id=\"pending-invites-list\"></div>";
         form.parentNode.insertBefore(section, form);
         list = section.querySelector("#pending-invites-list");
@@ -1300,9 +1306,11 @@
       var row = existing || document.createElement("div");
       row.className = "waitlist-row invite-pending-row";
       row.setAttribute("role", "listitem");
+      var alreadyEmailed = existing && existing.textContent.indexOf("We emailed them") !== -1;
+      var emailedNote = (emailed || alreadyEmailed) ? "We emailed them · " : "";
       row.innerHTML =
         "<div><strong>" + escapeHtml(email) + "</strong>" +
-        "<div class=\"meta\">Waiting for them to accept</div></div>" +
+        "<div class=\"meta\">" + emailedNote + "Waiting for them to accept</div></div>" +
         "<button type=\"button\" class=\"btn btn-ghost btn-sm\" data-copy-invite=\"" +
         escapeHtml(url) + "\">Copy link</button>";
       var btn = row.querySelector("[data-copy-invite]");
