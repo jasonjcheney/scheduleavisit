@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}ScheduleAVisit — Find a time, even when your clinician is full{% endblock %}
+{% block title %}ScheduleAVisit — Book a therapist today even if your first choice is unavailable.{% endblock %}
 {% block meta_description %}Find a time. No account needed. If your clinician is full, you still leave with a trusted colleague.{% endblock %}
-{% block og_title %}ScheduleAVisit — Find a time, even when your clinician is full{% endblock %}
+{% block og_title %}ScheduleAVisit — Book a therapist today even if your first choice is unavailable.{% endblock %}
 {% block og_description %}Pick a day — if your clinician is full, you still leave with a trusted colleague.{% endblock %}
-{% block twitter_title %}ScheduleAVisit — Find a time, even when your clinician is full{% endblock %}
+{% block twitter_title %}ScheduleAVisit — Book a therapist today even if your first choice is unavailable.{% endblock %}
 {% block twitter_description %}Pick a day — if your clinician is full, you still leave with a trusted colleague.{% endblock %}
 {% block og_url %}https://scheduleavisit.onrender.com/{% endblock %}
 {% block canonical %}https://scheduleavisit.onrender.com/{% endblock %}
@@ -12,8 +12,8 @@
   <section class="hero">
     <div class="hero-copy">
       <p class="eyebrow">No account needed</p>
-      <h1>Find a time — even when your clinician is full.</h1>
-      <p class="lede">Pick a day — if your clinician is full, you still leave with a trusted colleague.</p>
+      <h1>Book a therapist today even if your first choice is unavailable.</h1>
+      <p class="lede">Get on the calendar today!</p>
       <div class="hero-actions">
         <a class="btn btn-primary" href="/book">Book a visit</a>
       </div>
@@ -28,10 +28,10 @@
   <section class="steps" id="how">
     <div class="steps-head">
       <p class="eyebrow">How it works</p>
-      <h2>Three steps — and you still leave with a time.</h2>
+      <h2>How it Works in Three Steps</h2>
     </div>
     <div class="step-grid">
-      <article class="step"><div class="step-num">1</div><h3>Open one link</h3><p>No portal login. No phone tree. Just the booking page for the person you came to see — or the directory if you are still choosing.</p></article>
+      <article class="step"><div class="step-num">1</div><h3>Pick a provider's page</h3></article>
       <article class="step"><div class="step-num">2</div><h3>Pick a day and a time</h3><p>Choose a free consult or a full session when they offer it. Leave your name. That is the whole form.</p></article>
       <article class="step"><div class="step-num">3</div><h3>If they are full, you still get a time</h3><p>You stay on the page and see a colleague they trust. If that person is full too, the next trusted colleague is offered. Never “we are not taking new patients.”</p></article>
     </div>
@@ -61,12 +61,12 @@
       </article>
       <article class="audience-card audience-card-clinician">
         <p class="eyebrow">For clinicians</p>
-        <h2>Protect your week. Keep overflow warm.</h2>
+        <h2>Therapists Protecting Therapists!</h2>
         <ul class="check-list">
-          <li>Set a weekly clinical hour target and a buffer for notes</li>
-          <li>See 8 weeks ahead before you take a new weekly client</li>
-          <li>Invite peers so overflow lands with people you trust</li>
-          <li>Add existing clients on a month calendar in one click</li>
+          <li>No more overscheduling</li>
+          <li>Send your overflows to colleagues you trust</li>
+          <li>Automated referral system right to your calendar</li>
+          <li>Get paid for missed intakes</li>
         </ul>
         <div class="hero-actions">
           {% if user %}
