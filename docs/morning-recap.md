@@ -10,8 +10,8 @@ Your demo is live: **[scheduleavisit.onrender.com](https://scheduleavisit.onrend
 
 | Who | Username | Password | What you’ll see |
 |-----|----------|----------|-----------------|
-| You (founder) | `jasoncheney` | `123456` | Setup + dashboard |
-| Demo providers | Elena, James, Maya | `demo1234` | Their practice views |
+| You (founder) | `jasoncheney` | `SAV_JASON_PASSWORD` (not written here) | Setup + dashboard |
+| Demo providers | Elena, James, Maya | `SAV_DEMO_PASSWORD` (not written here) | Their practice views |
 
 ---
 

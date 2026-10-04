@@ -19,19 +19,39 @@
     });
   }
 
+  var NETWORK_ERROR = "We could not reach ScheduleAVisit just now. Check your internet connection and try again.";
+  var SERVER_ERROR = "Something went wrong on our side. Please wait a moment and try again.";
+
   async function api(path, opts) {
     opts = opts || {};
-    var res = await fetch(path, {
-      method: opts.method || "GET",
-      headers: opts.body ? { "Content-Type": "application/json" } : {},
-      credentials: "same-origin",
-      body: opts.body ? JSON.stringify(opts.body) : undefined
-    });
+    var res;
+    try {
+      res = await fetch(path, {
+        method: opts.method || "GET",
+        headers: opts.body ? { "Content-Type": "application/json" } : {},
+        credentials: "same-origin",
+        body: opts.body ? JSON.stringify(opts.body) : undefined
+      });
+    } catch (e) {
+      return { ok: false, error: NETWORK_ERROR, network: true };
+    }
     var data = {};
-    try { data = await res.json(); } catch (e) { data = { ok: false, error: "Bad response" }; }
+    try { data = await res.json(); } catch (e) { data = { ok: false, error: SERVER_ERROR }; }
+    if (!data || typeof data !== "object") data = { ok: false, error: SERVER_ERROR };
     if (data.ok === undefined) data.ok = res.ok;
     return data;
   }
+
+  /* A therapist photo that fails to load falls back to their initials
+     instead of a broken-image icon. */
+  document.addEventListener("error", function (ev) {
+    var img = ev.target;
+    if (!img || img.tagName !== "IMG") return;
+    var box = img.parentElement;
+    if (!box || !box.classList || !box.classList.contains("has-photo")) return;
+    box.classList.remove("has-photo");
+    box.textContent = box.getAttribute("data-initials") || "";
+  }, true);
 
   function pad(n) { return String(n).padStart(2, "0"); }
   function toISODate(d) {
@@ -103,6 +123,7 @@
           username: signupForm.username.value,
           email: signupForm.email.value,
           password: signupForm.password.value,
+          company_website: signupForm.company_website ? signupForm.company_website.value : "",
           next: signupForm.getAttribute("data-next") || "/setup"
         }
       });
@@ -117,7 +138,7 @@
 
   /* ——— Booking ——— */
   var bookPage = $("#booking-page");
-  if (bookPage) {
+  if (bookPage && bookPage.getAttribute("data-sample") !== "1") {
     var slug = bookPage.getAttribute("data-slug");
     var sessionMinutes = Number(bookPage.getAttribute("data-minutes") || 50);
     var consultMinutes = Number(bookPage.getAttribute("data-consult-minutes") || 15);
@@ -518,6 +539,7 @@
       var kindLabel = visitKind === "consult" ? "free consultation" : "full session";
       $("#book-result").innerHTML =
         '<section class="card">' +
+          '<p class="flow-step">' + (consultEnabled ? "STEP 4" : "STEP 3") + "</p>" +
           "<h2>Confirm with " + escapeHtml(first) + "</h2>" +
           "<p>" + formatLong(d) + " at " + formatTime(state.time) + " · " + currentMinutes() + " minutes · " + kindLabel + "</p>" +
           '<form id="visit-form" class="fields">' +
@@ -662,11 +684,14 @@
             '<span class="tiny">' + r.minutes + " minutes with " + escapeHtml(peerFirst) + "</span>" +
           "</div>"
         : "<p style=\"margin:0\"><strong>" + escapeHtml(r.displayWhen) + "</strong> · " + r.minutes + " minutes</p>";
+      var avatarHtml = r.photoUrl
+        ? '<div class="avatar ' + escapeHtml(r.avatar) + ' has-photo" aria-hidden="true" data-initials="' + escapeHtml(r.initials) + '"><img src="' + escapeHtml(r.photoUrl) + '" alt=""></div>'
+        : '<div class="avatar ' + escapeHtml(r.avatar) + '" aria-hidden="true">' + escapeHtml(r.initials) + "</div>";
       return (
         '<div class="rec-card' + (featured ? " featured" : "") + '">' +
           (featured ? '<p class="eyebrow rec-eyebrow">Trusted peer has room</p>' : "") +
           '<div class="person">' +
-            '<div class="avatar ' + escapeHtml(r.avatar) + '" aria-hidden="true">' + escapeHtml(r.initials) + "</div>" +
+            avatarHtml +
             "<div><strong>" + escapeHtml(r.name) + "</strong>" +
             trustPrimary +
             hopSecondary +
@@ -1607,6 +1632,7 @@
           workdays: days,
           portal_kind: kindEl ? kindEl.value : "none",
           portal_url: setupForm.portal_url.value.trim(),
+          profile_page_url: setupForm.profile_page_url ? setupForm.profile_page_url.value.trim() : "",
           ical_url: setupForm.ical_url.value.trim(),
           phone: setupForm.phone ? setupForm.phone.value.trim() : "",
           reminders_opt_in: setupForm.reminders_opt_in && setupForm.reminders_opt_in.checked ? 1 : 0
@@ -1655,6 +1681,172 @@
       }
       window.addEventListener("scroll", markActive, { passive: true });
       markActive();
+    }
+
+    var photoBox = $("#photo-setup");
+    if (photoBox) {
+      var photoFile = $("#photo-file");
+      var photoPreview = $("#photo-preview");
+      var photoOk = $("#photo-ok");
+      var photoErr = $("#photo-err");
+      var photoRemove = $("#photo-remove");
+      var initials = photoBox.getAttribute("data-initials") || "";
+
+      function showPhotoMsg(okText, errText) {
+        if (photoOk) {
+          photoOk.classList.toggle("hidden", !okText);
+          photoOk.textContent = okText || "";
+        }
+        if (photoErr) {
+          photoErr.classList.toggle("hidden", !errText);
+          photoErr.textContent = errText || "";
+        }
+      }
+
+      function setPhotoPreview(url) {
+        var pickBtn = $("#photo-upload");
+        if (pickBtn) {
+          var label = url ? "Change photo" : "Choose a photo";
+          pickBtn.textContent = label;
+          pickBtn.setAttribute("data-label", label);
+        }
+        if (!photoPreview) return;
+        if (url) {
+          photoPreview.classList.add("has-photo");
+          photoPreview.innerHTML = '<img src="' + escapeHtml(url) + '" alt="">';
+          if (photoRemove) photoRemove.hidden = false;
+        } else {
+          photoPreview.classList.remove("has-photo");
+          photoPreview.textContent = initials;
+          if (photoRemove) photoRemove.hidden = true;
+        }
+      }
+
+      var photoUpload = $("#photo-upload");
+      var photoPull = $("#photo-pull");
+      var PHOTO_MAX = 3 * 1024 * 1024;
+      var PHOTO_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+      var photoBusy = false;
+
+      /* One photo action at a time; the button says what is happening. */
+      function setPhotoBusy(btn, busyText) {
+        photoBusy = !!btn;
+        [photoUpload, photoPull, photoRemove].forEach(function (b) {
+          if (!b) return;
+          if (!b.getAttribute("data-label")) b.setAttribute("data-label", b.textContent);
+          b.disabled = photoBusy;
+          b.textContent = (b === btn && busyText) ? busyText : b.getAttribute("data-label");
+        });
+        if (photoFile) photoFile.disabled = photoBusy;
+        photoBox.setAttribute("aria-busy", photoBusy ? "true" : "false");
+      }
+
+      function photoProblem(file) {
+        if (!file) return "Please choose a JPEG, PNG, or WebP photo first.";
+        var type = (file.type || "").toLowerCase();
+        var name = (file.name || "").toLowerCase();
+        if (/\.(heic|heif)$/.test(name) || type.indexOf("heic") !== -1 || type.indexOf("heif") !== -1) {
+          return "iPhone HEIC photos can’t be used yet. Please save it as a JPEG or PNG and try again.";
+        }
+        if (type && PHOTO_TYPES.indexOf(type) === -1) {
+          return "Please upload a JPEG, PNG, or WebP picture.";
+        }
+        if (file.size > PHOTO_MAX) {
+          return "That photo is " + (file.size / (1024 * 1024)).toFixed(1) + " MB. Please use one under 3 MB.";
+        }
+        return "";
+      }
+
+      async function postPhotoFile(file) {
+        if (photoBusy) return;
+        var problem = photoProblem(file);
+        if (problem) {
+          showPhotoMsg("", problem);
+          return;
+        }
+        showPhotoMsg("", "");
+        setPhotoBusy(photoUpload, "Saving photo…");
+        var fd = new FormData();
+        fd.append("photo", file);
+        var data = {};
+        try {
+          var res = await fetch("/api/me/photo", { method: "POST", credentials: "same-origin", body: fd });
+          if (res.status === 413) {
+            data = { ok: false, error: "That photo is too large. Please use one under 3 MB." };
+          } else {
+            try { data = await res.json(); } catch (e) { data = { ok: false, error: SERVER_ERROR }; }
+          }
+        } catch (e) {
+          data = { ok: false, error: NETWORK_ERROR };
+        }
+        setPhotoBusy(null);
+        if (!data.ok) {
+          showPhotoMsg("", data.error || "Could not save that photo.");
+          return;
+        }
+        if (photoFile) photoFile.value = "";
+        setPhotoPreview(data.photoUrl || "");
+        showPhotoMsg(data.message || "Photo saved.", "");
+      }
+
+      /* Picking a file saves it right away. Save photo opens the picker if
+         nothing is chosen yet, so it never uploads the same file twice. */
+      if (photoFile) {
+        photoFile.addEventListener("change", function () {
+          if (photoFile.files && photoFile.files[0]) postPhotoFile(photoFile.files[0]);
+        });
+      }
+      if (photoUpload) {
+        photoUpload.addEventListener("click", function () {
+          if (photoFile && !photoFile.disabled) {
+            photoFile.click();
+            return;
+          }
+          showPhotoMsg("", "Please choose a JPEG, PNG, or WebP photo first.");
+        });
+      }
+      if (photoPull) {
+        photoPull.addEventListener("click", async function () {
+          if (photoBusy) return;
+          var field = $("#profile-page-url");
+          var url = field ? field.value.trim() : "";
+          if (!url) {
+            showPhotoMsg("", "Paste your Psychology Today or website link in the box above first.");
+            if (field) field.focus();
+            return;
+          }
+          if (!/^https?:\/\//i.test(url)) {
+            url = "https://" + url.replace(/^\/+/, "");
+            if (field) field.value = url;
+          }
+          showPhotoMsg("Looking for your photo on that page — this can take a few seconds.", "");
+          setPhotoBusy(photoPull, "Looking for photo…");
+          var data = await api("/api/me/photo/import", { method: "POST", body: { url: url } });
+          setPhotoBusy(null);
+          if (!data.ok) {
+            showPhotoMsg("", data.error || "We could not pull a photo from that page.");
+            return;
+          }
+          setPhotoPreview(data.photoUrl || "");
+          showPhotoMsg((data.message || "Photo pulled from that page.") + " Check that it’s you — tap Remove photo if not.", "");
+        });
+      }
+      if (photoRemove) {
+        photoRemove.addEventListener("click", async function () {
+          if (photoBusy) return;
+          showPhotoMsg("", "");
+          setPhotoBusy(photoRemove, "Removing…");
+          var data = await api("/api/me/photo/remove", { method: "POST" });
+          setPhotoBusy(null);
+          if (!data.ok) {
+            showPhotoMsg("", data.error || "Could not remove that photo.");
+            return;
+          }
+          if (photoFile) photoFile.value = "";
+          setPhotoPreview("");
+          showPhotoMsg(data.message || "Photo removed. Your initials show instead.", "");
+        });
+      }
     }
   }
 

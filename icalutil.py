@@ -2,10 +2,15 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
+from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
 
 from db import TZ, at_local, now_iso, new_public_token, parse_iso, today
+
+# Shown on setup and the dashboard whenever a saved feed or Google sync cannot be read.
+CALENDAR_UNREACHABLE = "We can't reach your calendar. Reconnect it in Setup."
+ICAL_HTTPS_ERROR = "Each calendar link should start with https://"
 
 SYNC_EVERY = timedelta(minutes=15)
 MAX_BYTES = 1_500_000
@@ -198,6 +203,30 @@ def note_uid(note: str | None) -> str:
     return ""
 
 
+def looks_like_ics(text: str | None) -> bool:
+    """True when the body is an iCalendar document, even if it has no events yet."""
+    if not text:
+        return False
+    upper = text.upper()
+    return "BEGIN:VCALENDAR" in upper or "BEGIN:VEVENT" in upper
+
+
+def _valid_https_url(url: str) -> bool:
+    url = (url or "").strip()
+    if not url or any(ch.isspace() for ch in url):
+        return False
+    try:
+        parts = urlparse(url)
+    except Exception:
+        return False
+    if parts.scheme.lower() != "https" or not parts.netloc:
+        return False
+    host = (parts.hostname or "").strip().lower().rstrip(".")
+    if not host or host in {"localhost"} or host.endswith(".local") or host.endswith(".localhost"):
+        return False
+    return True
+
+
 def ical_url_list(raw: str | None) -> list[str]:
     """One iCal URL per line. A single URL still works."""
     urls: list[str] = []
@@ -215,11 +244,24 @@ def ical_url_list(raw: str | None) -> list[str]:
 
 
 def normalize_ical_urls(raw: str | None) -> tuple[str, str | None]:
+    """Keep only real https links. Returns (normalized, error)."""
     lines = [ln.strip() for ln in (raw or "").splitlines() if ln.strip()]
     for ln in lines:
-        if not ln.lower().startswith(("http://", "https://")):
-            return "", "Each calendar link should start with https://"
+        if not _valid_https_url(ln):
+            return "", ICAL_HTTPS_ERROR
     return "\n".join(lines), None
+
+
+def verify_ical_urls(raw: str | None, timeout: float = 4.0) -> tuple[str, str | None]:
+    """https check, then fetch and parse. Empty is fine. Returns (normalized, error)."""
+    normalized, err = normalize_ical_urls(raw)
+    if err or not normalized:
+        return normalized, err
+    for url in ical_url_list(normalized):
+        text = fetch_ics(url, timeout=timeout)
+        if not text or not looks_like_ics(text):
+            return "", CALENDAR_UNREACHABLE
+    return normalized, None
 
 
 def maybe_sync_ical(conn, user, timeout: float = 2.0) -> None:
@@ -244,6 +286,17 @@ def maybe_sync_ical(conn, user, timeout: float = 2.0) -> None:
     _sync_ical_urls(conn, user, urls, timeout)
 
 
+def _stamp_ical_sync(conn, provider_id: int, error: str) -> None:
+    try:
+        conn.execute(
+            "UPDATE users SET ical_synced_at=?, ical_sync_error=? WHERE id=?",
+            (now_iso(), error or "", provider_id),
+        )
+        conn.commit()
+    except Exception:
+        pass
+
+
 def _sync_ical(conn, user, url: str, timeout: float) -> None:
     _sync_ical_urls(conn, user, [url], timeout)
 
@@ -252,21 +305,20 @@ def _sync_ical_urls(conn, user, urls: list[str], timeout: float) -> None:
     provider_id = user["id"]
     events: list = []
     got = False
+    failed = False
     for url in urls:
         text = fetch_ics(url, timeout=timeout)
-        if not text:
+        if not text or not looks_like_ics(text):
+            failed = True
             continue
         got = True
         try:
             events.extend(parse_ics(text))
         except Exception:
+            failed = True
             continue
     # Stamp the attempt so a bad URL does not stall every page load.
-    try:
-        conn.execute("UPDATE users SET ical_synced_at=? WHERE id=?", (now_iso(), provider_id))
-        conn.commit()
-    except Exception:
-        pass
+    _stamp_ical_sync(conn, provider_id, CALENDAR_UNREACHABLE if failed else "")
     if not got:
         return
 

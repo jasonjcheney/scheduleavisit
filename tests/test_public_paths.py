@@ -13,6 +13,9 @@ sys.path.insert(0, str(ROOT))
 fd, DBFILE = tempfile.mkstemp(suffix="-public-paths.db")
 os.close(fd)
 os.environ["SAV_DB"] = DBFILE
+os.environ.setdefault("SAV_JASON_PASSWORD", "123456")
+os.environ.setdefault("SAV_DEMO_PASSWORD", "demo1234")
+os.environ.setdefault("SHOW_DEMO_COUNSELORS", "1")
 
 
 def fail(msg: str) -> None:
@@ -65,7 +68,7 @@ def main() -> None:
             'href="/terms"',
         ]),
         ("/book", 200, ["Book a visit", "Elena Vasquez", 'name="q"',
-                         "Find someone to see",
+                         "Find someone to see", "STEP 1", "STEP 2",
                          "Scheduling tool for independent counselors", "clinical judgment", "no BAA"]),
         ("/login", 200, ["Welcome back", "jasoncheney", "Continue with Google",
                          "Scheduling tool for independent counselors", "Not HIPAA-compliant yet",
@@ -74,7 +77,8 @@ def main() -> None:
                           'data-next="/setup"',
                           "Not a substitute for clinical judgment"]),
         ("/p/jason-cheney", 200, ["Jason Cheney", "Pick a day", "Pick a time"]),
-        ("/p/elena-vasquez-lpc", 200, ["Elena Vasquez", "Free consultation", "Full session"]),
+        ("/p/elena-vasquez-lpc", 200, ["Elena Vasquez", "Free consultation", "Full session",
+                                         "STEP 1", "STEP 2", "STEP 3"]),
         ("/privacy", 200, ["We only keep what we need", "jasonjcheney@gmail.com",
                            "clinical notes", "hosted on Render", "do not sell",
                            "Google Calendar", "refresh token",
@@ -98,9 +102,14 @@ def main() -> None:
 
     jason = c.get("/book?q=jason")
     expect(jason.status_code == 200, f"/book?q=jason got {jason.status_code}")
-    expect("Jason Cheney" in jason.text, "/book?q=jason missing Jason Cheney")
-    expect("/p/jason-cheney" in jason.text, "/book?q=jason missing /p/jason-cheney")
-    print("OK /book?q=jason")
+    expect(
+        'class="person-card" href="/p/jason-cheney"' not in jason.text,
+        "unfinished Jason should stay out of /book",
+    )
+    expect(c.get("/p/jason-cheney").status_code == 200, "Jason /p/ should still open")
+    named = c.get("/book?q=Elena")
+    expect("Elena Vasquez" in named.text, "/book?q=Elena missing Elena")
+    print("OK /book hides an unfinished profile and still finds Elena by name")
 
     boulder = c.get("/book?q=Boulder")
     expect(boulder.status_code == 200, f"/book?q=Boulder got {boulder.status_code}")
@@ -116,8 +125,9 @@ def main() -> None:
     expect("different name or city" in miss.text, "/book?q=zzzzzz missing invite to try again")
     expect('href="/p/jason-cheney"' not in miss.text, "/book?q=zzzzzz listed Jason")
     expect("person-card" not in miss.text, "/book?q=zzzzzz still rendered result cards")
-    expect('href="/p/elena-vasquez-lpc"' in miss.text and "demo" in miss.text.lower(),
-           "/book?q=zzzzzz missing Elena demo CTA")
+    expect('href="/book">Browse everyone</a>' in miss.text, "/book?q=zzzzzz missing Browse everyone")
+    expect("elena-vasquez-lpc" not in miss.text, "/book?q=zzzzzz still links to Elena")
+    expect("Try Elena" not in miss.text, "/book?q=zzzzzz still offers Elena's demo")
     print("OK /book?q=zzzzzz empty state")
 
     landing = c.get("/")
@@ -126,6 +136,7 @@ def main() -> None:
     expect('class="provider-door"' not in landing.text, "landing still has provider-door box in hero")
     expect("Find a provider" not in landing.text, "landing still has duplicate Find a provider CTA")
     expect("Clinician login" not in landing.text, "landing still has Clinician login in hero")
+    expect("STEP 1" not in landing.text, "landing hero should not get booking STEP labels")
     expect("I am a provider" in landing.text, "landing missing I am a provider header link")
     expect('href="/login"' in landing.text, "landing missing provider /login")
     expect('src="/static/logo.png"' in landing.text, "landing missing header logo")
@@ -205,6 +216,9 @@ def main() -> None:
     expect("@media (max-width: 480px)" in css, "missing 480px mobile breakpoint")
     expect("minmax(0, 1fr)" in css, "missing minmax slot/calendar overflow guard")
     expect(".week-grid { grid-template-columns: repeat(2" in css, "missing week-grid 2-col mobile rule")
+    expect(".flow-step" in css and ".flow-step-lg" in css, "missing flow-step CSS")
+    expect("#c41e1e" in css, "missing STEP emphasis color")
+    expect("span:not(.flow-step)" in css, "checklist circle styles should spare STEP labels")
     print("OK mobile 480px CSS guards")
 
     print("ALL PUBLIC PATH SMOKES PASSED")

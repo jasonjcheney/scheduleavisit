@@ -13,6 +13,9 @@ sys.path.insert(0, str(ROOT))
 fd, DBFILE = tempfile.mkstemp(suffix="-live-paths.db")
 os.close(fd)
 os.environ["SAV_DB"] = DBFILE
+os.environ.setdefault("SAV_JASON_PASSWORD", "123456")
+os.environ.setdefault("SAV_DEMO_PASSWORD", "demo1234")
+os.environ.setdefault("SHOW_DEMO_COUNSELORS", "1")
 
 
 def fail(msg: str) -> None:
@@ -74,9 +77,12 @@ def main() -> None:
     empty_book = c.get("/book", params={"q": "zzzz-no-such-provider-xyz"})
     expect(empty_book.status_code == 200, "empty book search status")
     expect("No one matched that search" in empty_book.text, "empty book missing empty copy")
-    expect("/p/elena-vasquez-lpc" in empty_book.text and "demo" in empty_book.text.lower(),
-           "empty book missing Elena demo CTA")
-    print("OK /book empty search offers Elena demo")
+    expect('href="/book">Browse everyone</a>' in empty_book.text, "empty book missing Browse everyone")
+    expect("elena-vasquez-lpc" not in empty_book.text, "empty book still links to Elena")
+    expect("james-okonkwo-lcsw" not in empty_book.text, "empty book still links to James")
+    expect("maya-chen-lmft" not in empty_book.text, "empty book still links to Maya")
+    expect("Try Elena" not in empty_book.text, "empty book still offers Elena's demo")
+    print("OK /book empty search offers Browse everyone")
 
     from datetime import datetime, timedelta
     from db import TZ

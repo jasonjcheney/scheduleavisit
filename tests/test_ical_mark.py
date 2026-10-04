@@ -14,6 +14,9 @@ sys.path.insert(0, str(ROOT))
 fd, DBFILE = tempfile.mkstemp(suffix="-ical-mark.db")
 os.close(fd)
 os.environ["SAV_DB"] = DBFILE
+os.environ.setdefault("SAV_JASON_PASSWORD", "123456")
+os.environ.setdefault("SAV_DEMO_PASSWORD", "demo1234")
+os.environ.setdefault("SHOW_DEMO_COUNSELORS", "1")
 
 
 def fail(msg):

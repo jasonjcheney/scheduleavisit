@@ -6,6 +6,7 @@ import json
 import os
 import sqlite3
 import sys
+from html import unescape
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -18,6 +19,9 @@ sys.path.insert(0, str(ROOT))
 fd, DBFILE = tempfile.mkstemp(suffix="-google-cal.db")
 os.close(fd)
 os.environ["SAV_DB"] = DBFILE
+os.environ.setdefault("SAV_JASON_PASSWORD", "123456")
+os.environ.setdefault("SAV_DEMO_PASSWORD", "demo1234")
+os.environ.setdefault("SHOW_DEMO_COUNSELORS", "1")
 os.environ.pop("GOOGLE_CLIENT_ID", None)
 os.environ.pop("GOOGLE_CLIENT_SECRET", None)
 os.environ.pop("GOOGLE_REDIRECT_URI", None)
@@ -227,6 +231,8 @@ def main() -> None:
         redir = (q.get("redirect_uri") or [""])[0]
         expect(redir.endswith("/auth/google/calendar/callback"), f"redirect_uri {redir}")
         expect("test-cal-not-a-real-secret" not in loc, "client secret leaked into authorize URL")
+        expect(redir == "https://scheduleavisit.onrender.com/auth/google/calendar/callback",
+               f"default host should keep env redirect, got {redir}")
         state = (q.get("state") or [""])[0]
         expect(state, "calendar start missing state")
         print("OK connect redirects to Google with calendar scopes")
@@ -283,6 +289,72 @@ def main() -> None:
         expect("rt-live-value" not in json.dumps(me), "/api/me body leaked raw refresh token")
         print("OK connect stores encrypted refresh token and hides it from /api/me")
 
+        for host in ("scheduleavisit.com", "www.scheduleavisit.com"):
+            start_com = c.get(
+                "/auth/google/calendar?next=/setup#calendar-ical",
+                follow_redirects=False,
+                headers={"Host": host, "X-Forwarded-Proto": "https", "X-Forwarded-Host": host},
+            )
+            expect(start_com.status_code in (302, 303), f"{host} calendar start {start_com.status_code}")
+            loc_com = start_com.headers.get("location") or ""
+            redir_com = (parse_qs(urlparse(loc_com).query).get("redirect_uri") or [""])[0]
+            expect(
+                redir_com == "https://scheduleavisit.com/auth/google/calendar/callback",
+                f"{host} should use .com calendar callback, got {redir_com}",
+            )
+        print("OK custom-domain calendar redirect stays on scheduleavisit.com")
+
+        # Google revoked or expired the login: dashboard must not say "Connected".
+        appmod.access_token_for = lambda user: None
+        appmod.google_token_problem = lambda user: "temporary"
+        dash_blip = c.get("/dashboard")
+        expect("Connect Google Calendar again" not in dash_blip.text, "network blip should not ask to reconnect")
+        expect('id="calendar-unreachable"' not in dash_blip.text,
+               "a short Google blip should not show the reconnect banner")
+        expect("not answering just now" in c.get("/setup").text, "setup missing temporary Google message")
+        appmod.google_token_problem = lambda user: "revoked"
+        dash_broken = c.get("/dashboard")
+        expect(dash_broken.status_code == 200, f"dashboard {dash_broken.status_code}")
+        expect("Connect Google Calendar again" in dash_broken.text, "dashboard missing reconnect button")
+        expect("We can't reach your calendar. Reconnect it in Setup." in unescape(dash_broken.text),
+               "dashboard missing calendar reconnect sentence")
+        banner = dash_broken.text.find('id="calendar-unreachable"')
+        hello = dash_broken.text.find("Hello,")
+        expect(banner != -1 and hello != -1 and banner < hello,
+               "calendar banner is not at the top of the dashboard")
+        expect('href="/setup#calendar-ical"' in dash_broken.text[banner:banner + 500],
+               "dashboard calendar banner missing Setup link")
+        expect(dash_broken.text.count('id="calendar-unreachable"') == 1,
+               "dashboard should show one calendar banner")
+        expect("Busy time from the calendars you picked fills the grid" not in dash_broken.text,
+               "dashboard still claims Google is connected and working")
+        setup_broken = c.get("/setup")
+        expect("Connect Google Calendar again" in setup_broken.text, "setup missing reconnect button")
+        expect("We can't reach your calendar. Reconnect it in Setup." in unescape(setup_broken.text),
+               "setup missing calendar reconnect sentence")
+        expect("Connected as" not in setup_broken.text, "setup still says plain Connected")
+        status_broken = c.get("/api/me/google").json()
+        expect(status_broken.get("needsReconnect") is True, f"needsReconnect {status_broken}")
+        print("OK expired Google login shows a clear reconnect state")
+
+        orig_refresh = gcal.refresh_access_token
+        with connect() as conn:
+            u_tok = conn.execute("SELECT * FROM users WHERE username='jasoncheney'").fetchone()
+        try:
+            def refused(_rt):
+                raise gcal.GoogleAPIError(400, "invalid_grant")
+
+            def offline(_rt):
+                raise OSError("network down")
+
+            gcal.refresh_access_token = refused
+            expect(gcal.token_problem(u_tok) == "revoked", "400 from Google should read as revoked")
+            gcal.refresh_access_token = offline
+            expect(gcal.token_problem(u_tok) == "temporary", "network error should read as temporary")
+        finally:
+            gcal.refresh_access_token = orig_refresh
+        print("OK token_problem tells revoked from a network blip")
+
         gcal.access_token_for = lambda user: "at-test"
         appmod.access_token_for = gcal.access_token_for
         gcal.fetch_calendar_list = fake_cals
@@ -333,6 +405,34 @@ def main() -> None:
                 expect(imported is not None, "Google busy was not imported")
                 expect((imported["visit_kind"] or "") == "external", f"kind {imported['visit_kind']}")
                 expect("Dentist" in (imported["note"] or ""), f"note {imported['note']}")
+
+                # One busy calendar fails to answer while another answers fine.
+                # The busy block from the calendar that failed must stay put.
+                conn.execute(
+                    "UPDATE users SET google_busy_calendar_ids=? WHERE id=?",
+                    (json.dumps(["primary", "work@group.calendar.google.com"]), u["id"]),
+                )
+                conn.commit()
+
+                def flaky_list(_token, cal, _t0, _t1):
+                    if cal == "primary":
+                        raise gcal.GoogleAPIError(503, "google-http-error")
+                    return []
+
+                gcal.list_busy_events = flaky_list
+                u = conn.execute("SELECT * FROM users WHERE username='jasoncheney'").fetchone()
+                gcal.maybe_sync_google(conn, u, timeout=2.0, force=True)
+                still = conn.execute(
+                    "SELECT status FROM appointments WHERE id=?", (imported["id"],)
+                ).fetchone()
+                expect(still["status"] == "booked", f"busy block dropped when one calendar failed: {still['status']}")
+                conn.execute(
+                    "UPDATE users SET google_busy_calendar_ids=? WHERE id=?",
+                    (json.dumps(["primary"]), u["id"]),
+                )
+                conn.commit()
+                gcal.list_busy_events = fake_list
+                print("OK a Google calendar that fails to load keeps its busy blocks")
         finally:
             gcal.list_busy_events = orig_list
         avail = c.get("/api/p/jason-cheney/availability", params={"date": day.isoformat(), "minutes": 50})

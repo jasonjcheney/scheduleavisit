@@ -12,6 +12,7 @@ import httpx
 
 from capacity import uget
 from db import TZ, at_local, now_iso, new_public_token, parse_iso, today
+from icalutil import CALENDAR_UNREACHABLE
 
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
@@ -58,8 +59,28 @@ def request_origin(request) -> str:
     return f"{proto}://{host}".rstrip("/")
 
 
+CUSTOM_CALENDAR_HOSTS = {"scheduleavisit.com", "www.scheduleavisit.com"}
+CUSTOM_CALENDAR_REDIRECT = "https://scheduleavisit.com/auth/google/calendar/callback"
+
+
+def request_host(request) -> str:
+    host = (
+        (request.headers.get("x-forwarded-host") or "").split(",")[0].strip()
+        or request.headers.get("host")
+        or getattr(getattr(request, "url", None), "netloc", "")
+        or ""
+    )
+    return host.split(":")[0].strip().lower()
+
+
 def calendar_redirect_uri(request) -> str:
-    """Honor GOOGLE_REDIRECT_URI. If it points at sign-in, map to the calendar callback."""
+    """Match the live hostname so Connect does not bounce .com logins to onrender.
+
+    scheduleavisit.com (and www) always use the custom-domain callback. Other
+    hosts keep GOOGLE_REDIRECT_URI / the current request origin (usually onrender).
+    """
+    if request_host(request) in CUSTOM_CALENDAR_HOSTS:
+        return CUSTOM_CALENDAR_REDIRECT
     explicit = (os.environ.get("GOOGLE_REDIRECT_URI") or "").strip()
     if explicit:
         trimmed = explicit.rstrip("/")
@@ -288,6 +309,25 @@ def access_token_for(user) -> str | None:
     return access or None
 
 
+def token_problem(user) -> str:
+    """Why we could not get a Google access token.
+
+    "revoked"   – Google refused the saved login (expired, revoked, or unreadable).
+    "temporary" – network hiccup or Google error; the saved login may still be fine.
+    """
+    blob = uget(user, "google_refresh_token", "") or ""
+    refresh = decrypt_refresh_token(blob)
+    if not refresh:
+        return "revoked"
+    try:
+        token = refresh_access_token(refresh)
+    except GoogleAPIError as exc:
+        return "revoked" if exc.status in (400, 401, 403) else "temporary"
+    except Exception:
+        return "temporary"
+    return "" if (token.get("access_token") or "").strip() else "revoked"
+
+
 def _cal_can_write(item: dict) -> bool:
     role = (item.get("accessRole") or "").lower()
     return role in ("owner", "writer")
@@ -358,7 +398,8 @@ def clear_connection(conn, user_id: int) -> None:
         """UPDATE users SET
              google_refresh_token='',
              google_connected_email='',
-             google_synced_at=NULL
+             google_synced_at=NULL,
+             google_sync_error=''
            WHERE id=?""",
         (user_id,),
     )
@@ -480,6 +521,21 @@ def _should_import_event(ev: dict, known_event_ids: set[str]) -> bool:
     return True
 
 
+def _mark_google_sync(conn, user_id: int, error: str | None) -> None:
+    """Stamp the attempt. error=None leaves a previous hard failure in place (a short blip)."""
+    try:
+        if error is None:
+            conn.execute("UPDATE users SET google_synced_at=? WHERE id=?", (now_iso(), user_id))
+        else:
+            conn.execute(
+                "UPDATE users SET google_synced_at=?, google_sync_error=? WHERE id=?",
+                (now_iso(), error, user_id),
+            )
+        conn.commit()
+    except Exception:
+        pass
+
+
 def maybe_sync_google(conn, user, timeout: float = 2.0, force: bool = False) -> None:
     """Pull busy events into appointments. Same idea as iCal. Never raise into the page."""
     try:
@@ -494,23 +550,19 @@ def maybe_sync_google(conn, user, timeout: float = 2.0, force: bool = False) -> 
             except Exception:
                 pass
         _sync_google(conn, user, timeout=timeout)
-    except Exception:
-        try:
-            conn.execute("UPDATE users SET google_synced_at=? WHERE id=?", (now_iso(), user["id"]))
-            conn.commit()
-        except Exception:
-            pass
+    except Exception as exc:
+        network = isinstance(exc, (OSError, TimeoutError))
+        _mark_google_sync(conn, user["id"], None if network else CALENDAR_UNREACHABLE)
 
 
 def _sync_google(conn, user, timeout: float = 2.0) -> None:
     provider_id = user["id"]
     access = access_token_for(user)
-    try:
-        conn.execute("UPDATE users SET google_synced_at=? WHERE id=?", (now_iso(), provider_id))
-        conn.commit()
-    except Exception:
-        pass
     if not access:
+        if token_problem(user) == "temporary":
+            _mark_google_sync(conn, provider_id, None)
+        else:
+            _mark_google_sync(conn, provider_id, CALENDAR_UNREACHABLE)
         return
 
     cals = busy_calendar_ids(user)
@@ -540,12 +592,16 @@ def _sync_google(conn, user, timeout: float = 2.0) -> None:
 
     events: list[dict] = []
     got = False
+    any_failed = False
+    fetched_cals: set[str] = set()
     for cal_id in cals:
         try:
             raw = list_busy_events(access, cal_id, time_min, time_max)
         except Exception:
+            any_failed = True
             continue
         got = True
+        fetched_cals.add(cal_id)
         for ev in raw:
             if not _should_import_event(ev, known):
                 continue
@@ -561,7 +617,9 @@ def _sync_google(conn, user, timeout: float = 2.0) -> None:
                 "end": end,
             })
     if not got:
+        _mark_google_sync(conn, provider_id, CALENDAR_UNREACHABLE)
         return
+    _mark_google_sync(conn, provider_id, CALENDAR_UNREACHABLE if any_failed else "")
 
     existing = conn.execute(
         """SELECT * FROM appointments
@@ -620,11 +678,17 @@ def _sync_google(conn, user, timeout: float = 2.0) -> None:
             )
             keep_ids.add(int(cur.lastrowid))
     for row in existing:
-        if row["id"] not in keep_ids:
-            conn.execute(
-                "UPDATE appointments SET status='cancelled', cancelled_at=? WHERE id=?",
-                (now_iso(), row["id"]),
-            )
+        if row["id"] in keep_ids:
+            continue
+        row_cal, _eid = note_gcal_ids(row["note"] if "note" in row.keys() else "")
+        if row_cal and row_cal not in fetched_cals and row_cal in cals:
+            # Google did not answer for that calendar this round. Keep its busy
+            # blocks so clients cannot book over them until the next good sync.
+            continue
+        conn.execute(
+            "UPDATE appointments SET status='cancelled', cancelled_at=? WHERE id=?",
+            (now_iso(), row["id"]),
+        )
     try:
         conn.commit()
     except Exception:

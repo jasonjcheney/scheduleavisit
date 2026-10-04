@@ -3,6 +3,9 @@
 {% block title %}Dashboard — ScheduleAVisit{% endblock %}
 {% block content %}
 <main class="app-wrap" id="dashboard-page" data-slug="{{ me.slug }}">
+  {% if calendar_unreachable_message %}
+  <p class="err" role="alert" id="calendar-unreachable"><a href="/setup#calendar-ical">{{ calendar_unreachable_message }}</a></p>
+  {% endif %}
   <div class="row" style="margin-bottom:8px">
     <div>
       <p class="eyebrow">Provider dashboard</p>
@@ -25,10 +28,10 @@
       </div>
     </div>
     <ul class="checklist">
-      <li class="done"><span aria-hidden="true">✓</span> Finish setup and open your public link</li>
-      <li class="{% if upcoming or clients %}done{% endif %}"><span aria-hidden="true">{% if upcoming or clients %}✓{% else %}○{% endif %}</span> Add a client on the month calendar <a href="#month-cal-card">jump down</a></li>
-      <li class="{% if peers %}done{% endif %}"><span aria-hidden="true">{% if peers %}✓{% else %}○{% endif %}</span> Invite a trusted peer for overflow <a href="#referral-network">jump down</a></li>
-      <li class="{% if google_cal_connected or me.ical_url %}done{% endif %}"><span aria-hidden="true">{% if google_cal_connected or me.ical_url %}✓{% else %}○{% endif %}</span> Optional: connect Google Calendar (or paste a feed) under <a href="/setup#calendar-ical">Edit my page</a></li>
+      <li class="done"><span aria-hidden="true">✓</span> <span class="flow-step">STEP 1</span> Finish setup and open your public link</li>
+      <li class="{% if upcoming or clients %}done{% endif %}"><span aria-hidden="true">{% if upcoming or clients %}✓{% else %}○{% endif %}</span> <span class="flow-step">STEP 2</span> Add a client on the month calendar <a href="#month-cal-card">jump down</a></li>
+      <li class="{% if peers %}done{% endif %}"><span aria-hidden="true">{% if peers %}✓{% else %}○{% endif %}</span> <span class="flow-step">STEP 3</span> Invite a trusted peer for overflow <a href="#referral-network">jump down</a></li>
+      <li class="{% if google_cal_connected or me.ical_url %}done{% endif %}"><span aria-hidden="true">{% if google_cal_connected or me.ical_url %}✓{% else %}○{% endif %}</span> <span class="flow-step">STEP 4</span> Optional: connect Google Calendar (or paste a feed) under <a href="/setup#calendar-ical">Edit my page</a></li>
     </ul>
     <p class="help-tip">Tip: clients never see your hour cap. They either get a time with you, or a recommended peer.</p>
   </section>
@@ -125,15 +128,23 @@
         <h2>Google Calendar</h2>
         {% if not google_cal_ready %}
         <p class="tiny" style="margin:0">Google Calendar is not set up on this server yet. You can still paste an iCal feed under <a href="/setup#calendar-ical">Edit my page</a>.</p>
+        {% elif google_cal_connected and google_cal_needs_reconnect %}
+        <p class="tiny" style="margin:0">Google needs to be connected again before it can block busy time.</p>
         {% elif google_cal_connected %}
         <p class="tiny" style="margin:0">Connected{% if google_cal_email %} as {{ google_cal_email }}{% endif %}. Busy time from the calendars you picked fills the grid below. New visits here also appear on Google.</p>
+        {% if google_cal_error %}
+        <p class="err" role="alert" style="margin:8px 0 0">{{ google_cal_error }}</p>
+        {% endif %}
         {% else %}
-        <p class="tiny" style="margin:0">Connect once so clients cannot book over your Google events, and new visits show up in Google everywhere.</p>
+        <p id="gcal-not-connected" style="margin:0">Google Calendar: not connected</p>
         {% endif %}
       </div>
       <div class="hero-actions">
         {% if google_cal_ready and not google_cal_connected %}
         <a class="btn btn-google btn-sm" href="/auth/google/calendar?next=/dashboard#google-calendar">Connect Google Calendar</a>
+        {% elif google_cal_connected and google_cal_needs_reconnect %}
+        <a class="btn btn-google btn-sm" href="/auth/google/calendar?next=/dashboard#google-calendar">Connect Google Calendar again</a>
+        <button type="button" class="btn btn-ghost btn-sm" id="gcal-disconnect">Disconnect</button>
         {% elif google_cal_connected %}
         <a class="btn btn-ghost btn-sm" href="/setup#calendar-ical">Choose calendars</a>
         <button type="button" class="btn btn-ghost btn-sm" id="gcal-disconnect">Disconnect</button>
@@ -394,7 +405,11 @@
       <div class="peer" data-peer-id="{{ p.id }}">
         <div class="row">
           <div class="person">
+            {% if p.photo_url %}
+            <div class="avatar sm {{ p.avatar }} has-photo" aria-hidden="true" data-initials="{{ p.initials }}"><img src="{{ p.photo_url }}" alt="" loading="lazy"></div>
+            {% else %}
             <div class="avatar sm {{ p.avatar }}" aria-hidden="true">{{ p.initials }}</div>
+            {% endif %}
             <div>
               <strong>{{ p.name }}</strong>
               <div class="tiny">{{ p.specialty.split('—')[0].strip() }}{% if p.miles %} · {{ p.miles }} mi{% endif %} · {{ p.category_label }}</div>
