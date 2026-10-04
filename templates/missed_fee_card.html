@@ -1,0 +1,66 @@
+<section class="card" id="missed-fee-card">
+  <h2>Missed first-visit fee</h2>
+  <p class="muted">Optional. When this is on, a client booking a first visit or intake saves a card and is not charged today. If you mark a no-show, or they cancel inside the window, you can charge that card the amount below once. The money is paid to you through Stripe. This is not insurance or a copay, and it is not a charge for the visit itself.</p>
+  {% if stripe_refresh %}
+  <p class="notice" id="stripe-refresh-note">Stripe’s page expired before it finished. Connect again to continue. Nothing was charged.</p>
+  {% endif %}
+  {% if not stripe_connected %}
+  <p>Connect Stripe so this fee can be paid to you. Stripe asks for your identity and bank account. ScheduleAVisit never sees the card number or your bank login.</p>
+  {% elif not stripe_charges_enabled %}
+  <p>Stripe still needs a few details before clients can save a card. Finish setup there. Until then, this fee stays off the booking page.</p>
+  {% else %}
+  <p class="tiny">Stripe is connected. A charge is paid to you, minus Stripe’s card fee. ScheduleAVisit does not take a cut.</p>
+  {% endif %}
+  <div class="hero-actions">
+    <button type="button" class="btn btn-sage btn-sm" id="stripe-connect" data-next="{{ fee_next|default('/dashboard') }}">
+      {% if stripe_charges_enabled %}Update Stripe{% elif stripe_connected %}Finish Stripe setup{% else %}Connect Stripe{% endif %}
+    </button>
+  </div>
+  <p class="ok-msg hidden" id="fee-ok" role="status"></p>
+  <p class="err hidden" id="fee-err" role="alert"></p>
+  <form id="fee-form" class="fields">
+    <label class="check-line">
+      <input type="checkbox" name="enabled" {% if fee_enabled %}checked{% endif %}>
+      Ask new clients to save a card for a missed first visit
+    </label>
+    <div class="fields two">
+      <label class="field">Amount (USD)
+        <input type="number" name="amount" min="1" max="500" step="0.01" inputmode="decimal" placeholder="75" value="{{ fee_amount_input }}">
+        <span class="field-help">From $1 to $500. This is the only amount that can be charged, and only once.</span>
+      </label>
+      <label class="field">Cancel at least this many hours ahead
+        <input type="number" name="window_hours" min="1" max="168" step="1" value="{{ fee_window }}">
+        <span class="field-help">A cancel sooner than this counts as late. 24 is a full day.</span>
+      </label>
+    </div>
+    <button type="submit" class="btn btn-primary btn-sm">Save fee</button>
+  </form>
+  {% if fee_live %}
+  <p class="help-tip" id="fee-live-note">This fee is on. A first visit shows the amount and the cancellation window before anyone books. They are not charged today.</p>
+  {% elif fee_enabled %}
+  <p class="notice" id="fee-waiting-note">Saved, but clients will not see it until Stripe can accept cards.</p>
+  {% endif %}
+  {% if fee_rows %}
+  <h3 style="margin-top:18px">Cards you can charge</h3>
+  <p class="tiny">Nothing here is charged until you press the button. Each card can be charged once, for the amount the client agreed to.</p>
+  <div class="list" id="fee-actions">
+    {% for row in fee_rows %}
+    <div class="list-item">
+      <div>
+        <strong>{{ row.client_name }}</strong>
+        <div class="meta tiny">{{ row.when }} · {{ row.amount }} · {{ row.state_label }}</div>
+        {% if row.error %}<div class="tiny">{{ row.error }}</div>{% endif %}
+      </div>
+      <div class="fee-actions">
+        {% if row.can_no_show %}
+        <button type="button" class="btn btn-ghost btn-sm" data-no-show="{{ row.id }}" data-name="{{ row.client_name }}">Mark no-show</button>
+        {% endif %}
+        {% if row.can_charge %}
+        <button type="button" class="btn btn-primary btn-sm" data-charge-fee="{{ row.id }}" data-amount="{{ row.amount }}" data-name="{{ row.client_name }}">Charge {{ row.amount }}</button>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</section>

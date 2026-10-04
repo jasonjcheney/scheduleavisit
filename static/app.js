@@ -147,6 +147,10 @@
     var visitKind = consultEnabled ? "consult" : "session";
     var first = bookPage.getAttribute("data-first") || "Your clinician";
     var needCategory = "general";
+    var pageFee = bookPage.getAttribute("data-fee-live") === "1" ? {
+      summary: bookPage.getAttribute("data-fee-summary") || "",
+      agreement: bookPage.getAttribute("data-fee-agreement") || ""
+    } : null;
     var state = {
       date: null,
       time: null,
@@ -533,6 +537,29 @@
       });
     }
 
+    function feeConsentHtml(fee) {
+      if (!fee || !fee.agreement) return "";
+      return '<div class="fee-box" id="fee-consent-box">' +
+        "<p><strong>Missed first visit.</strong> " + escapeHtml(fee.summary || "") + "</p>" +
+        '<label class="check-line">' +
+          '<input type="checkbox" name="feeConsent" value="yes"> ' +
+          "<span>" + escapeHtml(fee.agreement) + "</span>" +
+        "</label>" +
+        '<p class="tiny">Checking this saves a card on Stripe’s page. You are not charged today.</p>' +
+      "</div>";
+    }
+
+    function feeForPeer(peerSlug) {
+      var payload = state.recs || {};
+      var all = [];
+      if (payload.recommendation) all.push(payload.recommendation);
+      (payload.alternatives || []).forEach(function (r) { all.push(r); });
+      for (var i = 0; i < all.length; i++) {
+        if (all[i].peerSlug === peerSlug && all[i].missedFee) return all[i].missedFee;
+      }
+      return null;
+    }
+
     function showConfirm(prefill) {
       prefill = prefill || {};
       var d = parseISODate(state.date);
@@ -547,6 +574,7 @@
             '<label class="field">Your name<input type="text" name="name" required placeholder="Jordan Lee" autocomplete="name" value="' + escapeHtml(prefill.name || "") + '"></label>' +
             '<label class="field">Email so the office can reach you<input type="email" name="email" required placeholder="you@email.com" autocomplete="email" value="' + escapeHtml(prefill.email || "") + '"></label>' +
             '<label class="field">Phone <span class="tiny">(optional)</span><input type="tel" name="phone" autocomplete="tel" value="' + escapeHtml(prefill.phone || "") + '"></label>' +
+            feeConsentHtml(pageFee) +
             '<button type="submit" class="btn btn-primary">Confirm this visit</button>' +
           "</form>" +
         "</section>";
@@ -811,6 +839,7 @@
             '<label class="field">Your name<input type="text" name="name" required placeholder="Jordan Lee" autocomplete="name" value="' + escapeHtml(pref.name || "") + '"></label>' +
             '<label class="field">Email so the office can reach you<input type="email" name="email" required placeholder="you@email.com" autocomplete="email" value="' + escapeHtml(pref.email || "") + '"></label>' +
             '<label class="field">Phone <span class="tiny">(optional)</span><input type="tel" name="phone" autocomplete="tel" value="' + escapeHtml(pref.phone || "") + '"></label>' +
+            feeConsentHtml(feeForPeer(peerSlug)) +
             '<button type="submit" class="btn btn-primary">Confirm with ' + escapeHtml(peerFirst) + "</button>" +
             '<button type="button" class="btn btn-ghost" id="ref-back">Back to peer times</button>' +
           "</form>" +
@@ -834,6 +863,7 @@
           email: this.email.value.trim(),
           phone: (this.phone && this.phone.value ? this.phone.value.trim() : "")
         };
+        var refConsent = this.querySelector("[name=feeConsent]");
         var data = await api("/api/p/" + encodeURIComponent(slug) + "/book-referral", {
           method: "POST",
           body: {
@@ -842,7 +872,8 @@
             time: time,
             name: this.name.value.trim(),
             email: this.email.value.trim(),
-            phone: (this.phone && this.phone.value ? this.phone.value.trim() : "")
+            phone: (this.phone && this.phone.value ? this.phone.value.trim() : ""),
+            feeConsent: refConsent && refConsent.checked ? "yes" : ""
           }
         });
         if (!data.ok) {
@@ -858,6 +889,10 @@
           err.classList.remove("hidden");
           return;
         }
+        if (data.checkoutUrl) {
+          location.href = data.checkoutUrl;
+          return;
+        }
         location.href = data.redirect;
       });
     }
@@ -867,6 +902,7 @@
       var form = e.target;
       var err = $("#visit-err");
       err.classList.add("hidden");
+      var consentEl = form.querySelector("[name=feeConsent]");
       var data = await api("/api/p/" + encodeURIComponent(slug) + "/book", {
         method: "POST",
         body: {
@@ -876,7 +912,8 @@
           email: form.email.value.trim(),
           phone: form.phone.value.trim(),
           visitKind: visitKind,
-          category: needCategory
+          category: needCategory,
+          feeConsent: consentEl && consentEl.checked ? "yes" : ""
         }
       });
       if (data.full) {
@@ -899,6 +936,10 @@
         }
         err.textContent = data.error || "Could not book that time.";
         err.classList.remove("hidden");
+        return;
+      }
+      if (data.checkoutUrl) {
+        location.href = data.checkoutUrl;
         return;
       }
       location.href = data.redirect;
@@ -972,6 +1013,9 @@
         var prompt = who
           ? "Cancel " + who + "’s visit? The time opens immediately, and this week’s hours drop right away."
           : "Cancel this visit? The time opens immediately, and this week’s hours drop right away.";
+        if (btn.getAttribute("data-fee-saved") === "1") {
+          prompt += " The saved card will not be charged, because you are cancelling.";
+        }
         if (!confirm(prompt)) return;
         var data = await api("/api/me/appointments/" + btn.getAttribute("data-cancel") + "/cancel", { method: "POST" });
         if (!data.ok) { toast(data.error || "Could not cancel"); return; }
@@ -1983,7 +2027,15 @@
         err.textContent = "";
       }
       if (!token) return;
-      if (!confirm("Cancel this visit with " + first + "? The time opens again right away.")) return;
+      var feeAmount = bookedCancel.getAttribute("data-fee-amount") || "";
+      var feeWindow = bookedCancel.getAttribute("data-fee-window") || "";
+      var cancelPrompt = "Cancel this visit with " + first + "? The time opens again right away.";
+      if (feeAmount && feeWindow) {
+        cancelPrompt += " If you are inside the " + feeWindow +
+          "-hour window you agreed to, " + first + " may charge the saved card " + feeAmount +
+          " once. You are not charged unless they do. Cancel earlier than that and the card is not charged.";
+      }
+      if (!confirm(cancelPrompt)) return;
       if (bookedCancel.getAttribute("data-busy") === "1") return;
       bookedCancel.setAttribute("data-busy", "1");
       bookedCancel.disabled = true;
@@ -2167,5 +2219,78 @@
       });
     }
   })();
+
+  var feeForm = $("#fee-form");
+  if (feeForm) {
+    var feeErr = $("#fee-err");
+    var feeOk = $("#fee-ok");
+    function showFee(el, msg) {
+      if (!el) return;
+      el.textContent = msg || "";
+      el.classList.toggle("hidden", !msg);
+    }
+    feeForm.addEventListener("submit", async function (e) {
+      e.preventDefault();
+      showFee(feeErr, "");
+      showFee(feeOk, "");
+      var data = await api("/api/me/fee", {
+        method: "POST",
+        body: {
+          enabled: feeForm.enabled.checked ? "1" : "0",
+          amount: feeForm.amount.value,
+          window_hours: feeForm.window_hours.value
+        }
+      });
+      if (!data.ok) {
+        showFee(feeErr, data.error || "Could not save the fee.");
+        return;
+      }
+      showFee(feeOk, data.message || "Saved.");
+      toast(data.message || "Saved.");
+    });
+    var connectBtn = $("#stripe-connect");
+    if (connectBtn) {
+      connectBtn.addEventListener("click", async function () {
+        showFee(feeErr, "");
+        connectBtn.disabled = true;
+        var data = await api("/api/me/stripe/connect", {
+          method: "POST",
+          body: { next: connectBtn.getAttribute("data-next") || "/dashboard" }
+        });
+        if (!data.ok || !data.url) {
+          connectBtn.disabled = false;
+          showFee(feeErr, data.error || "Stripe could not open. Nothing was charged.");
+          return;
+        }
+        location.href = data.url;
+      });
+    }
+    $$("[data-no-show]").forEach(function (btn) {
+      btn.addEventListener("click", async function () {
+        var who = btn.getAttribute("data-name") || "this client";
+        if (!confirm("Mark " + who + " as a no-show? You can then charge the saved card once. Nothing is charged yet.")) return;
+        var data = await api("/api/me/appointments/" + btn.getAttribute("data-no-show") + "/no-show", { method: "POST" });
+        if (!data.ok) { toast(data.error || "Could not mark the no-show"); return; }
+        toast(data.message || "Marked as a no-show");
+        location.reload();
+      });
+    });
+    $$("[data-charge-fee]").forEach(function (btn) {
+      btn.addEventListener("click", async function () {
+        var who = btn.getAttribute("data-name") || "this client";
+        var amount = btn.getAttribute("data-amount") || "the agreed amount";
+        if (!confirm("Charge " + who + " " + amount + " on the card they saved? This can be done once. Stripe will email the receipt.")) return;
+        btn.disabled = true;
+        var data = await api("/api/me/appointments/" + btn.getAttribute("data-charge-fee") + "/charge-fee", { method: "POST" });
+        if (!data.ok) {
+          btn.disabled = false;
+          toast(data.error || "The card was not charged");
+          return;
+        }
+        toast(data.message || "Charged");
+        location.reload();
+      });
+    });
+  }
 
 })();

@@ -81,10 +81,12 @@ def main() -> None:
                                          "STEP 1", "STEP 2", "STEP 3"]),
         ("/privacy", 200, ["We only keep what we need", "jasonjcheney@gmail.com",
                            "clinical notes", "hosted on Render", "do not sell",
-                           "Google Calendar", "refresh token",
+                           "Google Calendar", "refresh token", "payment-method id",
+                           "paid to the therapist",
                            'href="/privacy"', 'href="/terms"']),
         ("/terms", 200, ["A scheduling tool", "jasonjcheney@gmail.com",
-                         "do not take cards", "hosted on Render", 'href="/terms"']),
+                         "Card numbers stay with Stripe", "do not bill insurance",
+                         "paid to the therapist", "hosted on Render", 'href="/terms"']),
     ]
     for path, status, needles in cases:
         r = c.get(path)

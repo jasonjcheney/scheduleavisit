@@ -27,6 +27,10 @@
     <p>Providers also have an account (name, email, username, password, office address, weekly hour cap, and the colleagues they trust). Login uses a cookie so they stay signed in.</p>
     <p>If a provider connects Google Calendar, we keep a refresh token so we can read busy time on the calendars they pick and add, move, or remove the visits booked here. Google events we write include the client’s name, the time, and whether it is a consult or a session. We do not put clinical notes on Google.</p>
 
+    <h2>Missed first-visit fee</h2>
+    <p>A therapist may turn on an optional fee for a missed first visit or intake. If they do, the booking page shows the amount and how many hours ahead you must cancel. You save a card on Stripe’s site. You are not charged then.</p>
+    <p>The therapist can charge that card the amount you agreed to, once, if they mark the visit a no-show or you cancel inside that window. The money is paid to the therapist. Stripe emails the receipt. We store Stripe’s customer id and payment-method id for that visit, not the card number. We do not bill insurance or copays, and we do not charge for the visit itself.</p>
+
     <h2>What we do not claim</h2>
     <p>We are not a HIPAA product. We have no Business Associate Agreement (BAA). Do not put clinical notes here. If you need a HIPAA-covered system, use one that signs a BAA.</p>
 

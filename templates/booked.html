@@ -11,6 +11,13 @@
     <span class="badge visit-kind">Cancelled</span>
     <h1>This visit was cancelled.</h1>
     <p class="lede confirm-lede">That time is open again on {{ provider.first }}’s calendar. Nothing else is required from you. You can book another time below if you still need one.</p>
+    {% if fee_state == 'late_cancel' %}
+    <p class="fee-box" id="late-cancel-fee">You cancelled inside the {{ fee_window }}-hour window you agreed to. {{ provider.first }} may charge the saved card {{ fee_amount }} once. You are not charged unless they do. Stripe emails a receipt if that happens. The money is paid to {{ provider.first }}.</p>
+    {% elif fee_state == 'waived' and fee_amount %}
+    <p id="fee-waived">You cancelled in time. The saved card will not be charged for this visit.</p>
+    {% elif fee_state == 'charged' %}
+    <p id="fee-charged">This visit was charged {{ fee_amount }}. Stripe emailed a receipt.</p>
+    {% endif %}
     <dl>
       <dt>Was</dt><dd>{{ when_long }} · {{ when_time }}</dd>
       <dt>With</dt><dd>{{ provider.name }}<div class="tiny">{{ provider.clinic }}{% if provider.address %} · {{ provider.address }}{% endif %}</div></dd>
@@ -39,6 +46,9 @@
     <p class="lede confirm-lede">Welcome — this is your first visit with {{ provider.first }}. Write the time down and save it below. If you left an email or phone, we try to send a scheduling reminder. This is a scheduling reminder only.</p>
     {% else %}
     <p class="lede confirm-lede">This visit is booked. Write the time down. If you left an email or phone, we try to send a scheduling reminder. This is a scheduling reminder only.</p>
+    {% endif %}
+    {% if fee_saved %}
+    <p class="fee-box" id="saved-card-note">A card is saved with Stripe for a missed first-visit fee of {{ fee_amount }}. You were not charged. Cancel at least {{ fee_window }} hours before this visit, or {{ provider.first }} may charge that card once. Stripe emails a receipt if that happens.</p>
     {% endif %}
     <dl>
       <dt>When</dt><dd>{{ when_long }} · {{ when_time }}</dd>
@@ -96,7 +106,7 @@
         <p class="err hidden" id="booked-change-err" role="status" aria-live="polite"></p>
         <div class="confirm-change-actions">
           <button type="button" class="btn btn-sage" id="booked-reschedule-btn">Pick a new time</button>
-          <button type="button" class="btn btn-ghost" id="booked-cancel-btn" data-cancel-token="{{ confirm_token }}" data-provider-first="{{ provider.first }}">Cancel this visit</button>
+          <button type="button" class="btn btn-ghost" id="booked-cancel-btn" data-cancel-token="{{ confirm_token }}" data-provider-first="{{ provider.first }}"{% if fee_saved %} data-fee-amount="{{ fee_amount }}" data-fee-window="{{ fee_window }}"{% endif %}>Cancel this visit</button>
         </div>
         <div id="booked-reschedule-panel" class="booked-reschedule-panel hidden" hidden>
           <p class="tiny booked-reschedule-who" id="booked-reschedule-who">Currently {{ when_long }} · {{ when_time }} · {{ appointment.duration_minutes }} min with {{ provider.first }}</p>

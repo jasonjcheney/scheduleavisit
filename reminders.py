@@ -146,6 +146,7 @@ def build_copy(
     clinic: str = "",
     address: str = "",
     link: str = "",
+    fee_note: str = "",
 ) -> tuple[str, str, str]:
     """Return (subject, email_body, sms_body). Scheduling facts only."""
     start = start.astimezone(TZ)
@@ -186,7 +187,9 @@ def build_copy(
         link_block = f"\n\nDetails:\n{link}"
     else:
         link_block = ""
-    email_body = f"{lead}{link_block}\n\n{FOOTER}"
+    fee_note = (fee_note or "").strip()
+    fee_block = f"\n\n{fee_note}" if fee_note and kind == "booked" and audience == "client" else ""
+    email_body = f"{lead}{fee_block}{link_block}\n\n{FOOTER}"
     sms_body = f"{lead} {FOOTER}".strip()
     return subject, email_body, sms_body
 
@@ -478,6 +481,21 @@ def send_one(conn, reminder) -> str:
     else:
         link = ""
 
+    fee_note = ""
+    if reminder["kind"] == "booked" and audience == "client":
+        cents = int(_row_get(ctx["appt"], "fee_cents", 0) or 0)
+        state = (_row_get(ctx["appt"], "fee_state", "") or "").strip()
+        window = int(_row_get(ctx["appt"], "fee_window_hours", 0) or 0)
+        if cents > 0 and state == "card_saved" and window > 0:
+            from fees import money_label
+
+            fee_note = (
+                f"A card is saved for the missed first-visit fee you agreed to "
+                f"({money_label(cents)}). You were not charged. "
+                f"If you miss this visit or cancel less than {window} hours before it starts, "
+                f"{ctx['therapist_name']} may charge that card once. "
+                "The money is paid to them. Stripe emails a receipt if that happens."
+            )
     subject, email_body, sms_body = build_copy(
         reminder["kind"],
         audience,
@@ -487,6 +505,7 @@ def send_one(conn, reminder) -> str:
         clinic=ctx["clinic"],
         address=ctx["address"],
         link=link,
+        fee_note=fee_note,
     )
 
     sent_any = False

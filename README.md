@@ -39,7 +39,9 @@ Open `http://127.0.0.1:8080`. SQLite lives at `data/app.db` (or `$SAV_DB`).
 
 **Is:** capacity math on the server, month calendar with click-to-add clients, optional Google Calendar (two-way) plus iCal busy import, consult vs full session, referral invites, waitlist capture.
 
-**Is not:** HIPAA / BAA, payments, insurance, SMS unless Twilio env vars are set, Uber API keys, or scheduleavisit.com DNS.
+**Is not:** HIPAA / BAA, insurance or copay billing, SMS unless Twilio env vars are set, Uber API keys, or scheduleavisit.com DNS.
+
+An optional missed first-visit fee stays hidden until `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, and `STRIPE_WEBHOOK_SECRET` are all set. A first visit then saves a card on Stripe and is not charged today. The therapist can charge that card once after a no-show or a late cancel. The money is paid to the therapist. Without those settings, booking works as it does today.
 
 Email goes out through [Resend](docs/email.md) when `RESEND_API_KEY` and `EMAIL_FROM` are set on the server. If they are missing, or Resend returns an error, booking and invites still succeed and the email is skipped.
 

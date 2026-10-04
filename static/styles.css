@@ -3476,3 +3476,14 @@ input[type="search"].find-input:focus {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+
+.fee-box {
+  background: var(--amber-soft);
+  border: 1px solid #ead7a0;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin: 12px 0;
+}
+.fee-box p:last-child { margin-bottom: 0; }
+.fee-box .check-line { align-items: flex-start; margin-top: 8px; }
+.fee-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
