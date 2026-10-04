@@ -75,7 +75,7 @@ def main():
 
     from app import app
     from capacity import referral_candidates
-    from db import connect, today
+    from db import add_link, connect, hash_password, now_iso, today
 
     with TestClient(app) as client:
         r = client.post("/api/auth/login", json={"email": "jasoncheney", "password": "123456"})
@@ -105,9 +105,28 @@ def main():
         expect('href="/p/jason-cheney"' in listed.text, "Jason should be in search before hiding")
 
         with connect() as conn:
+            conn.execute(
+                """INSERT INTO users (
+                     email, password_hash, name, slug, created_at, setup_complete, is_demo,
+                     weekly_target_hours, buffer_hours, workdays, slot_start, slot_end,
+                     session_minutes, timezone
+                   ) VALUES (?,?,?,?,?,1,0,25,0,'[1,2,3,4,5]',9,17,50,'America/Denver')""",
+                (
+                    "avery.lane@example.com",
+                    hash_password("longpass1"),
+                    "Avery Lane",
+                    "avery-lane",
+                    now_iso(),
+                ),
+            )
+            avery_id = conn.execute("SELECT id FROM users WHERE slug='avery-lane'").fetchone()["id"]
+            jason_id = conn.execute("SELECT id FROM users WHERE username='jasoncheney'").fetchone()["id"]
+            add_link(conn, jason_id, avery_id)
+            conn.commit()
             jason = conn.execute("SELECT * FROM users WHERE username='jasoncheney'").fetchone()
             peers = [p["slug"] for p in referral_candidates(conn, jason, today(), "11:00", 50)]
-        expect("james-okonkwo-lcsw" in peers, f"James should be referable before hide: {peers}")
+        expect("avery-lane" in peers, f"Avery should be referable before hide: {peers}")
+        expect("james-okonkwo-lcsw" not in peers, f"sample profile still offered to Jason: {peers}")
 
         hidden = client.patch("/api/me", json={"page_hidden": 1})
         expect(hidden.status_code == 200 and hidden.json().get("ok"), f"hide {hidden.text}")
@@ -121,7 +140,7 @@ def main():
         expect(row["weekly_target_hours"] == 22, "hiding changed the weekly target")
         expect(int(row["slot_end"]) == 17, "hiding changed day-end hour")
         expect(row["buffer_hours"] == 3, "hiding changed the buffer")
-        expect("james-okonkwo-lcsw" in peers, "hiding Jason should not remove his colleagues")
+        expect("avery-lane" in peers, "hiding Jason should not remove his colleagues")
 
         gone = client.get("/book?q=Jason")
         expect('href="/p/jason-cheney"' not in gone.text, "hidden page still in search")
@@ -129,19 +148,19 @@ def main():
         expect('href="/p/jason-cheney"' not in directory.text, "hidden page still on /book")
 
         with connect() as conn:
-            james = conn.execute("SELECT * FROM users WHERE slug='james-okonkwo-lcsw'").fetchone()
-            conn.execute("UPDATE users SET page_hidden=1 WHERE id=?", (james["id"],))
+            avery = conn.execute("SELECT * FROM users WHERE slug='avery-lane'").fetchone()
+            conn.execute("UPDATE users SET page_hidden=1 WHERE id=?", (avery["id"],))
             conn.commit()
             jason = conn.execute("SELECT * FROM users WHERE username='jasoncheney'").fetchone()
             conn.execute("UPDATE users SET page_hidden=0 WHERE id=?", (jason["id"],))
             conn.commit()
             jason = conn.execute("SELECT * FROM users WHERE username='jasoncheney'").fetchone()
             peers = [p["slug"] for p in referral_candidates(conn, jason, today(), "11:00", 50)]
-        expect("james-okonkwo-lcsw" not in peers, f"hidden James still offered as a referral: {peers}")
+        expect("avery-lane" not in peers, f"hidden Avery still offered as a referral: {peers}")
 
         day = future_weekday()
         refused_ref = client.post("/api/p/jason-cheney/book-referral", json={
-            "peerSlug": "james-okonkwo-lcsw",
+            "peerSlug": "avery-lane",
             "date": day.isoformat(),
             "time": "11:00",
             "name": "Pat Client",
@@ -152,7 +171,7 @@ def main():
 
         with connect() as conn:
             conn.execute("UPDATE users SET page_hidden=1 WHERE username='jasoncheney'")
-            conn.execute("UPDATE users SET page_hidden=0 WHERE slug='james-okonkwo-lcsw'")
+            conn.execute("UPDATE users SET page_hidden=0 WHERE slug='avery-lane'")
             conn.commit()
 
         page = client.get("/p/jason-cheney")

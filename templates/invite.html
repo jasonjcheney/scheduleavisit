@@ -25,6 +25,12 @@
       <p>It was sent to <strong>{{ expected }}</strong>. Log out and sign in — or sign up — with that address, then open the invite link again.</p>
       <p><a class="btn btn-sage" href="/login">Log in with the right email</a></p>
     </section>
+  {% elif state == "sample" %}
+    <section class="card confirm">
+      <h1 class="page-title">Sample profiles stay in the demo.</h1>
+      <p class="muted">A real account and a sample profile are not connected as colleagues. Invite someone who has their own ScheduleAVisit account.</p>
+      <p><a class="btn btn-sage" href="/dashboard#referral-network">Back to your referral network</a></p>
+    </section>
   {% elif state == "accepted" %}
     <section class="card confirm">
       <div class="confirm-icon" aria-hidden="true">✓</div>

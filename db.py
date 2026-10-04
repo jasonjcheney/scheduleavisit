@@ -154,7 +154,8 @@ CREATE TABLE IF NOT EXISTS network_invites (
   status TEXT NOT NULL DEFAULT 'pending',
   token TEXT UNIQUE NOT NULL,
   created_at TEXT NOT NULL,
-  category TEXT NOT NULL DEFAULT 'general'
+  category TEXT NOT NULL DEFAULT 'general',
+  email_sent INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS network_links (
@@ -268,6 +269,20 @@ def show_demo_counselors() -> bool:
     """Public directory and booking stay off for sample accounts unless this is on."""
     raw = (os.environ.get("SHOW_DEMO_COUNSELORS") or "").strip().lower()
     return raw in {"1", "true", "yes", "on"}
+
+
+def is_demo_account(user) -> bool:
+    """Seeded sample counselor (Elena, James, Maya). Real sign-ups stay false."""
+    if user is None:
+        return False
+    try:
+        flag = user["is_demo"]
+    except (KeyError, IndexError, TypeError):
+        return False
+    try:
+        return int(flag or 0) == 1
+    except (TypeError, ValueError):
+        return False
 
 
 def is_hidden_demo(user) -> bool:
@@ -397,9 +412,12 @@ def migrate(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE network_links ADD COLUMN category TEXT NOT NULL DEFAULT 'general'")
     if not _has_column(conn, "network_invites", "category"):
         conn.execute("ALTER TABLE network_invites ADD COLUMN category TEXT NOT NULL DEFAULT 'general'")
+    if not _has_column(conn, "network_invites", "email_sent"):
+        conn.execute("ALTER TABLE network_invites ADD COLUMN email_sent INTEGER NOT NULL DEFAULT 0")
     ensure_demo_usernames(conn)
     ensure_jason(conn)
     ensure_elena_referral_categories(conn)
+    detach_sample_peers_from_real_accounts(conn)
     conn.execute(
         """CREATE TABLE IF NOT EXISTS reminders (
              id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -458,7 +476,7 @@ def ensure_jason(conn: sqlite3.Connection) -> None:
         while conn.execute("SELECT 1 FROM users WHERE slug=?", (slug,)).fetchone():
             slug = f"jason-cheney-{n}"
             n += 1
-        cur = conn.execute(
+        conn.execute(
             """INSERT INTO users (
                  email, password_hash, name, credentials, title, specialty, about, clinic, address,
                  slug, weekly_target_hours, buffer_hours, workdays, slot_start, slot_end, lunch,
@@ -493,13 +511,48 @@ def ensure_jason(conn: sqlite3.Connection) -> None:
                 "",
             ),
         )
-        jason_id = int(cur.lastrowid)
         print("[seed] Jason Cheney account created.", flush=True)
 
-    for slug in ("elena-vasquez-lpc", "james-okonkwo-lcsw", "maya-chen-lmft"):
-        peer = conn.execute("SELECT id FROM users WHERE slug=?", (slug,)).fetchone()
-        if peer:
-            add_link(conn, jason_id, peer["id"])
+
+def detach_sample_peers_from_real_accounts(conn: sqlite3.Connection) -> int:
+    """Drop referral links that pair a sample profile with a real account.
+
+    Demo-to-demo links stay, so the sample network can still refer among itself.
+    Real profiles, hours, photos, bookings, and calendar connections are untouched.
+    """
+    rows = conn.execute(
+        """SELECT n.id
+           FROM network_links n
+           JOIN users a ON a.id = n.user_id
+           JOIN users b ON b.id = n.peer_id
+           WHERE COALESCE(a.is_demo, 0) != COALESCE(b.is_demo, 0)"""
+    ).fetchall()
+    for r in rows:
+        conn.execute("DELETE FROM network_links WHERE id=?", (r["id"],))
+    removed = len(rows)
+    if removed:
+        print(
+            f"[seed] removed {removed} referral link(s) between real accounts and sample profiles",
+            flush=True,
+        )
+    return removed
+
+
+def sample_peer_mismatch(conn: sqlite3.Connection, user_id: int, peer_id: int) -> bool:
+    """True when one account is a sample profile and the other is not."""
+    rows = conn.execute(
+        "SELECT id, is_demo FROM users WHERE id IN (?, ?)",
+        (user_id, peer_id),
+    ).fetchall()
+    flags: dict[int, int] = {}
+    for r in rows:
+        try:
+            flags[int(r["id"])] = int(r["is_demo"] or 0)
+        except (TypeError, ValueError):
+            flags[int(r["id"])] = 0
+    if user_id not in flags or peer_id not in flags:
+        return False
+    return flags[user_id] != flags[peer_id]
 
 
 def init_db(conn: sqlite3.Connection) -> None:
@@ -512,6 +565,7 @@ def init_db(conn: sqlite3.Connection) -> None:
         conn.commit()
     ensure_demo_usernames(conn)
     ensure_jason(conn)
+    detach_sample_peers_from_real_accounts(conn)
     conn.commit()
 
 
@@ -536,8 +590,14 @@ def add_link(conn: sqlite3.Connection, a: int, b: int, category: str = "general"
 
 
 def outgoing_recommend_count(conn: sqlite3.Connection, user_id: int) -> int:
+    """Colleagues this account recommends. Sample profiles do not count for real accounts."""
     row = conn.execute(
-        "SELECT COUNT(*) AS c FROM network_links WHERE user_id=?",
+        """SELECT COUNT(*) AS c
+           FROM network_links n
+           JOIN users me ON me.id = n.user_id
+           JOIN users peer ON peer.id = n.peer_id
+           WHERE n.user_id=?
+             AND NOT (COALESCE(me.is_demo, 0) = 0 AND COALESCE(peer.is_demo, 0) = 1)""",
         (user_id,),
     ).fetchone()
     return int(row["c"]) if row else 0
@@ -553,6 +613,8 @@ def set_link_category(conn: sqlite3.Connection, user_id: int, peer_id: int, cate
 def add_recommendation(conn: sqlite3.Connection, user_id: int, peer_id: int, category: str = "general") -> str | None:
     if user_id == peer_id:
         return "You cannot recommend yourself."
+    if sample_peer_mismatch(conn, user_id, peer_id):
+        return "Sample profiles stay in the demo network. Invite a colleague with their own account."
     existing = conn.execute(
         "SELECT id FROM network_links WHERE user_id=? AND peer_id=?",
         (user_id, peer_id),

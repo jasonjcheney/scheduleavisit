@@ -12,6 +12,7 @@ from db import (
     at_local,
     category_label,
     date_on_weekday,
+    is_demo_account,
     is_unlisted,
     normalize_category,
     parse_iso,
@@ -483,6 +484,7 @@ def referral_candidates(
     """
     origin_id = from_user["id"]
     origin_first = first_name(from_user["name"])
+    origin_is_demo = is_demo_account(from_user)
     wanted = normalize_category(category)
     # Prefer demo individual counseling slightly among equal-hop ties.
     rank = {"james-okonkwo-lcsw": 3, "maya-chen-lmft": 1, "jason-cheney": 2}
@@ -502,7 +504,13 @@ def referral_candidates(
         seen.add(p["id"])
 
         slot = next_open_slot(conn, p, when, prefer_time, minutes)
-        if slot and not is_unlisted(p):
+        # Real accounts are never offered a sample profile, including a
+        # colleague reached by walking peers of peers. Keep walking so a
+        # real person behind a sample link can still be found.
+        offer = bool(slot) and not is_unlisted(p)
+        if offer and (not origin_is_demo) and is_demo_account(p):
+            offer = False
+        if offer:
             rem = remaining_hours(conn, p, start_of_week(when))
             miles = miles_between(from_user["slug"], p["slug"])
             pub = public_provider(p, from_user["slug"])

@@ -48,14 +48,75 @@ def normalize_phone(raw: str) -> str:
     return "+" + digits
 
 
-def email_configured() -> bool:
-    return bool(
-        os.environ.get("RESEND_API_KEY")
-        or os.environ.get("MAILGUN_API_KEY")
-        or os.environ.get("SMTP_HOST")
-        or os.environ.get("SMTP_URL")
+def from_address() -> str:
+    """Verified sender. No placeholder — a missing address means we do not send."""
+    return (
+        os.environ.get("EMAIL_FROM")
+        or os.environ.get("MAIL_FROM")
+        or os.environ.get("RESEND_FROM")
+        or os.environ.get("SMTP_FROM")
+        or ""
+    ).strip()
+
+
+def _resend_ready() -> bool:
+    return bool((os.environ.get("RESEND_API_KEY") or "").strip() and from_address())
+
+
+def _mailgun_ready() -> bool:
+    domain = (os.environ.get("MAILGUN_DOMAIN") or os.environ.get("MAILGUN_API_DOMAIN") or "").strip()
+    return bool((os.environ.get("MAILGUN_API_KEY") or "").strip() and domain and from_address())
+
+
+def _smtp_ready() -> bool:
+    host = (
+        os.environ.get("SMTP_HOST")
         or os.environ.get("SMTP_SERVER")
-    )
+        or os.environ.get("SMTP_URL")
+        or ""
+    ).strip()
+    return bool(host and from_address())
+
+
+def email_provider() -> str:
+    """Which HTTPS/SMTP sender is fully configured. Resend is the one we document."""
+    if _resend_ready():
+        return "resend"
+    if _mailgun_ready():
+        return "mailgun"
+    if _smtp_ready():
+        return "smtp"
+    return ""
+
+
+def email_unconfigured_reason() -> str:
+    """Plain reason safe to log. Empty when a provider can send. Never includes secrets."""
+    if email_provider():
+        return ""
+    if (os.environ.get("RESEND_API_KEY") or "").strip() and not from_address():
+        return "EMAIL_FROM is not set"
+    if (os.environ.get("MAILGUN_API_KEY") or "").strip():
+        if not (os.environ.get("MAILGUN_DOMAIN") or os.environ.get("MAILGUN_API_DOMAIN") or "").strip():
+            return "MAILGUN_DOMAIN is not set"
+        if not from_address():
+            return "EMAIL_FROM is not set"
+    host = os.environ.get("SMTP_HOST") or os.environ.get("SMTP_SERVER") or os.environ.get("SMTP_URL")
+    if (host or "").strip() and not from_address():
+        return "EMAIL_FROM is not set"
+    return "RESEND_API_KEY is not set"
+
+
+def email_configured() -> bool:
+    return email_unconfigured_reason() == ""
+
+
+def public_base() -> str:
+    raw = (os.environ.get("PUBLIC_BASE_URL") or "https://scheduleavisit.com").strip()
+    if not raw:
+        raw = "https://scheduleavisit.com"
+    if "://" not in raw:
+        raw = "https://" + raw
+    return raw.rstrip("/")
 
 
 def sms_configured() -> bool:
@@ -67,13 +128,7 @@ def sms_configured() -> bool:
 
 
 def mail_from() -> str:
-    return (
-        os.environ.get("MAIL_FROM")
-        or os.environ.get("EMAIL_FROM")
-        or os.environ.get("SMTP_FROM")
-        or os.environ.get("RESEND_FROM")
-        or "ScheduleAVisit <noreply@scheduleavisit.example>"
-    )
+    return from_address()
 
 
 def place_line(clinic: str = "", address: str = "") -> str:
@@ -90,6 +145,7 @@ def build_copy(
     start: datetime,
     clinic: str = "",
     address: str = "",
+    link: str = "",
 ) -> tuple[str, str, str]:
     """Return (subject, email_body, sms_body). Scheduling facts only."""
     start = start.astimezone(TZ)
@@ -121,7 +177,16 @@ def build_copy(
             subject = f"Visit today — {format_time(start.strftime('%H:%M'))}"
             lead = f"Hi {who} — your visit with {therapist} is today at {format_time(start.strftime('%H:%M'))}.{place_sentence}"
 
-    email_body = f"{lead}\n\n{FOOTER}"
+    link = (link or "").strip()
+    if link and kind == "booked" and audience == "client":
+        link_block = f"\n\nYou can view or change this visit here:\n{link}"
+    elif link and kind == "booked" and audience == "therapist":
+        link_block = f"\n\nSee your schedule:\n{link}"
+    elif link:
+        link_block = f"\n\nDetails:\n{link}"
+    else:
+        link_block = ""
+    email_body = f"{lead}{link_block}\n\n{FOOTER}"
     sms_body = f"{lead} {FOOTER}".strip()
     return subject, email_body, sms_body
 
@@ -158,28 +223,36 @@ def cancel_pending_for_client(conn, client_id: int) -> int:
 
 
 def schedule_for_appointment(conn, appointment_id: int, now: datetime | None = None) -> list[int]:
-    """Insert booked / day_before / morning_of rows. Therapist copies only if opted in."""
+    """Insert confirmation and reminder rows. Later therapist copies need opt-in."""
     appt = conn.execute("SELECT * FROM appointments WHERE id=?", (appointment_id,)).fetchone()
     if not appt or _row_get(appt, "status") != "booked":
         return []
     start = parse_iso(appt["start_iso"])
     times = reminder_times(start, now=now)
     provider = conn.execute("SELECT * FROM users WHERE id=?", (appt["provider_id"],)).fetchone()
-    audiences = ["client"]
-    if provider and int(_row_get(provider, "reminders_opt_in", 0) or 0) == 1:
-        audiences.append("therapist")
+    opted = bool(provider and int(_row_get(provider, "reminders_opt_in", 0) or 0) == 1)
+    # Client always gets the confirmation plus the two later reminders.
+    # The therapist always gets the new-booking note. Day-before and morning-of
+    # copies stay behind reminders_opt_in.
+    plan = [
+        ("client", "booked"),
+        ("client", "day_before"),
+        ("client", "morning_of"),
+        ("therapist", "booked"),
+    ]
+    if opted:
+        plan.extend([("therapist", "day_before"), ("therapist", "morning_of")])
     created = now_iso()
     ids: list[int] = []
-    for audience in audiences:
-        for kind in KINDS:
-            send_at = times[kind].isoformat(timespec="seconds")
-            cur = conn.execute(
-                """INSERT INTO reminders
-                   (appointment_id, kind, audience, send_at, status, created_at)
-                   VALUES (?,?,?,?, 'pending', ?)""",
-                (appointment_id, kind, audience, send_at, created),
-            )
-            ids.append(int(cur.lastrowid))
+    for audience, kind in plan:
+        send_at = times[kind].isoformat(timespec="seconds")
+        cur = conn.execute(
+            """INSERT INTO reminders
+               (appointment_id, kind, audience, send_at, status, created_at)
+               VALUES (?,?,?,?, 'pending', ?)""",
+            (appointment_id, kind, audience, send_at, created),
+        )
+        ids.append(int(cur.lastrowid))
     return ids
 
 
@@ -210,28 +283,71 @@ def _context_for(conn, reminder) -> dict[str, Any] | None:
     }
 
 
+def _safe_mail_error(exc: BaseException) -> str:
+    """A short reason for the log. Drops anything that could be a key or body."""
+    msg = str(exc or "")
+    low = msg.lower()
+    if any(token in low for token in ("bearer", "api_key", "apikey", "re_", "secret", "password")):
+        return type(exc).__name__
+    if isinstance(exc, RuntimeError) and (
+        msg.startswith("resend ") or msg.startswith("mailgun ") or msg.startswith("smtp ")
+    ):
+        return msg[:120]
+    return type(exc).__name__
+
+
 def send_email(to_addr: str, subject: str, body: str) -> str:
-    """Send or no-op. Returns 'sent' or 'skipped'. Raises on configured-adapter failure."""
+    """Send or no-op. Returns 'sent', 'skipped', or 'failed'. Never raises."""
     to_addr = (to_addr or "").strip()
     if not to_addr or "@" not in to_addr:
+        print("[email] skipped — recipient address is missing", flush=True)
         return "skipped"
-    if not email_configured():
-        print("[reminders] email skipped — mail env not set", flush=True)
+    reason = email_unconfigured_reason()
+    if reason:
+        print(f"[email] skipped — {reason}", flush=True)
         return "skipped"
-    resend = os.environ.get("RESEND_API_KEY")
-    mailgun = os.environ.get("MAILGUN_API_KEY")
-    smtp_host = os.environ.get("SMTP_HOST") or os.environ.get("SMTP_SERVER")
-    smtp_url = os.environ.get("SMTP_URL")
-    if resend:
-        _send_resend(to_addr, subject, body)
-        return "sent"
-    if mailgun:
-        _send_mailgun(to_addr, subject, body)
-        return "sent"
-    if smtp_host or smtp_url:
-        _send_smtp(to_addr, subject, body)
-        return "sent"
-    return "skipped"
+    provider = email_provider()
+    try:
+        if provider == "resend":
+            _send_resend(to_addr, subject, body)
+        elif provider == "mailgun":
+            _send_mailgun(to_addr, subject, body)
+        elif provider == "smtp":
+            _send_smtp(to_addr, subject, body)
+        else:
+            print("[email] skipped — RESEND_API_KEY is not set", flush=True)
+            return "skipped"
+    except Exception as exc:
+        print(f"[email] {provider} failed ({_safe_mail_error(exc)})", flush=True)
+        return "failed"
+    print(f"[email] sent via {provider}", flush=True)
+    return "sent"
+
+
+def send_invite_email(
+    to_email: str,
+    inviter_name: str,
+    invite_url: str,
+    clinic: str = "",
+    address: str = "",
+) -> str:
+    """Colleague invite. Returns send_email's status. Never raises."""
+    who = first_name(inviter_name) or "A colleague"
+    place = place_line(clinic, address)
+    where = f" ({place})" if place else ""
+    subject = f"{who} invited you to their referral network"
+    body = (
+        f"Hi — {who}{where} invited you to join their referral network on ScheduleAVisit.\n\n"
+        "When one of you is full for the week, the booking page can offer the other person's next open time.\n\n"
+        f"Accept the invite:\n{invite_url}\n\n"
+        "You can also ignore this note. Nothing is booked until you accept.\n\n"
+        "This note is only about scheduling."
+    )
+    try:
+        return send_email(to_email, subject, body)
+    except Exception as exc:
+        print(f"[email] invite failed ({type(exc).__name__})", flush=True)
+        return "failed"
 
 
 def send_sms(to_phone: str, body: str) -> str:
@@ -249,12 +365,16 @@ def _send_resend(to_addr: str, subject: str, body: str) -> None:
     import httpx
 
     key = os.environ.get("RESEND_API_KEY") or ""
-    resp = httpx.post(
-        "https://api.resend.com/emails",
-        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-        json={"from": mail_from(), "to": [to_addr], "subject": subject, "text": body},
-        timeout=8.0,
-    )
+    try:
+        resp = httpx.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+            json={"from": mail_from(), "to": [to_addr], "subject": subject, "text": body},
+            timeout=8.0,
+        )
+    except Exception as exc:
+        # Do not chain the httpx error: its text can include request headers.
+        raise RuntimeError(f"resend {type(exc).__name__}") from None
     if resp.status_code >= 400:
         raise RuntimeError(f"resend http {resp.status_code}")
 
@@ -340,12 +460,23 @@ def send_one(conn, reminder) -> str:
         return "cancelled"
 
     audience = reminder["audience"]
-    if audience == "therapist" and not ctx["opt_in"]:
+    # The new-booking note goes out even when the therapist has not opted into
+    # the later reminders. Day-before and morning-of stay behind that checkbox.
+    if audience == "therapist" and reminder["kind"] != "booked" and not ctx["opt_in"]:
         _mark(conn, reminder["id"], "skipped", "therapist not opted in")
         return "skipped"
 
     dest_email = ctx["client_email"] if audience == "client" else ctx["therapist_email"]
     dest_phone = ctx["client_phone"] if audience == "client" else ctx["therapist_phone"]
+
+    base = public_base()
+    token = (_row_get(ctx["appt"], "public_token", "") or "").strip()
+    if audience == "client" and token:
+        link = f"{base}/booked/{token}"
+    elif audience == "therapist":
+        link = f"{base}/dashboard"
+    else:
+        link = ""
 
     subject, email_body, sms_body = build_copy(
         reminder["kind"],
@@ -355,6 +486,7 @@ def send_one(conn, reminder) -> str:
         start=ctx["start"],
         clinic=ctx["clinic"],
         address=ctx["address"],
+        link=link,
     )
 
     sent_any = False
@@ -367,6 +499,9 @@ def send_one(conn, reminder) -> str:
             if result == "sent":
                 sent_any = True
                 print(f"[reminders] email {reminder['kind']} {audience} appt={reminder['appointment_id']}", flush=True)
+            elif result == "failed":
+                configured_fail = True
+                errors.append("email")
         except Exception as exc:
             configured_fail = True
             errors.append("email")
