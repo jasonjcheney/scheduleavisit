@@ -1318,7 +1318,11 @@
       profile.addEventListener("submit", async function (e) {
         e.preventDefault();
         var body = {};
-        $$("input, textarea", profile).forEach(function (el) { body[el.name] = el.value; });
+        $$("input, textarea", profile).forEach(function (el) {
+          if (!el.name) return;
+          if (el.type === "checkbox") body[el.name] = el.checked ? 1 : 0;
+          else body[el.name] = el.value;
+        });
         var data = await api("/api/me", { method: "PATCH", body: body });
         if (!data.ok) { toast(data.error || "Could not save"); return; }
         toast("Profile saved");
@@ -1635,13 +1639,37 @@
           profile_page_url: setupForm.profile_page_url ? setupForm.profile_page_url.value.trim() : "",
           ical_url: setupForm.ical_url.value.trim(),
           phone: setupForm.phone ? setupForm.phone.value.trim() : "",
-          reminders_opt_in: setupForm.reminders_opt_in && setupForm.reminders_opt_in.checked ? 1 : 0
+          reminders_opt_in: setupForm.reminders_opt_in && setupForm.reminders_opt_in.checked ? 1 : 0,
+          page_hidden: setupForm.page_hidden && setupForm.page_hidden.checked ? 1 : 0
         }
       });
       if (!data.ok) {
         err.textContent = data.error || "Could not save.";
         err.classList.remove("hidden");
         err.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
+      if (data.warning) {
+        var warn = $("#setup-warn");
+        if (warn) {
+          warn.textContent = "";
+          warn.appendChild(document.createTextNode(data.warning + " "));
+          if (data.reconnectUrl) {
+            var reconnect = document.createElement("a");
+            reconnect.href = data.reconnectUrl;
+            reconnect.textContent = "Reconnect";
+            warn.appendChild(reconnect);
+          }
+          if (data.redirect) {
+            warn.appendChild(document.createTextNode(" "));
+            var back = document.createElement("a");
+            back.href = data.redirect;
+            back.textContent = "Back to dashboard";
+            warn.appendChild(back);
+          }
+          warn.classList.remove("hidden");
+          warn.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
         return;
       }
       location.href = data.redirect || "/dashboard";

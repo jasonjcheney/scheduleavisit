@@ -371,6 +371,17 @@ input:focus { outline: 3px solid rgba(45,90,74,0.25); border-color: var(--sage);
   align-items: center;
 }
 .list-item:last-child { border-bottom: 0; }
+.other-cal-events {
+  margin-top: 16px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+.other-cal-events > summary {
+  cursor: pointer;
+  font-weight: 650;
+  color: var(--ink);
+}
+.other-cal-events .list { margin-top: 8px; }
 .person { display: flex; gap: 12px; align-items: center; }
 .person > div { min-width: 0; flex: 1; }
 .person strong, .rec-trust { overflow-wrap: anywhere; }

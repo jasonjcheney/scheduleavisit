@@ -109,6 +109,7 @@ CREATE TABLE IF NOT EXISTS users (
   google_sync_error TEXT DEFAULT '',
   photo_path TEXT DEFAULT '',
   profile_page_url TEXT DEFAULT '',
+  page_hidden INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL
 );
 
@@ -247,6 +248,7 @@ def hash_password(password: str) -> str:
 
 
 SAMPLE_PROFILE_MESSAGE = "This is a sample profile"
+NOT_TAKING_BOOKINGS = "isn't taking bookings right now."
 DEMO_SLUGS = (
     "elena-vasquez-lpc",
     "james-okonkwo-lcsw",
@@ -281,6 +283,25 @@ def is_hidden_demo(user) -> bool:
     except (TypeError, ValueError):
         return False
     return flagged and not show_demo_counselors()
+
+
+def page_is_hidden(user) -> bool:
+    """Therapist turned on Hide my page. Default off, so existing rows stay listed."""
+    if user is None:
+        return False
+    try:
+        flag = user["page_hidden"]
+    except (KeyError, IndexError, TypeError):
+        return False
+    try:
+        return int(flag or 0) == 1
+    except (TypeError, ValueError):
+        return False
+
+
+def is_unlisted(user) -> bool:
+    """Hidden sample profiles and therapists who hid their own page."""
+    return is_hidden_demo(user) or page_is_hidden(user)
 
 
 def verify_password(password: str, stored: str) -> bool:
@@ -331,6 +352,7 @@ def migrate(conn: sqlite3.Connection) -> None:
         ("google_sync_error", "TEXT DEFAULT ''"),
         ("photo_path", "TEXT DEFAULT ''"),
         ("profile_page_url", "TEXT DEFAULT ''"),
+        ("page_hidden", "INTEGER NOT NULL DEFAULT 0"),
     ]
     for name, decl in user_cols:
         if not _has_column(conn, "users", name):
