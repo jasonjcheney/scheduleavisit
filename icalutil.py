@@ -190,9 +190,16 @@ def note_for(uid: str, summary: str) -> str:
 
 
 def note_summary(note: str | None) -> str:
-    note = note or ""
-    if note.startswith("__uid__:") and "|" in note:
-        return note.split("|", 1)[1] or "Busy"
+    """Public title for a stored note. Internal __uid__ and __gcal__ keys stay hidden."""
+    note = (note or "").strip()
+    if note.startswith("__uid__:") or note.startswith("__gcal__:"):
+        if "__|" in note:
+            summary = note.split("__|", 1)[1].strip()
+        elif "|" in note:
+            summary = note.split("|", 1)[1].strip()
+        else:
+            summary = ""
+        return summary or "Busy"
     return note or "Busy"
 
 

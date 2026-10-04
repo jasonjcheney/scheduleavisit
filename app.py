@@ -9,6 +9,7 @@ import threading
 import time
 from contextlib import contextmanager
 from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 from pathlib import Path
 from typing import Optional
 from urllib.parse import quote, urlencode
@@ -30,7 +31,9 @@ from db import (
     hash_password,
     init_db,
     is_hidden_demo,
+    is_unlisted,
     normalize_category,
+    page_is_hidden,
     now_iso,
     notify,
     new_public_token,
@@ -46,6 +49,7 @@ from icalutil import (
     CALENDAR_UNREACHABLE,
     build_appointment_ics,
     maybe_sync_ical,
+    normalize_ical_urls,
     note_summary,
     verify_ical_urls,
 )
@@ -1039,9 +1043,10 @@ def listed_in_directory(user) -> bool:
     """Public directory only after a real name, a bio or specialty, and weekly hours.
 
     Empty sign-ups and random-letter names stay hidden. Sample counselors stay hidden
-    unless SHOW_DEMO_COUNSELORS is on. Their /p/{slug} link still opens. Nothing is deleted.
+    unless SHOW_DEMO_COUNSELORS is on. A therapist who hid their page stays off too.
+    Their /p/{slug} link still opens. Nothing is deleted.
     """
-    if is_hidden_demo(user):
+    if is_unlisted(user):
         return False
     if not real_display_name(uget(user, "name", "") or ""):
         return False
@@ -1100,11 +1105,13 @@ def booking_page(request: Request, slug: str):
             return tpl(request, "notfound.html", message="We could not find that calendar.")
         provider = public_provider(u)
         sample_profile = is_hidden_demo(u)
+        bookings_paused = page_is_hidden(u) and not sample_profile
     resp = tpl(
         request, "booking.html",
         provider=provider,
         categories=CATEGORY_CHOICES,
         sample_profile=sample_profile,
+        bookings_paused=bookings_paused,
     )
     return resp
 
@@ -1429,28 +1436,7 @@ def dashboard(request: Request):
             else:
                 client_rows.append(rec)
 
-        appts = conn.execute(
-            """SELECT a.*, c.name AS client_name
-               FROM appointments a
-               LEFT JOIN clients c ON c.id = a.client_id
-               WHERE a.provider_id=? AND a.status='booked' AND a.start_iso>=?
-               ORDER BY a.start_iso LIMIT 40""",
-            (u["id"], now_iso()),
-        ).fetchall()
-        upcoming = []
-        for a in appts:
-            start = parse_iso(a["start_iso"])
-            upcoming.append({
-                "id": a["id"],
-                "client_name": a["client_name"] or note_summary(uget(a, "note", "")) or "Reserved",
-                "when": f"{format_long(start.date())} · {format_time(start.strftime('%H:%M'))}",
-                "date": start.date().isoformat(),
-                "time": start.strftime("%H:%M"),
-                "minutes": a["duration_minutes"],
-                "via": a["booked_via"],
-                "visit_kind": uget(a, "visit_kind", "session") or "session",
-                "referred": bool(a["referred_from_provider_id"]),
-            })
+        upcoming, other_events = _dashboard_visit_lists(conn, u)
 
         peer_rows = []
         for p in peers_of(conn, u["id"]):
@@ -1546,6 +1532,7 @@ def dashboard(request: Request):
             "clients": client_rows,
             "dismissed": dismissed,
             "upcoming": upcoming,
+            "other_events": other_events,
             "peers": peer_rows,
             "notes": note_rows,
             "unread_count": unread_count,
@@ -1766,6 +1753,8 @@ async def api_book(slug: str, request: Request):
             return json_err("Calendar not found", 404)
         if is_hidden_demo(u):
             return json_err(SAMPLE_PROFILE_MESSAGE)
+        if page_is_hidden(u):
+            return json_err(f"{first_name(u['name'])} isn't taking bookings right now.")
         requested = (data.get("visitKind") or data.get("visit_kind") or "session")
         visit_kind, minutes, returning = resolve_visit(conn, u, requested, email)
         start = at_local(day, hhmm)
@@ -1837,6 +1826,10 @@ async def api_book_referral(slug: str, request: Request):
             return json_err("Calendar not found", 404)
         if is_hidden_demo(origin) or is_hidden_demo(peer):
             return json_err(SAMPLE_PROFILE_MESSAGE)
+        if page_is_hidden(origin):
+            return json_err(f"{first_name(origin['name'])} isn't taking bookings right now.")
+        if page_is_hidden(peer):
+            return json_err(f"{first_name(peer['name'])} isn't taking bookings right now.")
         if not network_reachable(conn, origin["id"], peer["id"]):
             return json_err("That professional is not in this referral network.")
         minutes = int(peer["session_minutes"] or 50)
@@ -1889,6 +1882,8 @@ async def api_waitlist(slug: str, request: Request):
             return json_err("Calendar not found", 404)
         if is_hidden_demo(u):
             return json_err(SAMPLE_PROFILE_MESSAGE)
+        if page_is_hidden(u):
+            return json_err(f"{first_name(u['name'])} isn't taking bookings right now.")
         existing = conn.execute(
             """SELECT id, name, email, requested_minutes FROM waitlist_requests
                WHERE provider_id=? AND lower(email)=lower(?) AND dismissed_at IS NULL
@@ -2047,12 +2042,22 @@ async def api_me_patch(request: Request):
         "ical_url": str,
         "phone": str,
         "reminders_opt_in": int,
+        "page_hidden": int,
     }
     allow_empty = {"about", "specialty", "clinic", "address", "credentials", "title",
                    "portal_url", "ical_url", "portal_kind", "phone"}
+    previous_ical = ""
+    if "ical_url" in data:
+        with db() as conn:
+            prev_user = user_by_id(conn, user["id"])
+            previous_ical = (uget(prev_user, "ical_url", "") or "") if prev_user else ""
     sets, args = [], []
     for key, cast in fields.items():
         if key not in data:
+            continue
+        if key == "page_hidden":
+            sets.append(f"{key}=?")
+            args.append(_flag_on(data[key]))
             continue
         if data[key] in (None, "") and key not in allow_empty:
             continue
@@ -2065,9 +2070,14 @@ async def api_me_patch(request: Request):
         if key == "portal_url" and val and not str(val).lower().startswith(("http://", "https://")):
             return json_err("portal url should start with https://")
         if key == "ical_url":
-            val, ical_err = verify_ical_urls(str(val) if val else "")
+            val, ical_err = _ical_for_save(str(data.get(key) or ""), previous_ical)
             if ical_err:
                 return json_err(ical_err)
+            prev_norm, prev_fmt = normalize_ical_urls(previous_ical)
+            if prev_fmt:
+                prev_norm = ""
+            if val == prev_norm:
+                continue
         if key == "consult_enabled":
             val = 1 if val else 0
         if key == "reminders_opt_in":
@@ -2534,6 +2544,121 @@ def api_note_read(request: Request, note_id: int):
         return {"ok": True}
 
 
+def _in_provider_tz(start_iso: str, user) -> datetime:
+    """Wall time in the timezone stored on the provider. Display only."""
+    start = parse_iso(start_iso)
+    zone_name = (uget(user, "timezone", "") or "").strip() or "America/Denver"
+    try:
+        return start.astimezone(ZoneInfo(zone_name))
+    except Exception:
+        return start
+
+
+def _when_label(start: datetime) -> str:
+    return f"{format_long(start.date())} · {format_time(start.strftime('%H:%M'))}"
+
+
+def _dashboard_visit_lists(conn, user) -> tuple[list, list]:
+    """Real ScheduleAVisit bookings, then imported Google/iCal rows for display.
+
+    Imported rows stay in the database and still block time. They are not
+    mixed into Upcoming visits, and their internal keys are not shown.
+    """
+    now = now_iso()
+    pid = user["id"]
+    real = conn.execute(
+        """SELECT a.*, c.name AS client_name
+           FROM appointments a
+           LEFT JOIN clients c ON c.id = a.client_id
+           WHERE a.provider_id=? AND a.status='booked' AND a.start_iso>=?
+             AND COALESCE(a.booked_via, '') NOT IN ('ical', 'google')
+             AND COALESCE(a.visit_kind, '') != 'external'
+           ORDER BY a.start_iso LIMIT 40""",
+        (pid, now),
+    ).fetchall()
+    imported = conn.execute(
+        """SELECT a.*, c.name AS client_name
+           FROM appointments a
+           LEFT JOIN clients c ON c.id = a.client_id
+           WHERE a.provider_id=? AND a.status='booked' AND a.start_iso>=?
+             AND (
+               COALESCE(a.booked_via, '') IN ('ical', 'google')
+               OR COALESCE(a.visit_kind, '') = 'external'
+             )
+           ORDER BY a.start_iso LIMIT 40""",
+        (pid, now),
+    ).fetchall()
+    upcoming = []
+    for a in real:
+        start = _in_provider_tz(a["start_iso"], user)
+        kind = uget(a, "visit_kind", "session") or "session"
+        upcoming.append({
+            "id": a["id"],
+            "client_name": a["client_name"] or "Reserved",
+            "when": _when_label(start),
+            "date": start.date().isoformat(),
+            "time": start.strftime("%H:%M"),
+            "minutes": a["duration_minutes"],
+            "via": a["booked_via"],
+            "visit_kind": kind,
+            "kind_label": "consult" if kind == "consult" else "session",
+            "referred": bool(a["referred_from_provider_id"]),
+        })
+    other_events = []
+    for a in imported:
+        start = _in_provider_tz(a["start_iso"], user)
+        other_events.append({
+            "title": note_summary(uget(a, "note", "")) or "Busy",
+            "when": _when_label(start),
+        })
+    return upcoming, other_events
+
+
+def _flag_on(raw) -> int:
+    return 1 if str(raw).strip().lower() in ("1", "true", "on", "yes") else 0
+
+
+def _ical_for_save(raw: str, previous: str) -> tuple[str, str | None]:
+    """Return (url to store, hard error).
+
+    A newly typed link that is not https, or a changed link that is not a
+    calendar, is rejected. An unchanged feed is kept even when it cannot be
+    reached, so saving a name or hours is never blocked by a dead feed.
+    """
+    normalized, fmt_err = normalize_ical_urls(raw or "")
+    if fmt_err:
+        return "", fmt_err
+    prev, prev_err = normalize_ical_urls(previous or "")
+    if prev_err:
+        prev = ""
+    if normalized == prev:
+        return normalized, None
+    checked, reach_err = verify_ical_urls(normalized)
+    if reach_err:
+        return "", reach_err
+    return checked, None
+
+
+def _calendar_save_warning(user) -> tuple[str, str]:
+    """Soft warning after a successful save. Never a reason to roll back.
+
+    Returns (message, reconnect path). The reconnect path is the Google
+    Calendar connect flow when that login is what failed.
+    """
+    if user and google_is_connected(user) and google_configured():
+        problem = google_token_problem(user)
+        sync_err = (uget(user, "google_sync_error", "") or "").strip()
+        if problem == "revoked" or (sync_err and problem != "temporary"):
+            return (
+                "Your page was saved. We can't reach your calendar right now.",
+                "/auth/google/calendar?next=/setup#calendar-ical",
+            )
+    ical_err = (uget(user, "ical_sync_error", "") or "").strip() if user else ""
+    if ical_err:
+        return ("Your page was saved. We can't reach your calendar feed right now.", "")
+    return "", ""
+
+
 def _parse_workdays(raw) -> list[int] | None:
     days = raw
     if isinstance(days, str):
@@ -2561,9 +2686,6 @@ async def api_setup(request: Request):
     profile_page_url = with_https((data.get("profile_page_url") or "").strip())
     if profile_page_url and not profile_page_url.lower().startswith(("http://", "https://")):
         return json_err("Your Psychology Today or website link should look like https://www.psychologytoday.com/…")
-    ical_url, ical_err = verify_ical_urls(data.get("ical_url") or "")
-    if ical_err:
-        return json_err(ical_err)
     if portal_url and not portal_url.lower().startswith(("http://", "https://")):
         return json_err("Portal link should start with https://")
     days = _parse_workdays(data.get("workdays") or [1, 2, 3, 4, 5])
@@ -2584,11 +2706,17 @@ async def api_setup(request: Request):
     name = (data.get("name") or "").strip()
     if len(name) < 2:
         return json_err("Please enter the name clients will see.")
-    ical_changed = False
     with db() as conn:
         u = user_by_id(conn, user["id"])
         old_ical = (uget(u, "ical_url", "") or "").strip()
+        ical_url, ical_err = _ical_for_save(data.get("ical_url") or "", old_ical)
+        if ical_err:
+            return json_err(ical_err)
         ical_changed = ical_url != old_ical
+        if "page_hidden" in data:
+            page_hidden = _flag_on(data.get("page_hidden"))
+        else:
+            page_hidden = 1 if page_is_hidden(u) else 0
         phone = (data.get("phone") or "").strip()
         conn.execute(
             """UPDATE users SET
@@ -2596,7 +2724,7 @@ async def api_setup(request: Request):
                  weekly_target_hours=?, buffer_hours=?, workdays=?, slot_start=?, slot_end=?,
                  lunch=?, session_minutes=?, consult_minutes=?, consult_enabled=?,
                  portal_kind=?, portal_url=?, ical_url=?, phone=?, reminders_opt_in=?,
-                 profile_page_url=?,
+                 profile_page_url=?, page_hidden=?,
                  ical_sync_error='',
                  ical_synced_at=CASE WHEN ? THEN NULL ELSE ical_synced_at END,
                  setup_complete=1
@@ -2612,7 +2740,7 @@ async def api_setup(request: Request):
                 weekly, buffer, json.dumps(days), slot_start, slot_end, lunch,
                 session_minutes, consult_minutes, consult_enabled,
                 portal_kind, portal_url, ical_url, phone, reminders_opt_in,
-                profile_page_url,
+                profile_page_url, page_hidden,
                 1 if ical_changed else 0,
                 user["id"],
             ),
@@ -2620,7 +2748,14 @@ async def api_setup(request: Request):
         if ical_url or google_is_connected(u):
             u2 = user_by_id(conn, user["id"])
             sync_busy_calendars(conn, u2, timeout=2.0)
-    return {"ok": True, "redirect": "/dashboard"}
+        saved = user_by_id(conn, user["id"])
+        warning, reconnect = _calendar_save_warning(saved)
+    payload = {"ok": True, "redirect": "/dashboard"}
+    if warning:
+        payload["warning"] = warning
+    if reconnect:
+        payload["reconnectUrl"] = reconnect
+    return payload
 
 
 def _month_span(year: int, month: int):

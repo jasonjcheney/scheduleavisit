@@ -273,17 +273,15 @@
     <section class="card">
       <h2>Upcoming visits</h2>
       <p class="tiny">Cancel opens the time immediately — this week’s hours drop as soon as you confirm. Reschedule keeps the client and picks a new slot.</p>
-      <div class="list">
+      <div class="list" id="upcoming-visits">
         {% for a in upcoming %}
         <div class="list-item">
           <div>
             <strong>{{ a.client_name }}</strong>
-            <div class="meta tiny">{{ a.when }} · {{ a.minutes }} min{% if a.visit_kind=='consult' %} · consult{% elif a.via=='manual' %} · on calendar{% elif a.via in ('ical', 'google') %} · imported{% endif %}{% if a.referred %} · referral{% endif %}</div>
+            <div class="meta tiny">{{ a.when }} · {{ a.minutes }} min {{ a.kind_label }}{% if a.referred %} · referral{% endif %}</div>
           </div>
           <div class="appt-actions">
-            {% if a.via not in ('ical', 'google') %}
             <button type="button" class="btn btn-sage btn-sm" data-reschedule="{{ a.id }}" data-date="{{ a.date }}" data-time="{{ a.time }}" data-minutes="{{ a.minutes }}" data-name="{{ a.client_name }}" data-kind="{{ a.visit_kind }}" aria-label="Reschedule visit with {{ a.client_name }}">Reschedule</button>
-            {% endif %}
             <button type="button" class="btn btn-ghost btn-sm" data-cancel="{{ a.id }}" data-name="{{ a.client_name }}" aria-label="Cancel visit with {{ a.client_name }}">Cancel</button>
           </div>
         </div>
@@ -294,6 +292,22 @@
         </div>
         {% endfor %}
       </div>
+      {% if other_events %}
+      <details class="other-cal-events" id="other-calendar-events">
+        <summary>Other calendar events</summary>
+        <p class="tiny">Busy time from Google or another calendar. These block open slots. They are not ScheduleAVisit bookings.</p>
+        <div class="list">
+          {% for ev in other_events %}
+          <div class="list-item">
+            <div>
+              <strong>{{ ev.title }}</strong>
+              <div class="meta tiny">{{ ev.when }}</div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </details>
+      {% endif %}
     </section>
 
     <section class="card" id="notifications-card">
@@ -470,6 +484,11 @@
   <section class="card">
     <h2>Profile &amp; clinic hours</h2>
     <form id="profile-form" class="fields two">
+      <label class="field check-line" style="grid-column:1/-1">
+        <input type="checkbox" name="page_hidden" id="hide-page" value="1" {% if me.page_hidden %}checked{% endif %}>
+        Hide my page
+      </label>
+      <p class="tiny" style="grid-column:1/-1;margin-top:0">Your booking link still opens, and it says you are not taking bookings. You come off the directory, search, and peer referrals. Hours stay as they are. Turn this off anytime.</p>
       <label class="field">Display name<input type="text" name="name" value="{{ me.name }}"></label>
       <label class="field">Credentials<input type="text" name="credentials" value="{{ me.credentials }}"></label>
       <label class="field">Title<input type="text" name="title" value="{{ me.title }}"></label>

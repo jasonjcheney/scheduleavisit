@@ -23,6 +23,7 @@
 
   <form id="setup-form" class="fields">
     <p class="err hidden" id="setup-err" role="alert"></p>
+    <p class="notice hidden" id="setup-warn" role="status"></p>
 
     <section class="card setup-section" id="who-you-are">
       <p class="eyebrow">1</p>
@@ -130,6 +131,11 @@
         </label>
       </div>
       <p class="help-tip">Tip: keep consult shorter than a full session so first visits fit even on tighter weeks.</p>
+      <label class="field check-line" style="margin-top:8px">
+        <input type="checkbox" name="page_hidden" id="hide-page" value="1" {% if me.page_hidden %}checked{% endif %}>
+        Hide my page
+      </label>
+      <p class="tiny">Your booking link still opens, and it says you are not taking bookings. You come off the directory, search, and peer referrals. Hours stay as they are. Turn this off anytime.</p>
       <label class="field check-line">
         <input type="checkbox" name="reminders_opt_in" value="1" {% if me.reminders_opt_in %}checked{% endif %}>
         Email me when clients book and before visits

@@ -27,9 +27,11 @@
     {% if provider.address %}<p class="tiny">{{ provider.address }}</p>{% endif %}
     {% if sample_profile %}
     <p class="err" role="status" id="sample-profile">This is a sample profile</p>
+    {% elif bookings_paused %}
+    <p class="lede" id="bookings-paused" role="status">{{ provider.first }} isn't taking bookings right now.</p>
     {% endif %}
   </section>
-  {% if not sample_profile %}
+  {% if not sample_profile and not bookings_paused %}
   {% if provider.consult_enabled %}
   <section class="card" id="visit-kind-card">
     <p class="flow-step flow-step-lg">STEP 1</p>
