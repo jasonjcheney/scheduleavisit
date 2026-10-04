@@ -143,10 +143,11 @@ def main() -> None:
             return {"id": "pi_test_123", "status": "succeeded"}
         fail(f"unexpected stripe call {method} {path}")
 
+    real_stripe_call = fees.stripe_call
     fees.stripe_call = fake_stripe
 
     with TestClient(app) as c:
-        _run(c, calls, fees, httpx, fake_stripe)
+        _run(c, calls, fees, httpx, fake_stripe, real_stripe_call)
 
 
 def _pi_count(calls) -> int:
@@ -187,7 +188,7 @@ def _finish(c, calls):
     return loc
 
 
-def _run(c, calls, fees, httpx, fake_stripe) -> None:
+def _run(c, calls, fees, httpx, fake_stripe, real_stripe_call) -> None:
     from db import connect
 
     with connect() as conn:
@@ -243,15 +244,10 @@ def _run(c, calls, fees, httpx, fake_stripe) -> None:
 
     real_request = fees.httpx.request
     fees.httpx.request = boom
-    fees.stripe_call = fees.stripe_call.__wrapped__ if hasattr(fees.stripe_call, "__wrapped__") else None
-    # Restore the real function, then confirm a network error does not log the key.
-    import importlib
-    importlib.reload(fees)
-    fees.httpx.request = boom
 
     def network():
         try:
-            fees.stripe_call("GET", "/v1/accounts/acct_test_123")
+            real_stripe_call("GET", "/v1/accounts/acct_test_123")
         except fees.StripeError as exc:
             expect(SECRET not in exc.message, "stripe error included the secret")
             return exc
@@ -331,7 +327,7 @@ def _run(c, calls, fees, httpx, fake_stripe) -> None:
     expect("not charged today" in refused.json().get("error", "").lower(), refused.text)
     with connect() as conn:
         row = conn.execute(
-            "SELECT id FROM appointments a JOIN clients c ON c.id=a.client_id WHERE c.email=?",
+            "SELECT a.id FROM appointments a JOIN clients c ON c.id=a.client_id WHERE c.email=?",
             ("no.consent@example.com",),
         ).fetchone()
         expect(row is None, "refused consent still created a visit")
@@ -344,7 +340,7 @@ def _run(c, calls, fees, httpx, fake_stripe) -> None:
     expect(_pi_count(calls) == 0, "setup mode created a charge")
     with connect() as conn:
         pending = conn.execute(
-            "SELECT id FROM appointments a JOIN clients c ON c.id=a.client_id WHERE c.email=?",
+            "SELECT a.id FROM appointments a JOIN clients c ON c.id=a.client_id WHERE c.email=?",
             ("no.consent@example.com",),
         ).fetchone()
         expect(pending is None, "checkout created a visit before return")
