@@ -279,10 +279,11 @@
           <div>
             <strong>{{ a.client_name }}</strong>
             <div class="meta tiny">{{ a.when }} · {{ a.minutes }} min {{ a.kind_label }}{% if a.referred %} · referral{% endif %}</div>
+            {% if a.fee_saved %}<div class="tiny">Card saved · {{ a.fee_amount }} if missed or cancelled inside {{ a.fee_window }} hours. Not charged yet.</div>{% endif %}
           </div>
           <div class="appt-actions">
             <button type="button" class="btn btn-sage btn-sm" data-reschedule="{{ a.id }}" data-date="{{ a.date }}" data-time="{{ a.time }}" data-minutes="{{ a.minutes }}" data-name="{{ a.client_name }}" data-kind="{{ a.visit_kind }}" aria-label="Reschedule visit with {{ a.client_name }}">Reschedule</button>
-            <button type="button" class="btn btn-ghost btn-sm" data-cancel="{{ a.id }}" data-name="{{ a.client_name }}" aria-label="Cancel visit with {{ a.client_name }}">Cancel</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-cancel="{{ a.id }}" data-name="{{ a.client_name }}"{% if a.fee_saved %} data-fee-saved="1"{% endif %} aria-label="Cancel visit with {{ a.client_name }}">Cancel</button>
           </div>
         </div>
         {% else %}
@@ -339,6 +340,10 @@
       </div>
     </section>
   </div>
+
+  {% if payments_ready %}
+  {% include "missed_fee_card.html" %}
+  {% endif %}
 
   <section class="card" id="waitlist-card">
     <h2>Waitlist</h2>

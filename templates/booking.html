@@ -9,7 +9,7 @@
 {% block og_url %}https://scheduleavisit.onrender.com/p/{{ provider.slug }}{% endblock %}
 {% block canonical %}https://scheduleavisit.onrender.com/p/{{ provider.slug }}{% endblock %}
 {% block content %}
-<main class="app-wrap" id="booking-page" data-slug="{{ provider.slug }}" data-minutes="{{ provider.session_minutes }}" data-consult-minutes="{{ provider.consult_minutes }}" data-consult-enabled="{{ provider.consult_enabled }}" data-first="{{ provider.first }}"{% if sample_profile %} data-sample="1"{% endif %}>
+<main class="app-wrap" id="booking-page" data-slug="{{ provider.slug }}" data-minutes="{{ provider.session_minutes }}" data-consult-minutes="{{ provider.consult_minutes }}" data-consult-enabled="{{ provider.consult_enabled }}" data-first="{{ provider.first }}"{% if sample_profile %} data-sample="1"{% endif %}{% if provider.missed_fee %} data-fee-live="1" data-fee-summary="{{ provider.missed_fee.summary }}" data-fee-agreement="{{ provider.missed_fee.agreement }}"{% endif %}>
   <section class="card">
     <div class="provider-hero">
       {% if provider.photo_url %}
@@ -31,6 +31,18 @@
     <p class="lede" id="bookings-paused" role="status">{{ provider.first }} isn't taking bookings right now.</p>
     {% endif %}
   </section>
+  {% if card_cancelled %}
+  <p class="notice" id="card-cancelled-note">No card was saved, so the visit was not booked. You were not charged.</p>
+  {% endif %}
+  {% if provider.missed_fee %}
+  <section class="card fee-box" id="missed-fee-notice">
+    <p class="eyebrow">Before you book</p>
+    <h2>Missed first visit</h2>
+    <p>{{ provider.missed_fee.summary }}</p>
+    <p>{{ provider.missed_fee.agreement }}</p>
+    <p class="tiny">You will be asked to agree again when you confirm the time. The next page is Stripe’s. Card numbers stay with Stripe. We never see them. You are not charged today.</p>
+  </section>
+  {% endif %}
   {% if not sample_profile and not bookings_paused %}
   {% if provider.consult_enabled %}
   <section class="card" id="visit-kind-card">

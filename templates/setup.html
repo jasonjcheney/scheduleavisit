@@ -239,6 +239,10 @@
     </div>
   </form>
 
+  {% if payments_ready %}
+  {% include "missed_fee_card.html" %}
+  {% endif %}
+
   <section class="card setup-section" id="change-password">
     <p class="eyebrow">Account</p>
     <h2>Change password</h2>

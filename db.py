@@ -368,6 +368,13 @@ def migrate(conn: sqlite3.Connection) -> None:
         ("photo_path", "TEXT DEFAULT ''"),
         ("profile_page_url", "TEXT DEFAULT ''"),
         ("page_hidden", "INTEGER NOT NULL DEFAULT 0"),
+        ("stripe_account_id", "TEXT DEFAULT ''"),
+        ("stripe_charges_enabled", "INTEGER NOT NULL DEFAULT 0"),
+        ("stripe_payouts_enabled", "INTEGER NOT NULL DEFAULT 0"),
+        ("stripe_details_submitted", "INTEGER NOT NULL DEFAULT 0"),
+        ("missed_fee_enabled", "INTEGER NOT NULL DEFAULT 0"),
+        ("missed_fee_cents", "INTEGER NOT NULL DEFAULT 0"),
+        ("missed_fee_window_hours", "INTEGER NOT NULL DEFAULT 24"),
     ]
     for name, decl in user_cols:
         if not _has_column(conn, "users", name):
@@ -377,6 +384,19 @@ def migrate(conn: sqlite3.Connection) -> None:
         ("note", "TEXT DEFAULT ''"),
         ("public_token", "TEXT"),
         ("google_event_id", "TEXT DEFAULT ''"),
+        ("fee_cents", "INTEGER NOT NULL DEFAULT 0"),
+        ("fee_window_hours", "INTEGER NOT NULL DEFAULT 0"),
+        ("fee_consent_at", "TEXT"),
+        ("fee_consent_text", "TEXT DEFAULT ''"),
+        ("stripe_customer_id", "TEXT DEFAULT ''"),
+        ("stripe_payment_method_id", "TEXT DEFAULT ''"),
+        ("stripe_setup_intent_id", "TEXT DEFAULT ''"),
+        ("fee_state", "TEXT DEFAULT ''"),
+        ("stripe_payment_intent_id", "TEXT DEFAULT ''"),
+        ("fee_charged_at", "TEXT"),
+        ("fee_error", "TEXT DEFAULT ''"),
+        ("no_show", "INTEGER NOT NULL DEFAULT 0"),
+        ("fee_attempt", "INTEGER NOT NULL DEFAULT 0"),
     ]
     for name, decl in appt_cols:
         if not _has_column(conn, "appointments", name):
@@ -433,6 +453,25 @@ def migrate(conn: sqlite3.Connection) -> None:
     )
     conn.execute("CREATE INDEX IF NOT EXISTS idx_reminders_due ON reminders(status, send_at)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_reminders_appt ON reminders(appointment_id)")
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS fee_holds (
+             id INTEGER PRIMARY KEY AUTOINCREMENT,
+             token TEXT UNIQUE NOT NULL,
+             provider_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+             stripe_account_id TEXT NOT NULL,
+             stripe_session_id TEXT DEFAULT '',
+             stripe_customer_id TEXT DEFAULT '',
+             status TEXT NOT NULL DEFAULT 'pending',
+             appointment_id INTEGER,
+             payload_json TEXT NOT NULL,
+             consent_text TEXT NOT NULL,
+             amount_cents INTEGER NOT NULL,
+             window_hours INTEGER NOT NULL,
+             created_at TEXT NOT NULL,
+             expires_at TEXT NOT NULL
+           )"""
+    )
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_fee_holds_token ON fee_holds(token)")
     conn.commit()
 
 

@@ -95,6 +95,34 @@ from reminders import (
     send_due,
     send_invite_email,
 )
+from fees import (
+    StripeError,
+    apply_connect_event,
+    apply_payment_event,
+    configured as stripe_configured,
+    consent_checked,
+    create_account_link,
+    create_customer,
+    create_express_account,
+    create_off_session_charge,
+    create_setup_session,
+    fetch_account,
+    id_ok,
+    insert_hold,
+    load_hold,
+    log_fee,
+    money_label,
+    parse_amount_cents,
+    parse_window_hours,
+    payment_method_from_session,
+    policy_for,
+    remember_session,
+    retrieve_setup_session,
+    save_visit_fee,
+    settle_client_cancel,
+    verify_webhook,
+    waive_open_fee,
+)
 from capacity import (
     WEEKLY_HORIZON,
     availability_for,
@@ -259,6 +287,7 @@ def require_user(request: Request):
 def tpl(request: Request, name: str, status_code: int = 200, **ctx):
     ctx.setdefault("user", current_user(request))
     ctx.setdefault("google_ready", google_configured())
+    ctx.setdefault("payments_ready", False)
     return templates.TemplateResponse(request, name, ctx, status_code=status_code)
 
 
@@ -1119,12 +1148,14 @@ def booking_page(request: Request, slug: str):
         provider = public_provider(u)
         sample_profile = is_hidden_demo(u)
         bookings_paused = page_is_hidden(u) and not sample_profile
+        provider["missed_fee"] = None if sample_profile or bookings_paused else policy_for(u)
     resp = tpl(
         request, "booking.html",
         provider=provider,
         categories=CATEGORY_CHOICES,
         sample_profile=sample_profile,
         bookings_paused=bookings_paused,
+        card_cancelled=request.query_params.get("card") == "cancelled",
     )
     return resp
 
@@ -1201,6 +1232,8 @@ def booked_page(request: Request, token: str):
         portal_url = (uget(provider, "portal_url", "") or "").strip()
         portal_kind = (uget(provider, "portal_kind", "none") or "none").strip().lower()
         visit_kind = uget(a, "visit_kind", "session") or "session"
+        fee_cents = int(uget(a, "fee_cents", 0) or 0)
+        fee_state = (uget(a, "fee_state", "") or "").strip()
         ctx = {
             "appointment": row(a),
             "confirm_token": a["public_token"],
@@ -1218,6 +1251,10 @@ def booked_page(request: Request, token: str):
             "visit_kind": visit_kind,
             "first_visit": first_visit,
             "cancelled": cancelled,
+            "fee_amount": money_label(fee_cents) if fee_cents else "",
+            "fee_window": int(uget(a, "fee_window_hours", 0) or 0),
+            "fee_state": fee_state,
+            "fee_saved": fee_state == "card_saved" and fee_cents > 0 and not cancelled,
         }
     return tpl(request, "booked.html", **ctx)
 
@@ -1239,6 +1276,7 @@ def api_booked_cancel(token: str):
         )
         cancel_pending(conn, a["id"])
         delete_appointment_event(conn, a)
+        settle_client_cancel(conn, a)
         start = parse_iso(a["start_iso"])
         client = conn.execute("SELECT * FROM clients WHERE id=?", (a["client_id"],)).fetchone() if a["client_id"] else None
         who = (client["name"] if client else "A client")
@@ -1377,6 +1415,100 @@ def invite_page(request: Request, token: str):
         return tpl(request, "invite.html", state="accepted", invite=row(inv), from_name=from_user["name"])
 
 
+def _fee_settings_context(user) -> dict:
+    if not stripe_configured():
+        return {"payments_ready": False}
+    cents = int(uget(user, "missed_fee_cents", 0) or 0)
+    window = int(uget(user, "missed_fee_window_hours", 0) or 0)
+    if window < 1 or window > 168:
+        window = 24
+    account = (uget(user, "stripe_account_id", "") or "").strip()
+    return {
+        "payments_ready": True,
+        "fee_enabled": int(uget(user, "missed_fee_enabled", 0) or 0) == 1,
+        "fee_amount_input": f"{cents / 100:.2f}" if cents else "",
+        "fee_window": window,
+        "fee_live": policy_for(user) is not None,
+        "stripe_connected": id_ok(account, "acct"),
+        "stripe_charges_enabled": int(uget(user, "stripe_charges_enabled", 0) or 0) == 1,
+        "stripe_details_submitted": int(uget(user, "stripe_details_submitted", 0) or 0) == 1,
+    }
+
+
+def _refresh_stripe_account(conn, user):
+    if not stripe_configured():
+        return user
+    account = (uget(user, "stripe_account_id", "") or "").strip()
+    if not id_ok(account, "acct"):
+        return user
+    try:
+        info = fetch_account(account)
+    except StripeError as exc:
+        log_fee(f"account refresh failed code={exc.code}")
+        return user
+    conn.execute(
+        """UPDATE users SET
+             stripe_charges_enabled=?, stripe_payouts_enabled=?, stripe_details_submitted=?
+           WHERE id=?""",
+        (info["charges_enabled"], info["payouts_enabled"], info["details_submitted"], user["id"]),
+    )
+    return user_by_id(conn, user["id"]) or user
+
+
+def _maybe_refresh_stripe(conn, user, request):
+    if request.query_params.get("stripe") not in ("return", "refresh"):
+        return user
+    return _refresh_stripe_account(conn, user)
+
+
+def _fee_action_rows(conn, user) -> list:
+    if not stripe_configured():
+        return []
+    rows = conn.execute(
+        """SELECT a.*, c.name AS client_name
+           FROM appointments a
+           LEFT JOIN clients c ON c.id = a.client_id
+           WHERE a.provider_id=?
+             AND COALESCE(a.fee_cents, 0) > 0
+             AND COALESCE(a.fee_state, '') IN (
+               'card_saved', 'late_cancel', 'no_show', 'charge_failed', 'charged', 'charging'
+             )
+           ORDER BY a.start_iso DESC LIMIT 30""",
+        (user["id"],),
+    ).fetchall()
+    now = now_iso()
+    labels = {
+        "card_saved": "Visit time has passed",
+        "late_cancel": "Cancelled inside the window",
+        "no_show": "Marked no-show",
+        "charge_failed": "Card declined — you can try again",
+        "charged": "Charged. Stripe emailed a receipt.",
+        "charging": "Charge in progress",
+    }
+    out = []
+    for a in rows:
+        state = (uget(a, "fee_state", "") or "").strip()
+        past = a["start_iso"] <= now
+        can_no_show = state == "card_saved" and a["status"] == "booked" and past
+        can_charge = state in ("late_cancel", "no_show", "charge_failed")
+        if not can_no_show and not can_charge and state not in ("charged", "charging"):
+            continue
+        cents = int(uget(a, "fee_cents", 0) or 0)
+        out.append({
+            "id": a["id"],
+            "client_name": a["client_name"] or "Client",
+            "when": _when_label(parse_iso(a["start_iso"])),
+            "amount": money_label(cents),
+            "state": state,
+            "state_label": labels.get(state, "Saved card"),
+            "can_no_show": can_no_show,
+            "can_charge": can_charge,
+            "charged": state == "charged",
+            "error": (uget(a, "fee_error", "") or "").strip(),
+        })
+    return out
+
+
 @app.get("/setup", response_class=HTMLResponse)
 @app.get("/dashboard/setup", response_class=HTMLResponse)
 def setup_page(request: Request):
@@ -1388,7 +1520,12 @@ def setup_page(request: Request):
         if (uget(u, "ical_url", "") or "").strip() or google_is_connected(u):
             sync_busy_calendars(conn, u, timeout=2.0)
             u = user_by_id(conn, user["id"])
+        u = _maybe_refresh_stripe(conn, u, request)
         gctx = google_setup_context(u)
+        fee_ctx = _fee_settings_context(u)
+        fee_ctx["fee_rows"] = []
+        fee_ctx["fee_next"] = "/setup"
+        fee_ctx["stripe_refresh"] = request.query_params.get("stripe") == "refresh"
     workdays = user_workdays(u)
     return tpl(
         request, "setup.html",
@@ -1399,6 +1536,7 @@ def setup_page(request: Request):
         workdays=workdays,
         editing=not needs_setup(u),
         **gctx,
+        **fee_ctx,
     )
 
 
@@ -1413,6 +1551,7 @@ def dashboard(request: Request):
         u = user_by_id(conn, user["id"])
         sync_busy_calendars(conn, u, timeout=2.0)
         u = user_by_id(conn, user["id"])
+        u = _maybe_refresh_stripe(conn, u, request)
         week = start_of_week(today())
         info = projected_hours(conn, u, week, 0)
         st = status_for(info["projected"], info["target"])
@@ -1571,7 +1710,11 @@ def dashboard(request: Request):
             "recommend_max": MAX_RECOMMENDATIONS,
             "recommend_count": outgoing_recommend_count(conn, u["id"]),
             "overflow_to": overflow_to,
+            "fee_rows": _fee_action_rows(conn, u),
+            "fee_next": "/dashboard",
+            "stripe_refresh": request.query_params.get("stripe") == "refresh",
             **google_setup_context(u),
+            **_fee_settings_context(u),
         }
     return tpl(request, "dashboard.html", **ctx)
 
@@ -1752,6 +1895,255 @@ def api_availability(
         return data
 
 
+def _with_fee(conn, item):
+    if not item:
+        return item
+    peer = user_by_slug(conn, item.get("peerSlug") or "")
+    notice = policy_for(peer) if peer else None
+    if not notice:
+        return item
+    item = dict(item)
+    item["missedFee"] = {
+        "amount": notice["amount"],
+        "windowHours": notice["windowHours"],
+        "summary": notice["summary"],
+        "agreement": notice["agreement"],
+    }
+    return item
+
+
+def _hold_message(status: str) -> str:
+    if status == "expired":
+        return "That card step expired. You were not booked and you were not charged."
+    if status == "slot_taken":
+        return "That time was just taken. You were not charged. Please pick another time."
+    if status == "full":
+        return "That week just filled up. You were not charged."
+    if status == "failed":
+        return "The card page did not open. You were not booked and you were not charged."
+    return "The visit was not booked. You were not charged."
+
+
+def _announce_booking(conn, provider, name, day, hhmm, minutes, visit_kind, via, referred_from):
+    if via == "referral" and referred_from:
+        origin = user_by_id(conn, referred_from)
+        origin_first = first_name(origin["name"]) if origin else "A colleague"
+        notify(
+            conn, provider["id"], "referral",
+            f"Referral visit — {name}",
+            f"{origin_first} referred {name} for {format_long(day)} at {format_time(hhmm)}.",
+        )
+        if origin:
+            notify(
+                conn, origin["id"], "referral",
+                f"You referred {name} to {first_name(provider['name'])}",
+                f"{name} is on {first_name(provider['name'])}'s calendar {format_long(day)} at {format_time(hhmm)}.",
+            )
+        return
+    notify(
+        conn, provider["id"], "booking",
+        f"New visit — {name}",
+        f"{name} booked {format_long(day)} at {format_time(hhmm)} ({minutes} min, {visit_kind}) on your public link.",
+    )
+
+
+def _open_checkout(request: Request, checkout: dict):
+    origin = request_origin(request)
+    token = checkout["token"]
+    success = (
+        f"{origin}/book/card-saved?hold={quote(token)}&session_id="
+        + "{CHECKOUT_SESSION_ID}"
+    )
+    cancel = f"{origin}/p/{checkout['slug']}?card=cancelled"
+    try:
+        customer = create_customer(checkout["account"], checkout["email"], checkout["name"])
+        session_id, url = create_setup_session(
+            checkout["account"], customer, success, cancel, token,
+        )
+    except StripeError as exc:
+        log_fee(f"checkout not opened code={exc.code} provider_id={checkout['provider_id']}")
+        with db() as conn:
+            conn.execute(
+                "UPDATE fee_holds SET status='failed' WHERE token=? AND status='pending'",
+                (token,),
+            )
+        return json_err("We could not open the card page. The visit was not booked and you were not charged.")
+    with db() as conn:
+        remember_session(conn, token, session_id, customer)
+    log_fee(f"checkout opened provider_id={checkout['provider_id']}")
+    return {"ok": True, "checkoutUrl": url, "needsCard": True}
+
+
+def _finish_card_hold(token: str, session_id: str) -> dict:
+    session_id = (session_id or "").strip()
+    slug = ""
+    if not id_ok(session_id, "cs"):
+        return {
+            "ok": False,
+            "error": "The card page did not finish. The visit was not booked and you were not charged.",
+            "code": "bad_session",
+            "slug": slug,
+        }
+    with db() as conn:
+        hold = load_hold(conn, token)
+        if not hold:
+            return {
+                "ok": False,
+                "error": "This booking step was not found. You were not charged.",
+                "code": "missing",
+                "slug": slug,
+            }
+        try:
+            payload = json.loads(hold["payload_json"] or "{}")
+        except Exception:
+            payload = {}
+        provider = user_by_id(conn, hold["provider_id"])
+        slug = provider["slug"] if provider else ""
+        if hold["status"] == "completed" and hold["appointment_id"]:
+            return {
+                "ok": True,
+                "redirect": confirm_url(conn, int(hold["appointment_id"])),
+                "already": True,
+                "slug": slug,
+            }
+        if hold["status"] != "pending":
+            return {"ok": False, "error": _hold_message(hold["status"]), "code": hold["status"], "slug": slug}
+        if (hold["stripe_session_id"] or "") != session_id:
+            return {
+                "ok": False,
+                "error": "That checkout session does not match this booking. You were not charged.",
+                "code": "mismatch",
+                "slug": slug,
+            }
+        if parse_iso(hold["expires_at"]) < datetime.now(TZ):
+            conn.execute(
+                "UPDATE fee_holds SET status='expired' WHERE id=? AND status='pending'",
+                (hold["id"],),
+            )
+            return {
+                "ok": False,
+                "error": _hold_message("expired"),
+                "code": "expired",
+                "slug": slug,
+            }
+        account = hold["stripe_account_id"]
+        hold_id = int(hold["id"])
+    try:
+        session = retrieve_setup_session(account, session_id)
+        customer, payment_method, setup_id = payment_method_from_session(account, session, token)
+    except StripeError as exc:
+        log_fee(f"checkout finish failed code={exc.code}")
+        return {
+            "ok": False,
+            "error": "We could not confirm the saved card. The visit was not booked and you were not charged.",
+            "code": "stripe",
+            "slug": slug,
+        }
+    with db() as conn:
+        cur = conn.execute(
+            "UPDATE fee_holds SET status='completing' WHERE id=? AND status='pending'",
+            (hold_id,),
+        )
+        if cur.rowcount != 1:
+            hold = load_hold(conn, token)
+            if hold and hold["status"] == "completed" and hold["appointment_id"]:
+                return {
+                    "ok": True,
+                    "redirect": confirm_url(conn, int(hold["appointment_id"])),
+                    "already": True,
+                    "slug": slug,
+                }
+            status = hold["status"] if hold else "missing"
+            return {"ok": False, "error": _hold_message(status), "code": status, "slug": slug}
+        hold = load_hold(conn, token)
+        provider = user_by_id(conn, hold["provider_id"])
+        if not provider:
+            return {"ok": False, "error": "Calendar not found.", "code": "missing", "slug": slug}
+        slug = provider["slug"]
+        try:
+            day = datetime.strptime(payload.get("date") or "", "%Y-%m-%d").date()
+            hhmm = payload.get("time") or ""
+            if not re.match(r"^\d{2}:\d{2}$", hhmm):
+                raise ValueError
+            minutes = int(payload.get("minutes") or 50)
+        except (TypeError, ValueError):
+            conn.execute("UPDATE fee_holds SET status='failed' WHERE id=?", (hold_id,))
+            return {
+                "ok": False,
+                "error": "That booking step was not valid. You were not charged.",
+                "code": "bad",
+                "slug": slug,
+            }
+        start = at_local(day, hhmm)
+        if start <= datetime.now(TZ):
+            conn.execute("UPDATE fee_holds SET status='expired' WHERE id=?", (hold_id,))
+            return {"ok": False, "error": _hold_message("expired"), "code": "expired", "slug": slug}
+        busy = reject_if_busy(conn, provider, start, minutes)
+        if busy:
+            conn.execute("UPDATE fee_holds SET status='slot_taken' WHERE id=?", (hold_id,))
+            return {"ok": False, "error": _hold_message("slot_taken"), "code": "taken", "slug": slug}
+        if not can_accept_visit(conn, provider, day, minutes):
+            conn.execute("UPDATE fee_holds SET status='full' WHERE id=?", (hold_id,))
+            return {"ok": False, "error": _hold_message("full"), "code": "full", "slug": slug}
+        name = (payload.get("name") or "").strip()
+        email = (payload.get("email") or "").strip()
+        phone = payload.get("phone") or ""
+        visit_kind = payload.get("visit_kind") or "session"
+        via = payload.get("via") or "direct"
+        referred_from = payload.get("referred_from")
+        cid = get_or_create_client(conn, provider["id"], name, email, phone)
+        appt_id = create_appointment(
+            conn, provider["id"], cid, start, minutes, via,
+            referred_from=referred_from, visit_kind=visit_kind,
+        )
+        save_visit_fee(
+            conn, appt_id,
+            int(hold["amount_cents"]), int(hold["window_hours"]), hold["consent_text"],
+            customer, payment_method, setup_id,
+        )
+        _announce_booking(conn, provider, name, day, hhmm, minutes, visit_kind, via, referred_from)
+        after_book(conn, appt_id)
+        push_appointment(conn, appt_id)
+        conn.execute(
+            "UPDATE fee_holds SET status='completed', appointment_id=? WHERE id=?",
+            (appt_id, hold_id),
+        )
+        log_fee(f"card saved provider_id={provider['id']} appointment_id={appt_id}")
+        print(
+            f"[book] provider_id={provider['id']} appointment_id={appt_id} client_id={cid}",
+            flush=True,
+        )
+        return {"ok": True, "redirect": confirm_url(conn, appt_id), "slug": slug}
+
+
+def _fee_checkout_plan(provider, name, email, phone, day, hhmm, minutes, visit_kind, via, referred_from, notice) -> dict:
+    token = secrets.token_urlsafe(24)
+    account = (uget(provider, "stripe_account_id", "") or "").strip()
+    payload = {
+        "name": name,
+        "email": email,
+        "phone": phone or "",
+        "date": day.isoformat(),
+        "time": hhmm,
+        "minutes": minutes,
+        "visit_kind": visit_kind,
+        "via": via,
+        "referred_from": referred_from,
+    }
+    return {
+        "token": token,
+        "account": account,
+        "slug": provider["slug"],
+        "name": name,
+        "email": email,
+        "provider_id": provider["id"],
+        "payload": payload,
+        "consent": notice["agreement"],
+        "cents": notice["amountCents"],
+        "window": notice["windowHours"],
+    }
+
+
 @app.post("/api/p/{slug}/book")
 async def api_book(slug: str, request: Request):
     data = await _body(request)
@@ -1790,8 +2182,8 @@ async def api_book(slug: str, request: Request):
         if not can_accept_visit(conn, u, day, minutes):
             wanted = normalize_category(data.get("category") or data.get("need") or "general")
             recs = referral_candidates(conn, u, day, hhmm, minutes, category=wanted)
-            recommendation = rec_payload(recs[0], minutes) if recs else None
-            alternatives = [rec_payload(r, minutes) for r in recs[1:]]
+            recommendation = _with_fee(conn, rec_payload(recs[0], minutes)) if recs else None
+            alternatives = [_with_fee(conn, rec_payload(r, minutes)) for r in recs[1:]]
             return JSONResponse({
                 "ok": False,
                 "full": True,
@@ -1803,29 +2195,44 @@ async def api_book(slug: str, request: Request):
                 "categoryLabel": category_label(wanted),
                 "message": f"{first_name(u['name'])} does not have room for another {minutes}-minute visit this week.",
             })
-        cid = get_or_create_client(conn, u["id"], name, email, phone)
-        appt_id = create_appointment(conn, u["id"], cid, start, minutes, "direct", visit_kind=visit_kind)
-        notify(
-            conn, u["id"], "booking",
-            f"New visit — {name}",
-            f"{name} booked {format_long(day)} at {format_time(hhmm)} ({minutes} min, {visit_kind}) on your public link.",
-        )
-        after_book(conn, appt_id)
-        push_appointment(conn, appt_id)
-        print(
-            f"[book] provider_id={u['id']} appointment_id={appt_id} client_id={cid}",
-            flush=True,
-        )
-        portal = "" if returning else (uget(u, "portal_url", "") or "").strip()
-        return {
-            "ok": True,
-            "appointmentId": appt_id,
-            "redirect": confirm_url(conn, appt_id),
-            "portalUrl": portal or None,
-            "visitKind": visit_kind,
-            "firstVisit": not returning,
-            "minutes": minutes,
-        }
+        notice = None if returning else policy_for(u)
+        if notice:
+            if not consent_checked(data):
+                return json_err(
+                    f"Please agree to the missed-visit fee on this page ({notice['amount']}, "
+                    f"cancel at least {notice['windowHours']} hours ahead). You are not charged today."
+                )
+            plan = _fee_checkout_plan(
+                u, name, email, phone, day, hhmm, minutes, visit_kind, "direct", None, notice,
+            )
+            insert_hold(
+                conn, plan["token"], u["id"], plan["account"], plan["payload"],
+                plan["consent"], plan["cents"], plan["window"],
+            )
+        else:
+            plan = None
+            cid = get_or_create_client(conn, u["id"], name, email, phone)
+            appt_id = create_appointment(conn, u["id"], cid, start, minutes, "direct", visit_kind=visit_kind)
+            _announce_booking(conn, u, name, day, hhmm, minutes, visit_kind, "direct", None)
+            after_book(conn, appt_id)
+            push_appointment(conn, appt_id)
+            print(
+                f"[book] provider_id={u['id']} appointment_id={appt_id} client_id={cid}",
+                flush=True,
+            )
+            portal = "" if returning else (uget(u, "portal_url", "") or "").strip()
+            booked = {
+                "ok": True,
+                "appointmentId": appt_id,
+                "redirect": confirm_url(conn, appt_id),
+                "portalUrl": portal or None,
+                "visitKind": visit_kind,
+                "firstVisit": not returning,
+                "minutes": minutes,
+            }
+    if plan:
+        return _open_checkout(request, plan)
+    return booked
 
 
 @app.post("/api/p/{slug}/book-referral")
@@ -1863,25 +2270,296 @@ async def api_book_referral(slug: str, request: Request):
             return busy
         if not can_accept_visit(conn, peer, day, minutes):
             return json_err("That professional just reached their weekly cap.")
-        cid = get_or_create_client(conn, peer["id"], name, email, data.get("phone") or "")
-        appt_id = create_appointment(conn, peer["id"], cid, start, minutes, "referral", origin["id"], visit_kind="session")
-        notify(
-            conn, peer["id"], "referral",
-            f"Referral visit — {name}",
-            f"{first_name(origin['name'])} referred {name} for {format_long(day)} at {format_time(hhmm)}.",
+        phone = (data.get("phone") or "").strip()
+        returning = client_is_returning(conn, peer["id"], email)
+        notice = None if returning else policy_for(peer)
+        if notice:
+            if not consent_checked(data):
+                return json_err(
+                    f"Please agree to {first_name(peer['name'])}'s missed-visit fee "
+                    f"({notice['amount']}, cancel at least {notice['windowHours']} hours ahead). "
+                    "You are not charged today."
+                )
+            plan = _fee_checkout_plan(
+                peer, name, email, phone, day, hhmm, minutes, "session", "referral", origin["id"], notice,
+            )
+            insert_hold(
+                conn, plan["token"], peer["id"], plan["account"], plan["payload"],
+                plan["consent"], plan["cents"], plan["window"],
+            )
+        else:
+            plan = None
+            cid = get_or_create_client(conn, peer["id"], name, email, phone)
+            appt_id = create_appointment(
+                conn, peer["id"], cid, start, minutes, "referral", origin["id"], visit_kind="session",
+            )
+            _announce_booking(conn, peer, name, day, hhmm, minutes, "session", "referral", origin["id"])
+            after_book(conn, appt_id)
+            push_appointment(conn, appt_id)
+            print(
+                f"[book-referral] origin_id={origin['id']} peer_id={peer['id']} appointment_id={appt_id} client_id={cid}",
+                flush=True,
+            )
+            booked = {"ok": True, "appointmentId": appt_id, "redirect": confirm_url(conn, appt_id)}
+    if plan:
+        return _open_checkout(request, plan)
+    return booked
+
+
+@app.get("/book/card-saved", response_class=HTMLResponse)
+def card_saved(request: Request):
+    """Stripe returns here after Checkout setup mode. Still no charge."""
+    result = _finish_card_hold(
+        request.query_params.get("hold") or "",
+        request.query_params.get("session_id") or "",
+    )
+    if result.get("ok") and result.get("redirect"):
+        return RedirectResponse(result["redirect"], status_code=303)
+    return tpl(
+        request,
+        "card_return.html",
+        message=result.get("error") or "The visit was not booked. You were not charged.",
+        back_slug=result.get("slug") or "",
+    )
+
+
+@app.post("/api/stripe/webhook")
+async def stripe_webhook(request: Request):
+    if not stripe_configured():
+        return Response(status_code=404)
+    payload = await request.body()
+    try:
+        event = verify_webhook(payload, request.headers.get("stripe-signature") or "")
+    except StripeError:
+        return Response(status_code=400)
+    kind = event.get("type") or ""
+    try:
+        if kind == "checkout.session.completed":
+            obj = (event.get("data") or {}).get("object") or {}
+            if obj.get("mode") == "setup":
+                token = ((obj.get("metadata") or {}).get("hold_token")) or ""
+                result = _finish_card_hold(token, obj.get("id") or "")
+                if result.get("code") == "stripe":
+                    return Response(status_code=500)
+        elif kind in ("account.updated", "payment_intent.succeeded", "payment_intent.payment_failed"):
+            with db() as conn:
+                if kind == "account.updated":
+                    apply_connect_event(conn, event)
+                else:
+                    apply_payment_event(conn, event)
+    except Exception as exc:
+        log_fee(f"webhook handler {type(exc).__name__}")
+        return Response(status_code=500)
+    return {"ok": True}
+
+
+@app.post("/api/me/fee")
+async def api_me_fee(request: Request):
+    user, err = _auth(request)
+    if err:
+        return err
+    if not stripe_configured():
+        return json_err("Missed-visit fees are not set up on this server.", 404)
+    data = await _body(request)
+    enabled = _flag_on(data.get("enabled") if "enabled" in data else data.get("fee_enabled"))
+    window = parse_window_hours(data.get("windowHours") if "windowHours" in data else data.get("window_hours"))
+    amount_raw = data.get("amount")
+    if amount_raw in (None, "") and "amountCents" not in data and "amount_cents" not in data:
+        cents = None
+    else:
+        cents = parse_amount_cents(amount_raw if amount_raw not in (None, "") else None)
+        if cents is None and amount_raw not in (None, ""):
+            return json_err("Enter a fee from $1 to $500.")
+    if window is None and ("windowHours" in data or "window_hours" in data):
+        return json_err("The cancellation window must be between 1 and 168 hours.")
+    with db() as conn:
+        current = user_by_id(conn, user["id"])
+        if cents is None:
+            cents = int(uget(current, "missed_fee_cents", 0) or 0)
+        if window is None:
+            window = int(uget(current, "missed_fee_window_hours", 0) or 24)
+        if enabled and (cents < 100 or cents > 50000):
+            return json_err("Enter a fee from $1 to $500 before turning this on.")
+        if window < 1 or window > 168:
+            return json_err("The cancellation window must be between 1 and 168 hours.")
+        conn.execute(
+            """UPDATE users SET missed_fee_enabled=?, missed_fee_cents=?, missed_fee_window_hours=?
+               WHERE id=?""",
+            (1 if enabled else 0, int(cents), int(window), user["id"]),
+        )
+        saved = user_by_id(conn, user["id"])
+    live = policy_for(saved) is not None
+    if enabled and not live:
+        message = "Saved. Clients will not see this fee until Stripe says you can accept cards."
+    elif live:
+        message = "Saved. New first visits will be asked to save a card. They are not charged today."
+    else:
+        message = "Saved. The missed-visit fee is off."
+    return {"ok": True, "live": live, "message": message}
+
+
+@app.post("/api/me/stripe/connect")
+async def api_stripe_connect(request: Request):
+    user, err = _auth(request)
+    if err:
+        return err
+    if not stripe_configured():
+        return json_err("Missed-visit fees are not set up on this server.", 404)
+    data = await _body(request)
+    nxt = (data.get("next") or "/dashboard").strip()
+    if nxt not in ("/dashboard", "/setup"):
+        nxt = "/dashboard"
+    origin = request_origin(request)
+    return_url = f"{origin}{nxt}?stripe=return"
+    refresh_url = f"{origin}{nxt}?stripe=refresh"
+    with db() as conn:
+        u = user_by_id(conn, user["id"])
+        account = (uget(u, "stripe_account_id", "") or "").strip()
+        details = int(uget(u, "stripe_details_submitted", 0) or 0) == 1
+        if not id_ok(account, "acct"):
+            try:
+                account = create_express_account(u["email"], u["slug"], u["id"])
+            except StripeError as exc:
+                log_fee(f"connect account failed code={exc.code} provider_id={u['id']}")
+                return json_err("Stripe could not start setup. Nothing was charged.")
+            conn.execute(
+                """UPDATE users SET stripe_account_id=?, stripe_charges_enabled=0,
+                   stripe_payouts_enabled=0, stripe_details_submitted=0 WHERE id=?""",
+                (account, u["id"]),
+            )
+            details = False
+            log_fee(f"connect account created provider_id={u['id']}")
+        try:
+            url = create_account_link(account, refresh_url, return_url, details)
+        except StripeError as exc:
+            log_fee(f"connect link failed code={exc.code} provider_id={u['id']}")
+            return json_err("Stripe could not open the setup page. Nothing was charged.")
+    return {"ok": True, "url": url}
+
+
+@app.post("/api/me/appointments/{appt_id}/no-show")
+def api_no_show(request: Request, appt_id: int):
+    user, err = _auth(request)
+    if err:
+        return err
+    if not stripe_configured():
+        return json_err("Missed-visit fees are not set up on this server.", 404)
+    with db() as conn:
+        a = conn.execute(
+            "SELECT * FROM appointments WHERE id=? AND provider_id=?",
+            (appt_id, user["id"]),
+        ).fetchone()
+        if not a or a["status"] != "booked":
+            return json_err("Visit not found", 404)
+        if (uget(a, "fee_state", "") or "") != "card_saved":
+            return json_err("There is no saved card on this visit.")
+        if not (uget(a, "fee_consent_at", "") or "").strip():
+            return json_err("This client did not agree to a missed-visit fee.")
+        if a["start_iso"] > now_iso():
+            return json_err("You can mark a no-show after the visit time.")
+        conn.execute(
+            "UPDATE appointments SET no_show=1, fee_state='no_show', fee_error='' WHERE id=?",
+            (appt_id,),
+        )
+        log_fee(f"no-show provider_id={user['id']} appointment_id={appt_id}")
+    return {"ok": True, "message": "Marked as a no-show. You can charge the saved card once. Nothing is charged until you do."}
+
+
+@app.post("/api/me/appointments/{appt_id}/charge-fee")
+def api_charge_fee(request: Request, appt_id: int):
+    user, err = _auth(request)
+    if err:
+        return err
+    if not stripe_configured():
+        return json_err("Missed-visit fees are not set up on this server.", 404)
+    with db() as conn:
+        u = user_by_id(conn, user["id"])
+        a = conn.execute(
+            """SELECT a.*, c.name AS client_name, c.email AS client_email
+               FROM appointments a
+               LEFT JOIN clients c ON c.id = a.client_id
+               WHERE a.id=? AND a.provider_id=?""",
+            (appt_id, user["id"]),
+        ).fetchone()
+        if not a:
+            return json_err("Visit not found", 404)
+        state = (uget(a, "fee_state", "") or "").strip()
+        if state == "charged":
+            return json_err("That saved card was already charged once.")
+        if state == "waived":
+            return json_err("This visit was cancelled in time, or you cancelled it. The card cannot be charged.")
+        if state not in ("late_cancel", "no_show", "charge_failed", "charging"):
+            return json_err("You can charge this card only after a no-show or a late cancel.")
+        if not (uget(a, "fee_consent_at", "") or "").strip() or not (uget(a, "fee_consent_text", "") or "").strip():
+            return json_err("This client did not agree to a missed-visit fee. The card was not charged.")
+        cents = int(uget(a, "fee_cents", 0) or 0)
+        if cents < 100 or cents > 50000:
+            return json_err("The agreed amount cannot be charged.")
+        account = (uget(u, "stripe_account_id", "") or "").strip()
+        customer = (uget(a, "stripe_customer_id", "") or "").strip()
+        payment_method = (uget(a, "stripe_payment_method_id", "") or "").strip()
+        email = (a["client_email"] or "").strip() if "client_email" in a.keys() else ""
+        if not id_ok(account, "acct") or not id_ok(customer, "cus") or not id_ok(payment_method, "pm"):
+            return json_err("The saved card is missing. Nothing was charged.")
+        if "@" not in email:
+            return json_err("This visit has no email, so Stripe cannot send a receipt. Nothing was charged.")
+        if state == "charging":
+            attempt = int(uget(a, "fee_attempt", 0) or 0) or 1
+        else:
+            cur = conn.execute(
+                """UPDATE appointments
+                   SET fee_state='charging', fee_attempt=COALESCE(fee_attempt, 0) + 1, fee_error=''
+                   WHERE id=? AND fee_state=?""",
+                (appt_id, state),
+            )
+            if cur.rowcount != 1:
+                return json_err("A charge is already in progress.")
+            attempt = conn.execute(
+                "SELECT fee_attempt FROM appointments WHERE id=?", (appt_id,)
+            ).fetchone()["fee_attempt"]
+        start = parse_iso(a["start_iso"])
+        description = (
+            f"Missed first-visit fee for {format_long(start.date())} at "
+            f"{format_time(start.strftime('%H:%M'))} with {u['name']}"
+        )
+        idempotency = f"missed-fee-{appt_id}-try-{int(attempt)}"
+    try:
+        intent = create_off_session_charge(
+            account, customer, payment_method, cents, email, description, appt_id, idempotency,
+        )
+    except StripeError as exc:
+        log_fee(f"charge failed code={exc.code} appointment_id={appt_id}")
+        with db() as conn:
+            conn.execute(
+                """UPDATE appointments SET fee_state='charge_failed', fee_error=?
+                   WHERE id=? AND fee_state='charging'""",
+                (exc.message, appt_id),
+            )
+        return json_err(exc.message)
+    if intent.get("status") != "succeeded":
+        with db() as conn:
+            conn.execute(
+                """UPDATE appointments SET fee_state='charge_failed', fee_error=?
+                   WHERE id=? AND fee_state='charging'""",
+                ("The card was declined. Nothing was charged. You can try again.", appt_id),
+            )
+        return json_err("The card was declined. Nothing was charged. You can try again.")
+    with db() as conn:
+        conn.execute(
+            """UPDATE appointments SET
+                 fee_state='charged', stripe_payment_intent_id=?, fee_charged_at=?, fee_error=''
+               WHERE id=?""",
+            (intent["id"], now_iso(), appt_id),
         )
         notify(
-            conn, origin["id"], "referral",
-            f"You referred {name} to {first_name(peer['name'])}",
-            f"{name} is on {first_name(peer['name'])}'s calendar {format_long(day)} at {format_time(hhmm)}.",
+            conn, user["id"], "fee", "Missed-visit fee charged",
+            f"Stripe charged {money_label(cents)} for the {format_long(start.date())} visit and will email a receipt.",
         )
-        after_book(conn, appt_id)
-        push_appointment(conn, appt_id)
-        print(
-            f"[book-referral] origin_id={origin['id']} peer_id={peer['id']} appointment_id={appt_id} client_id={cid}",
-            flush=True,
-        )
-        return {"ok": True, "appointmentId": appt_id, "redirect": confirm_url(conn, appt_id)}
+    log_fee(f"charged appointment_id={appt_id} amount_cents={cents}")
+    return {
+        "ok": True,
+        "message": f"Charged {money_label(cents)}. Stripe will email the receipt. This card cannot be charged again for this visit.",
+    }
 
 
 @app.post("/api/p/{slug}/waitlist")
@@ -2344,6 +3022,7 @@ def api_cancel(request: Request, appt_id: int):
         )
         cancel_pending(conn, appt_id)
         delete_appointment_event(conn, a)
+        waive_open_fee(conn, appt_id)
         start = parse_iso(a["start_iso"])
         notify(conn, user["id"], "cancel", "Visit cancelled",
                f"The {format_time(start.strftime('%H:%M'))} time on {format_long(start.date())} "
@@ -2647,6 +3326,8 @@ def _dashboard_visit_lists(conn, user) -> tuple[list, list]:
     for a in real:
         start = _in_provider_tz(a["start_iso"], user)
         kind = uget(a, "visit_kind", "session") or "session"
+        fee_cents = int(uget(a, "fee_cents", 0) or 0)
+        fee_state = (uget(a, "fee_state", "") or "").strip()
         upcoming.append({
             "id": a["id"],
             "client_name": a["client_name"] or "Reserved",
@@ -2658,6 +3339,9 @@ def _dashboard_visit_lists(conn, user) -> tuple[list, list]:
             "visit_kind": kind,
             "kind_label": "consult" if kind == "consult" else "session",
             "referred": bool(a["referred_from_provider_id"]),
+            "fee_saved": fee_state == "card_saved" and fee_cents > 0,
+            "fee_amount": money_label(fee_cents) if fee_cents else "",
+            "fee_window": int(uget(a, "fee_window_hours", 0) or 0),
         })
     other_events = []
     for a in imported:

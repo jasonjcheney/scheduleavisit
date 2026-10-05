@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% set compact_nav = true %}
 {% block title %}Terms — ScheduleAVisit{% endblock %}
-{% block meta_description %}ScheduleAVisit is a scheduling tool for independent counselors. Not a clinical record. Not a payments product.{% endblock %}
+{% block meta_description %}ScheduleAVisit is a scheduling tool for independent counselors. Not a clinical record. Not insurance or copay billing.{% endblock %}
 {% block og_title %}Terms — ScheduleAVisit{% endblock %}
 {% block og_description %}Scheduling only. Use your own judgment. Contact jasonjcheney@gmail.com.{% endblock %}
 {% block og_url %}https://scheduleavisit.onrender.com/terms{% endblock %}
@@ -11,17 +11,22 @@
   <section class="card legal-card">
     <p class="eyebrow">Terms</p>
     <h1 class="page-title">A scheduling tool. That is the deal.</h1>
-    <p class="sub">Use it to book a time. It is not a clinic, a chart, or a payment desk.</p>
+    <p class="sub">Use it to book a time. It is not a clinic and not a chart. It does not bill insurance or copays.</p>
 
     <h2>What you get</h2>
     <p>Providers get a public booking link, a weekly hour cap, and a way to send overflow to colleagues they trust. Clients get a time on a calendar and a confirmation page they can save.</p>
+
+    <h2>Missed first visits</h2>
+    <p>A therapist can turn on an optional fee for a missed first visit or intake. When it is on, the booking page shows the amount and the cancellation window before you book. You save a card through Stripe. You are not charged today.</p>
+    <p>If you miss that visit, or you cancel inside the window you were shown, the therapist can charge the saved card that amount once. The money is paid to the therapist. Stripe emails you a receipt. You are not charged unless that notice was on the page and you agreed.</p>
+    <p>Card numbers stay with Stripe. We do not store them. We do not bill insurance or copays, and we do not charge for the visit itself.</p>
 
     <h2>What this is not</h2>
     <ul>
       <li>Not a substitute for clinical judgment</li>
       <li>Not a place for clinical notes</li>
       <li>Not a HIPAA-covered service, and we do not have a BAA</li>
-      <li>Not a payments product — we do not take cards, copays, or insurance billing</li>
+      <li>Not insurance or copay billing</li>
     </ul>
 
     <h2>Your side</h2>

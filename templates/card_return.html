@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% set compact_nav = true %}
+{% block title %}Card not saved — ScheduleAVisit{% endblock %}
+{% block content %}
+<main class="app-wrap">
+  <section class="card">
+    <p class="eyebrow">Not booked</p>
+    <h1 class="page-title">The visit was not booked.</h1>
+    <p>{{ message }}</p>
+    <p class="tiny">You were not charged.</p>
+    <div class="hero-actions">
+      {% if back_slug %}
+      <a class="btn btn-primary" href="/p/{{ back_slug }}">Pick another time</a>
+      {% else %}
+      <a class="btn btn-primary" href="/book">Find a time</a>
+      {% endif %}
+    </div>
+  </section>
+</main>
+{% endblock %}
