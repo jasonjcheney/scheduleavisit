@@ -205,6 +205,29 @@ CREATE TABLE IF NOT EXISTS reminders (
 );
 CREATE INDEX IF NOT EXISTS idx_reminders_due ON reminders(status, send_at);
 CREATE INDEX IF NOT EXISTS idx_reminders_appt ON reminders(appointment_id);
+
+CREATE TABLE IF NOT EXISTS referral_fees (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  appointment_id INTEGER NOT NULL REFERENCES appointments(id) ON DELETE CASCADE,
+  referrer_id INTEGER NOT NULL REFERENCES users(id),
+  receiver_id INTEGER NOT NULL REFERENCES users(id),
+  referral_fee_cents INTEGER NOT NULL,
+  referrer_share_cents INTEGER NOT NULL,
+  platform_share_cents INTEGER NOT NULL,
+  referrer_share_bps INTEGER NOT NULL,
+  split TEXT NOT NULL,
+  status TEXT NOT NULL,
+  stripe_charge_id TEXT DEFAULT '',
+  stripe_transfer_id TEXT DEFAULT '',
+  stripe_payment_intent_id TEXT DEFAULT '',
+  receiver_account_id TEXT DEFAULT '',
+  referrer_account_id TEXT DEFAULT '',
+  error TEXT DEFAULT '',
+  created_at TEXT NOT NULL,
+  charged_at TEXT
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_referral_fees_appt ON referral_fees(appointment_id);
+CREATE INDEX IF NOT EXISTS idx_referral_fees_receiver ON referral_fees(receiver_id);
 """
 
 
@@ -472,6 +495,34 @@ def migrate(conn: sqlite3.Connection) -> None:
            )"""
     )
     conn.execute("CREATE INDEX IF NOT EXISTS idx_fee_holds_token ON fee_holds(token)")
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS referral_fees (
+             id INTEGER PRIMARY KEY AUTOINCREMENT,
+             appointment_id INTEGER NOT NULL REFERENCES appointments(id) ON DELETE CASCADE,
+             referrer_id INTEGER NOT NULL REFERENCES users(id),
+             receiver_id INTEGER NOT NULL REFERENCES users(id),
+             referral_fee_cents INTEGER NOT NULL,
+             referrer_share_cents INTEGER NOT NULL,
+             platform_share_cents INTEGER NOT NULL,
+             referrer_share_bps INTEGER NOT NULL,
+             split TEXT NOT NULL,
+             status TEXT NOT NULL,
+             stripe_charge_id TEXT DEFAULT '',
+             stripe_transfer_id TEXT DEFAULT '',
+             stripe_payment_intent_id TEXT DEFAULT '',
+             receiver_account_id TEXT DEFAULT '',
+             referrer_account_id TEXT DEFAULT '',
+             error TEXT DEFAULT '',
+             created_at TEXT NOT NULL,
+             charged_at TEXT
+           )"""
+    )
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_referral_fees_appt ON referral_fees(appointment_id)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_referral_fees_receiver ON referral_fees(receiver_id)"
+    )
     conn.commit()
 
 

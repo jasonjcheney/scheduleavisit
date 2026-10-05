@@ -43,6 +43,8 @@ Open `http://127.0.0.1:8080`. SQLite lives at `data/app.db` (or `$SAV_DB`).
 
 An optional missed first-visit fee stays hidden until `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, and `STRIPE_WEBHOOK_SECRET` are all set. A first visit then saves a card on Stripe and is not charged today. The therapist can charge that card once after a no-show or a late cancel. The money is paid to the therapist. Without those settings, booking works as it does today.
 
+A referred first booking also has a fee the receiving therapist pays, not the client. The default is $20 (`REFERRAL_FEE_CENTS=2000`): $5 to the referring therapist (`REFERRAL_REFERRER_SHARE_BPS=2500`, which is 25%) and $15 to ScheduleAVisit. It is debited from the receiver’s existing Stripe Connect balance, then the $5 is transferred to the referrer’s Connect account. Direct bookings on a therapist’s own page are not charged. If those three Stripe keys are missing, or the debit does not go through, the visit still books and the dashboard shows the fee as owed.
+
 Email goes out through [Resend](docs/email.md) when `RESEND_API_KEY` and `EMAIL_FROM` are set on the server. If they are missing, or Resend returns an error, booking and invites still succeed and the email is skipped.
 
 Therapists can upload a JPEG/PNG/WebP photo (or pull one from a Psychology Today / personal page they paste) on setup. Photos live on the Render disk under `data/uploads/avatars/` and show on the public booking page, directory, and referral cards. Initials stay as the fallback.
