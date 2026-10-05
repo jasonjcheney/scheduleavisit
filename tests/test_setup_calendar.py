@@ -230,8 +230,9 @@ def main():
         })
         body = r.json()
         expect(body.get("ok"), f"returning book failed: {body}")
-        expect(body.get("visitKind") == "session", f"returning client should be session, got {body}")
-        expect(body.get("minutes") == 50, "returning visit should be 50 min")
+        expect(body.get("visitKind") == "consult", f"returning consult should stay consult, got {body}")
+        expect(body.get("minutes") == 15, "returning consult should stay 15 min")
+        expect(body.get("firstVisit") is False, "returning consult is not a first visit")
         expect(body.get("portalUrl") in (None, ""), "portal should hide on returning visit")
         session_id = body["appointmentId"]
 

@@ -458,17 +458,17 @@ def main() -> None:
         else:
             book_day, book_time = later, later_hhmm
         api_calls = []
+        created_n = {"n": 0}
 
         def fake_api(method, path, access_token, json_body=None, params=None, timeout=8.0):
             api_calls.append({"method": method, "path": path, "body": json_body})
             if method == "POST" and str(path).endswith("/events"):
-                summary = (json_body or {}).get("summary") or ""
-                expect("Pat Google" in summary, f"event title missing client: {summary}")
-                expect("Session" in summary or "Consultation" in summary, f"event title missing kind: {summary}")
                 desc = (json_body or {}).get("description") or ""
                 expect("clinical notes" in desc.lower() or "Scheduling only" in desc, f"desc {desc}")
                 expect("diagnosis" not in desc.lower(), "clinical wording in Google event")
-                return {"id": "gcal-created-1"}
+                created_n["n"] += 1
+                eid = "gcal-created-1" if created_n["n"] == 1 else f"gcal-created-{created_n['n']}"
+                return {"id": eid}
             if method == "PATCH":
                 return {"id": "gcal-created-1"}
             if method == "DELETE":
@@ -497,6 +497,9 @@ def main() -> None:
             appt_id = booked.json()["appointmentId"]
             posts = [x for x in api_calls if x["method"] == "POST" and str(x["path"]).endswith("/events")]
             expect(posts, f"book did not create a Google event: {api_calls}")
+            summary = (posts[-1]["body"] or {}).get("summary") or ""
+            expect("Pat Google" in summary, f"event title missing client: {summary}")
+            expect("Session" in summary or "Consultation" in summary, f"event title missing kind: {summary}")
             with connect() as conn:
                 row = conn.execute("SELECT * FROM appointments WHERE id=?", (appt_id,)).fetchone()
                 expect((row["google_event_id"] or "") == "gcal-created-1", f"google_event_id {row['google_event_id']}")
@@ -517,6 +520,57 @@ def main() -> None:
             deletes = [x for x in api_calls if x["method"] == "DELETE"]
             expect(deletes, f"cancel did not DELETE Google event: {api_calls}")
             print("OK book / reschedule / cancel write Google events")
+
+            # A later booking with the same email must keep the name just typed,
+            # and a consult must stay consult_minutes (15), including on Google.
+            api_calls.clear()
+            rename_day = book_day + timedelta(days=7)
+            while rename_day.isoweekday() > 5:
+                rename_day += timedelta(days=1)
+            first_named = c.post("/api/p/jason-cheney/book", json={
+                "date": rename_day.isoformat(),
+                "time": "09:00",
+                "name": "John",
+                "email": "marina.cho@example.com",
+                "visitKind": "session",
+            })
+            expect(first_named.json().get("ok"), f"seed name book failed: {first_named.text}")
+            api_calls.clear()
+            renamed = c.post("/api/p/jason-cheney/book", json={
+                "date": rename_day.isoformat(),
+                "time": "11:00",
+                "name": "Marina Cho",
+                "email": "marina.cho@example.com",
+                "visitKind": "consult",
+            })
+            renamed_body = renamed.json()
+            expect(renamed_body.get("ok"), f"renamed consult book failed: {renamed.text}")
+            expect(renamed_body.get("visitKind") == "consult", f"consult kind {renamed_body}")
+            expect(renamed_body.get("minutes") == 15, f"consult minutes {renamed_body.get('minutes')}")
+            consult_id = renamed_body["appointmentId"]
+            posts = [x for x in api_calls if x["method"] == "POST" and str(x["path"]).endswith("/events")]
+            expect(posts, f"consult book did not create a Google event: {api_calls}")
+            payload = posts[-1]["body"] or {}
+            summary = payload.get("summary") or ""
+            expect("Marina Cho" in summary, f"calendar title kept the old name: {summary}")
+            expect("John" not in summary, f"calendar title still says John: {summary}")
+            expect("Consultation" in summary, f"calendar title missing consult: {summary}")
+            start_ev = datetime.fromisoformat(payload["start"]["dateTime"])
+            end_ev = datetime.fromisoformat(payload["end"]["dateTime"])
+            span = int((end_ev - start_ev).total_seconds() // 60)
+            expect(span == 15, f"Google event was {span} minutes, not the 15-minute consult")
+            with connect() as conn:
+                appt = conn.execute("SELECT * FROM appointments WHERE id=?", (consult_id,)).fetchone()
+                client_row = conn.execute("SELECT * FROM clients WHERE id=?", (appt["client_id"],)).fetchone()
+                expect(client_row["name"] == "Marina Cho", f"saved client name {client_row['name']}")
+                expect(appt["visit_kind"] == "consult", f"stored kind {appt['visit_kind']}")
+                expect(int(appt["duration_minutes"]) == 15, f"stored minutes {appt['duration_minutes']}")
+                same_email = conn.execute(
+                    "SELECT COUNT(*) AS c FROM clients WHERE provider_id=? AND lower(email)=?",
+                    (appt["provider_id"], "marina.cho@example.com"),
+                ).fetchone()
+                expect(int(same_email["c"]) == 1, f"name change created a second client: {same_email['c']}")
+            print("OK typed name and consult length reach the booking and Google")
 
             api_calls.clear()
             ref_day, ref_time = future_weekday(11)

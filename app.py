@@ -634,14 +634,20 @@ def client_is_returning(conn, provider_id: int, email: str = "") -> bool:
 
 
 def resolve_visit(conn, u, requested_kind: str, email: str) -> tuple[str, int, bool]:
+    """Honor the visit the client picked.
+
+    A consult stays consult_minutes (15 unless the therapist changed it), including
+    when this email has booked here before. A full session stays session_minutes.
+    Returning still matters for the portal link and the missed-visit fee, not the length.
+    """
     session_min = int(uget(u, "session_minutes", 50) or 50)
     consult_min = int(uget(u, "consult_minutes", 15) or 15)
     consult_on = int(uget(u, "consult_enabled", 1) or 0) == 1
     returning = client_is_returning(conn, u["id"], email)
     kind = (requested_kind or "session").strip().lower()
-    if returning or not consult_on or kind != "consult":
-        return "session", session_min, returning
-    return "consult", consult_min, returning
+    if consult_on and kind == "consult":
+        return "consult", consult_min, returning
+    return "session", session_min, returning
 
 
 def block_label(a) -> str:
@@ -659,17 +665,30 @@ def get_or_create_client(conn, provider_id: int, name: str, email: str = "", pho
     existing = None
     if email:
         existing = conn.execute(
-            "SELECT id FROM clients WHERE provider_id=? AND lower(email)=? AND dismissed_at IS NULL",
+            "SELECT id, name FROM clients WHERE provider_id=? AND lower(email)=? AND dismissed_at IS NULL",
             (provider_id, email.lower()),
         ).fetchone()
     else:
         existing = conn.execute(
-            "SELECT id FROM clients WHERE provider_id=? AND lower(name)=? AND dismissed_at IS NULL",
+            "SELECT id, name FROM clients WHERE provider_id=? AND lower(name)=? AND dismissed_at IS NULL",
             (provider_id, name.lower()),
         ).fetchone()
     if existing:
+        sets = []
+        params = []
+        # Same email is the same person. Keep the name they just typed, not an older one.
+        if len(name) >= 2 and name != (existing["name"] or ""):
+            sets.append("name=?")
+            params.append(name)
         if phone:
-            conn.execute("UPDATE clients SET phone=? WHERE id=?", (phone, existing["id"]))
+            sets.append("phone=?")
+            params.append(phone)
+        if sets:
+            params.append(existing["id"])
+            conn.execute(
+                f"UPDATE clients SET {', '.join(sets)} WHERE id=?",
+                params,
+            )
         return existing["id"]
     cur = conn.execute(
         "INSERT INTO clients (provider_id, name, email, phone, created_at) VALUES (?,?,?,?,?)",
