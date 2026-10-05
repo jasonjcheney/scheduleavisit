@@ -243,7 +243,7 @@
         var help = $("#visit-kind-help");
         if (help) {
           help.textContent = visitKind === "consult"
-            ? "Free consultation (" + consultMinutes + " min) — see if it’s a fit. Returning clients book a full session automatically."
+            ? "Free consultation (" + consultMinutes + " min) — see if it’s a fit."
             : "Full session (" + sessionMinutes + " min) — therapy hour for ongoing work.";
         }
         state.time = null;
