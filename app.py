@@ -95,6 +95,12 @@ from reminders import (
     send_due,
     send_invite_email,
 )
+from referral_fees import (
+    collect_for_appointment,
+    dashboard_rows as referral_fee_rows,
+    log_referral,
+    notice_text as referral_fee_notice,
+)
 from fees import (
     StripeError,
     apply_connect_event,
@@ -1429,9 +1435,16 @@ def invite_page(request: Request, token: str):
         notify(
             conn, user["id"], "network",
             f"You joined {first_name(from_user['name'])}'s network",
-            f"When {first_name(from_user['name'])} is at cap, clients can be offered a time with you.",
+            (
+                f"When {first_name(from_user['name'])} is at cap, clients can be offered a time with you. "
+                + referral_fee_notice()
+            ),
         )
-        return tpl(request, "invite.html", state="accepted", invite=row(inv), from_name=from_user["name"])
+        return tpl(
+            request, "invite.html",
+            state="accepted", invite=row(inv), from_name=from_user["name"],
+            referral_fee_notice=referral_fee_notice(),
+        )
 
 
 def _fee_settings_context(user) -> dict:
@@ -1732,6 +1745,8 @@ def dashboard(request: Request):
             "fee_rows": _fee_action_rows(conn, u),
             "fee_next": "/dashboard",
             "stripe_refresh": request.query_params.get("stripe") == "refresh",
+            "referral_fee_notice": referral_fee_notice(),
+            "referral_fee_rows": referral_fee_rows(conn, u["id"]),
             **google_setup_context(u),
             **_fee_settings_context(u),
         }
@@ -1929,6 +1944,22 @@ def _with_fee(conn, item):
         "agreement": notice["agreement"],
     }
     return item
+
+
+def _collect_referral_fee(appointment_id) -> None:
+    """Charge a referred first booking after the visit row is committed.
+
+    A Stripe problem must not undo the booking.
+    """
+    if not appointment_id:
+        return
+    try:
+        with db() as conn:
+            collect_for_appointment(conn, int(appointment_id))
+    except Exception as exc:
+        log_referral(
+            f"collector stopped {type(exc).__name__} appointment_id={appointment_id} booking kept"
+        )
 
 
 def _hold_message(status: str) -> str:
@@ -2132,7 +2163,10 @@ def _finish_card_hold(token: str, session_id: str) -> dict:
             f"[book] provider_id={provider['id']} appointment_id={appt_id} client_id={cid}",
             flush=True,
         )
-        return {"ok": True, "redirect": confirm_url(conn, appt_id), "slug": slug}
+        result = {"ok": True, "redirect": confirm_url(conn, appt_id), "slug": slug}
+        referral_appt_id = appt_id if (via or "") == "referral" and referred_from else None
+    _collect_referral_fee(referral_appt_id)
+    return result
 
 
 def _fee_checkout_plan(provider, name, email, phone, day, hhmm, minutes, visit_kind, via, referred_from, notice) -> dict:
@@ -2267,6 +2301,7 @@ async def api_book_referral(slug: str, request: Request):
     email = (data.get("email") or "").strip()
     if not peer_slug or not re.match(r"^\d{2}:\d{2}$", hhmm) or len(name) < 2 or "@" not in email:
         return json_err("Name, email, peer, date, and time are required.")
+    referral_appt_id = None
     with db() as conn:
         origin = user_by_slug(conn, slug)
         peer = user_by_slug(conn, peer_slug)
@@ -2319,9 +2354,11 @@ async def api_book_referral(slug: str, request: Request):
                 f"[book-referral] origin_id={origin['id']} peer_id={peer['id']} appointment_id={appt_id} client_id={cid}",
                 flush=True,
             )
+            referral_appt_id = appt_id
             booked = {"ok": True, "appointmentId": appt_id, "redirect": confirm_url(conn, appt_id)}
     if plan:
         return _open_checkout(request, plan)
+    _collect_referral_fee(referral_appt_id)
     return booked
 
 

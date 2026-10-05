@@ -24,6 +24,10 @@ services:
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
+      - key: REFERRAL_FEE_CENTS
+        value: "2000"
+      - key: REFERRAL_REFERRER_SHARE_BPS
+        value: "2500"
       - key: RESEND_API_KEY
         sync: false
       - key: EMAIL_FROM

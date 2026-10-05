@@ -419,6 +419,19 @@
     <section class="card" id="referral-network">
       <h2>Referral network</h2>
       <p class="muted">Assign up to {{ recommend_max }} colleagues and tag each with a category. When you are full, the booking page offers the tagged match first, then your General slot, then peers of peers with room. Colleagues with room this week sit at the top.</p>
+      <p class="fee-box" id="referral-fee-notice">{{ referral_fee_notice }}</p>
+      {% if referral_fee_rows %}
+      <div class="list" id="referral-fees">
+        {% for fee in referral_fee_rows %}
+        <div class="list-item">
+          <div>
+            <strong>{{ fee.headline }}</strong>
+            <div class="meta tiny">{{ fee.detail }}</div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
       <p class="tiny recommend-count">{{ recommend_count }} of {{ recommend_max }} colleagues assigned. General is always available as a tag.</p>
       {% for p in peers %}
       <div class="peer" data-peer-id="{{ p.id }}">
